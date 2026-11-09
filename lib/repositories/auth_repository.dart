@@ -363,6 +363,9 @@ class AuthRepository {
     if (kIsWeb) {
       try {
         html.window.localStorage.remove(_kActiveUserKey);
+        html.window.localStorage.remove('cinetrack_custom_profile');
+        html.window.localStorage.remove('cinetrack_my_role');
+        html.window.localStorage.remove('cinetrack_has_password');
       } catch (_) {}
     }
     try {

@@ -294,6 +294,28 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
         );
       }
       return effective;
+    } else {
+      // Profile row does not exist in public.profiles. Check if user was deleted from Supabase Auth!
+      try {
+        final authRes = await supabase.auth.getUser();
+        if (authRes.user == null) {
+          debugPrint('User was deleted from Supabase Auth. Triggering signOut...');
+          Future.microtask(() => ref.read(authRepositoryProvider).signOut());
+          return null;
+        }
+      } catch (authErr) {
+        final errStr = authErr.toString().toLowerCase();
+        if (errStr.contains('does not exist') ||
+            errStr.contains('not found') ||
+            errStr.contains('invalid') ||
+            errStr.contains('bad_jwt') ||
+            errStr.contains('401') ||
+            errStr.contains('403')) {
+          debugPrint('User session invalid on server: $authErr. Triggering signOut...');
+          Future.microtask(() => ref.read(authRepositoryProvider).signOut());
+          return null;
+        }
+      }
     }
   } catch (e) {
     debugPrint('Error fetching user profile from profiles table: $e');
