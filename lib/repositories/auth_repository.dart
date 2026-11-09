@@ -235,10 +235,6 @@ class AuthRepository {
       if ((savedPwdByEmail != null && savedPwdByEmail == password) ||
           (savedPwdByUsername != null && savedPwdByUsername == password) ||
           (savedPwdByInput != null && savedPwdByInput == password)) {
-        if (targetEmail.toLowerCase() == 'artemtselikov2011@gmail.com') {
-          role = 'creator';
-        }
-
         final user = User(
           id: targetUserId ?? 'u_${targetUsername.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')}',
           appMetadata: const {'provider': 'cinetrack'},
@@ -260,9 +256,6 @@ class AuthRepository {
     }
 
     if (authenticatedUser != null) {
-      if (targetEmail.toLowerCase() == 'artemtselikov2011@gmail.com' && role == 'user') {
-        role = 'creator';
-      }
       _persistSession(authenticatedUser, targetUsername, role);
       _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
       return authenticatedUser;

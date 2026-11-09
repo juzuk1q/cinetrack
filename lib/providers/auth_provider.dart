@@ -228,9 +228,6 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
     } catch (_) {}
   }
 
-  // Known platform owner email gets creator role by default
-  final isOwnerEmail = email.toLowerCase() == 'artemtselikov2011@gmail.com';
-
   try {
     final res = await supabase
         .from('profiles')
@@ -242,10 +239,8 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
       final prof = UserProfile.fromJson(res);
       var effective = prof;
 
-      // Apply owner or locally saved role if higher
-      if (isOwnerEmail && effective.role == 'user') {
-        effective = effective.copyWith(role: 'creator');
-      } else if (locallySavedRole != null &&
+      // Apply locally saved role if higher
+      if (locallySavedRole != null &&
           locallySavedRole.isNotEmpty &&
           UserProfile.rankForRole(locallySavedRole) > effective.roleRank) {
         effective = effective.copyWith(role: locallySavedRole);
@@ -310,7 +305,7 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
       if (custom != null) {
         mergedUnlocked.addAll(custom.unlockedTitles);
       }
-      if (effective.role == 'creator' || isOwnerEmail) {
+      if (effective.role == 'creator') {
         mergedUnlocked.addAll([
           'welcome',
           'collector_3',
@@ -358,9 +353,7 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
 
   // Fallback from auth session or metadata
   var role = user.userMetadata?['role'] as String? ?? 'user';
-  if (isOwnerEmail && role == 'user') {
-    role = 'creator';
-  } else if (locallySavedRole != null && locallySavedRole.isNotEmpty) {
+  if (locallySavedRole != null && locallySavedRole.isNotEmpty) {
     role = locallySavedRole;
   }
 
@@ -379,7 +372,7 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
     username: username,
     role: role,
     createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
-    customTitle: custom?.customTitle ?? (isOwnerEmail ? 'Создатель платформы 👑' : null),
+    customTitle: custom?.customTitle,
     bannerUrl: custom?.bannerUrl,
     avatarUrl: avatarUrl,
     isPrivate: custom?.isPrivate ?? false,
@@ -441,7 +434,6 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
     if (current == null) return list;
 
     final email = (current.email ?? '').toLowerCase();
-    final isOwner = email == 'artemtselikov2011@gmail.com';
     final googleAvatar = current.userMetadata?['avatar_url'] as String? ??
         current.userMetadata?['picture'] as String?;
     final googleName = current.userMetadata?['full_name'] as String? ??
@@ -452,9 +444,7 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
       if (u.id == current.id || u.email.toLowerCase() == email) {
         found = true;
         var r = u.role;
-        if (isOwner && r == 'user') {
-          r = 'creator';
-        } else if (localRole != null &&
+        if (localRole != null &&
             localRole.isNotEmpty &&
             UserProfile.rankForRole(localRole) > u.roleRank) {
           r = localRole;
@@ -484,6 +474,7 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
 
     if (!found) {
       final emailPrefix = email.contains('@') ? email.split('@').first : 'cinelover';
+      final defaultRole = current.userMetadata?['role'] as String? ?? (localRole ?? 'user');
       final newCurrent = UserProfile(
         id: current.id,
         email: current.email ?? '',
@@ -493,12 +484,12 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
         username: custom?.username.isNotEmpty == true
             ? custom!.username
             : emailPrefix,
-        role: isOwner ? 'creator' : (localRole ?? 'admin'),
+        role: defaultRole,
         createdAt: DateTime.now(),
-        customTitle: custom?.customTitle ?? (isOwner ? 'Создатель платформы 👑' : 'Администратор ⭐'),
+        customTitle: custom?.customTitle,
         avatarUrl: custom?.avatarUrl?.isNotEmpty == true ? custom!.avatarUrl : googleAvatar,
         bannerUrl: custom?.bannerUrl,
-        unlockedTitles: const ['welcome', 'legend', 'popcorn_master', 'critic'],
+        unlockedTitles: const ['welcome'],
       );
       updated.insert(0, newCurrent);
     }
@@ -551,20 +542,23 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
 
     // 3. Seed default mock community list with rich roles
     final current = _ref.read(currentUserProvider);
-    final email = current?.email ?? 'artemtselikov2011@gmail.com';
-    final isOwner = email.toLowerCase() == 'artemtselikov2011@gmail.com';
+    final custom = _ref.read(profileCustomizationProvider);
+    final email = current?.email ?? '';
+    final defaultRole = current?.userMetadata?['role'] as String? ?? 'user';
+    final emailPrefix = email.contains('@') ? email.split('@').first : 'user';
 
     final defaultList = [
-      UserProfile(
-        id: current?.id ?? 'u_admin',
-        email: email,
-        displayName: current?.userMetadata?['display_name'] ?? (isOwner ? 'x1kqw' : 'Администратор'),
-        username: isOwner ? 'juzuk1q' : 'admin',
-        role: isOwner ? 'creator' : 'admin',
-        createdAt: DateTime.now(),
-        customTitle: 'Создатель платформы 👑',
-        unlockedTitles: const ['welcome', 'legend', 'party_host', 'veteran'],
-      ),
+      if (current != null)
+        UserProfile(
+          id: current.id,
+          email: email,
+          displayName: current.userMetadata?['display_name'] ?? emailPrefix,
+          username: emailPrefix,
+          role: defaultRole,
+          createdAt: DateTime.now(),
+          customTitle: custom?.customTitle,
+          unlockedTitles: const ['welcome'],
+        ),
       UserProfile(
         id: 'u_dev_1',
         email: 'coder@cinetrack.local',
