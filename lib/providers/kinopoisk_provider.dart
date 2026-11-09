@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/catalog_item.dart';
+import '../models/series_episode.dart';
 import '../services/kinopoisk_service.dart';
 
 class CatalogFilterState {
@@ -267,4 +268,10 @@ final catalogProvider =
     StateNotifierProvider<CatalogNotifier, CatalogState>((ref) {
   final service = ref.watch(kinopoiskServiceProvider);
   return CatalogNotifier(service);
+});
+
+final seasonsProvider =
+    FutureProvider.family<List<SeriesSeason>, int>((ref, kpId) async {
+  final service = ref.watch(kinopoiskServiceProvider);
+  return service.getSeasons(kpId);
 });

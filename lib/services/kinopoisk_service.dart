@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 import '../data/curated_catalog.dart';
 import '../models/catalog_item.dart';
+import '../models/series_episode.dart';
 
 class KinopoiskService {
   static const String _baseUrl = 'https://kinopoiskapiunofficial.tech';
@@ -19,6 +20,7 @@ class KinopoiskService {
   }
 
   static final Map<String, List<CatalogItem>> _cache = {};
+  static final Map<String, List<SeriesSeason>> _seasonsCache = {};
 
   static Map<String, String> get _headers => {
         'X-API-KEY': _apiKey,
@@ -319,6 +321,39 @@ class KinopoiskService {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final List<dynamic> items = data['items'] ?? [];
         return items.cast<Map<String, dynamic>>();
+      }
+    } catch (_) {}
+
+    return [];
+  }
+
+  /// Fetch series seasons and episodes by Kinopoisk ID
+  Future<List<SeriesSeason>> getSeasons(int id) async {
+    final cacheKey = 'seasons_$id';
+    if (_seasonsCache.containsKey(cacheKey)) {
+      return _seasonsCache[cacheKey]!;
+    }
+
+    try {
+      final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id/seasons');
+      final response = await _getWithRetry(uri);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final List<dynamic> items = data['items'] ?? [];
+        final seasons = items
+            .whereType<Map<String, dynamic>>()
+            .map((s) => SeriesSeason.fromJson(s))
+            .where((s) => s.episodes.isNotEmpty)
+            .toList();
+
+        // Sort seasons by number ascending
+        seasons.sort((a, b) => a.number.compareTo(b.number));
+
+        if (seasons.isNotEmpty) {
+          _seasonsCache[cacheKey] = seasons;
+          return seasons;
+        }
       }
     } catch (_) {}
 

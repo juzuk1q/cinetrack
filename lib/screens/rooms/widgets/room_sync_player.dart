@@ -304,6 +304,10 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
       ..style.width = '100%'
       ..style.height = '100%'
       ..style.backgroundColor = '#0A0A14'
+      ..setAttribute(
+        'sandbox',
+        'allow-scripts allow-same-origin allow-forms allow-presentation',
+      )
       ..allow =
           'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
 
