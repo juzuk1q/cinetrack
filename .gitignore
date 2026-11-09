@@ -28,10 +28,10 @@ migrate_working_dir/
 .packages
 .pub-cache/
 .pub/
-/build/
+/build/*
+!/build/web/
 
 # Web related
-lib/generated_plugin_registrant.dart
 web/flutter_bootstrap.js
 
 # Exclude credentials / caches
