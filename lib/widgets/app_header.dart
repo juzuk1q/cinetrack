@@ -1,17 +1,17 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/movie_randomizer.dart';
 import '../data/curated_catalog.dart';
 import '../models/catalog_item.dart';
 import '../services/kinopoisk_service.dart';
 import '../providers/auth_provider.dart';
+import '../providers/kinopoisk_provider.dart';
 import '../providers/room_provider.dart';
 import '../providers/theme_provider.dart';
-import 'top_notification.dart';
 
 class AppHeader extends ConsumerStatefulWidget implements PreferredSizeWidget {
   final String? activeRoute;
@@ -146,15 +146,12 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
   }
 
   void _openRandomMovie() {
-    const list = CuratedCatalog.items;
-    if (list.isEmpty) return;
-    final randomItem = list[Random().nextInt(list.length)];
-    TopNotification.showSuccess(
+    final catalogItems = ref.read(catalogProvider).items;
+    MovieRandomizer.pickAndOpen(
       context,
-      'Выбран фильм: «${randomItem.title}» (${randomItem.year}) 🎲',
-      title: 'Случайный фильм 🎲',
+      candidates: catalogItems,
+      usePush: true,
     );
-    context.push('/movie/${randomItem.kinopoiskId ?? randomItem.title}', extra: randomItem);
   }
 
   Widget _buildSearchDropdown() {

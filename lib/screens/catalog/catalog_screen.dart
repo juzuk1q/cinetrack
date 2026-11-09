@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/movie_randomizer.dart';
 import '../../core/theme.dart';
 import '../../data/curated_catalog.dart';
 import '../../models/catalog_item.dart';
@@ -400,15 +401,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   }
 
   void _pickRandomMovie(List<CatalogItem> items) {
-    if (items.isEmpty) return;
-    final list = List<CatalogItem>.from(items)..shuffle();
-    final item = list.first;
-    TopNotification.showSuccess(
-      context,
-      'Выбран фильм: «${item.title}» 🎲',
-      title: 'Случайный фильм',
-    );
-    context.go('/movie/${item.kinopoiskId ?? item.title}');
+    MovieRandomizer.pickAndOpen(context, candidates: items, usePush: false);
   }
 
   Widget _buildFilterChip(String type, String label, IconData icon) {
