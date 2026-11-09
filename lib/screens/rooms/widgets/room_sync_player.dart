@@ -96,6 +96,7 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
     'Основной',
     'Резервный',
     'Резервный-2',
+    'Резервный-3',
     'Трейлер ▶',
   ];
 
@@ -103,15 +104,17 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
     final kpId = widget.room.kinopoiskId ?? 301;
     switch (index) {
       case 0:
-        return 'https://kinobox.tv/embed/kinopoisk/$kpId';
+        return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId';
       case 1:
-        return 'https://alloha.club/embed/kp/$kpId';
+        return 'https://kodik.online/find-player?kinopoiskID=$kpId';
       case 2:
-        return 'https://kodik.info/find-player?kinopoiskID=$kpId';
+        return 'https://embed.v-service.club/?kp=$kpId';
       case 3:
+        return 'https://streamguard.cc/embed/kinopoisk/$kpId';
+      case 4:
         return 'https://api.atomics.ws/embed/trailer-kp/$kpId';
       default:
-        return 'https://kinobox.tv/embed/kinopoisk/$kpId';
+        return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId';
     }
   }
 

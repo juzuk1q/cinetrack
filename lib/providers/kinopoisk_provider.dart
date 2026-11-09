@@ -207,9 +207,9 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
 
       state = state.copyWith(
         isLoadingMore: false,
-        items: [...state.items, ...filteredNew],
+        items: filteredNew.isNotEmpty ? [...state.items, ...filteredNew] : state.items,
         currentPage: nextPage,
-        hasMore: newItems.length >= 8,
+        hasMore: newItems.length >= 5,
       );
     } catch (_) {
       state = state.copyWith(isLoadingMore: false, hasMore: false);

@@ -651,6 +651,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildCategoryBtn(String category, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentCat = ref.watch(catalogProvider).filter.category;
     final isSelected = currentCat == category;
 
@@ -668,17 +669,29 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF7C3AED)
-              : const Color(0xFF1E1E34),
+              : (isDark ? const Color(0xFF1E1E34) : Colors.white),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? const Color(0xFF9F67FF) : Colors.white12,
+            color: isSelected
+                ? const Color(0xFF9F67FF)
+                : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
             width: isSelected ? 1.5 : 1,
           ),
+          boxShadow: [
+            if (!isDark && !isSelected)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+          ],
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : const Color(0xFF475569)),
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             fontSize: 13,
             letterSpacing: 0.5,
@@ -689,6 +702,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildAnimeSubFilterChip(String subFilter, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = _animeSubFilter == subFilter;
     return InkWell(
       onTap: () => setState(() => _animeSubFilter = subFilter),
@@ -697,17 +711,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF1E1E38),
+          color: isSelected
+              ? const Color(0xFF6366F1)
+              : (isDark ? const Color(0xFF1E1E38) : Colors.white),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFF818CF8) : Colors.white12,
+            color: isSelected
+                ? const Color(0xFF818CF8)
+                : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
             width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : const Color(0xFF475569)),
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -717,6 +737,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildCatalogGrid(List<CatalogItem> allItems, Set<String> userTitles) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentCat = ref.watch(catalogProvider).filter.category;
     List<CatalogItem> items = allItems;
     if (currentCat == 'anime') {
@@ -732,15 +753,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.filter_list_off_rounded,
-                size: 56, color: Colors.white24),
+            Icon(Icons.filter_list_off_rounded,
+                size: 56,
+                color: isDark ? Colors.white24 : const Color(0xFF94A3B8)),
             const SizedBox(height: 12),
             Text(
               _animeSubFilter == 'series'
                   ? 'В этой выборке нет аниме-сериалов'
                   : 'В этой выборке нет полнометражных фильмов',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A)),
             ),
             const SizedBox(height: 8),
             ElevatedButton(
@@ -754,6 +778,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     final catalogState = ref.watch(catalogProvider);
     final isLoadingMore = catalogState.isLoadingMore;
+    final hasMore = catalogState.hasMore;
 
     return Center(
       child: ConstrainedBox(
@@ -775,8 +800,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
             return NotificationListener<ScrollNotification>(
               onNotification: (ScrollNotification scrollInfo) {
-                if (scrollInfo.metrics.pixels >=
-                    scrollInfo.metrics.maxScrollExtent - 400) {
+                if (scrollInfo.metrics.extentAfter < 600 ||
+                    scrollInfo.metrics.pixels >=
+                        scrollInfo.metrics.maxScrollExtent - 600) {
                   ref.read(catalogProvider.notifier).loadMore();
                 }
                 return false;
@@ -789,26 +815,53 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 20,
                 ),
-                itemCount: items.length + (isLoadingMore ? 1 : 0),
+                itemCount: items.length + (isLoadingMore || hasMore ? 1 : 0),
                 itemBuilder: (context, i) {
                   if (i >= items.length) {
-                    return Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E34),
-                          borderRadius: BorderRadius.circular(12),
+                    if (isLoadingMore) {
+                      return Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1E1E34)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: isDark
+                                    ? Colors.white12
+                                    : const Color(0xFFCBD5E1)),
+                          ),
+                          child: const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF9F67FF)),
+                            ),
+                          ),
                         ),
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Color(0xFF9F67FF)),
+                      );
+                    } else if (hasMore) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        ref.read(catalogProvider.notifier).loadMore();
+                      });
+                      return Center(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              ref.read(catalogProvider.notifier).loadMore(),
+                          icon: const Icon(Icons.add_rounded, size: 16),
+                          label: const Text('Ещё фильмы',
+                              style: TextStyle(fontSize: 12)),
                         ),
-                      ),
-                    );
+                      );
+                    }
+                    return const SizedBox();
                   }
                   final item = items[i];
-                  final inColl = userTitles.contains(item.title.toLowerCase().trim());
+                  final inColl =
+                      userTitles.contains(item.title.toLowerCase().trim());
                   return _CatalogCardWidget(
                     item: item,
                     alreadyInCollection: inColl,
@@ -853,6 +906,7 @@ class _CatalogCardWidgetState extends State<_CatalogCardWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final item = widget.item;
     final alreadyInCollection = widget.alreadyInCollection;
 
@@ -866,25 +920,29 @@ class _CatalogCardWidgetState extends State<_CatalogCardWidget> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
-            color: const Color(0xFF16162A),
+            color: isDark ? const Color(0xFF16162A) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: _isHovered ? const Color(0xFF7C3AED) : Colors.white10,
+              color: _isHovered
+                  ? const Color(0xFF7C3AED)
+                  : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
               width: _isHovered ? 1.4 : 1,
             ),
             boxShadow: _isHovered
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
+                      color: const Color(0xFF7C3AED)
+                          .withValues(alpha: isDark ? 0.35 : 0.25),
                       blurRadius: 18,
                       offset: const Offset(0, 6),
                     ),
                   ]
                 : [
-                    const BoxShadow(
-                      color: Colors.black26,
+                    BoxShadow(
+                      color: Colors.black
+                          .withValues(alpha: isDark ? 0.26 : 0.05),
                       blurRadius: 4,
-                      offset: Offset(0, 2),
+                      offset: const Offset(0, 2),
                     ),
                   ],
           ),

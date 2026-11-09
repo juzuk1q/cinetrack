@@ -335,9 +335,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final effectiveIsPrivate =
         isViewingSelf ? myIsPrivate : (otherProfile?.isPrivate ?? false);
     final isFriend = !isViewingSelf && myFriends.contains(otherProfile?.handle ?? '');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
       body: CustomScrollView(
         slivers: [
           // 1. Top Modern Streaming Nav Bar with Live Search (Header)
@@ -354,22 +355,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   padding: const EdgeInsets.fromLTRB(32, 20, 32, 16),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF16162A),
+                      color: isDark ? const Color(0xFF16162A) : Colors.white,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                        color: isDark
+                            ? const Color(0xFF7C3AED).withValues(alpha: 0.3)
+                            : const Color(0xFFE2E8F0),
                         width: 1.2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
+                          color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.05),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Top: Panoramic Banner Cover

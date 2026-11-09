@@ -679,11 +679,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final rooms = ref.watch(roomsProvider);
     final liveRooms = rooms.where((r) => r.status == 'watching').toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
       body: CustomScrollView(
         slivers: [
           // 1. Top Modern Streaming Nav Bar with Live Interactive Search
@@ -1776,13 +1777,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         itemCount: rooms.length,
         separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, i) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           final room = rooms[i];
           return Container(
             width: 360,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF16162A),
+              color: isDark ? const Color(0xFF16162A) : Colors.white,
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+              ],
             ),
             child: Row(
               children: [
@@ -1875,12 +1888,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildEmptyRoomCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF16162A),
+        color: isDark ? const Color(0xFF16162A) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
       ),
       child: Center(
         child: Column(

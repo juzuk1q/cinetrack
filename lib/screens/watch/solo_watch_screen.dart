@@ -138,11 +138,13 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     final kpId = widget.kinopoiskId ?? 258687;
 
     if (_activeTab == 'collaps') {
-      return 'https://kinobox.tv/embed/kinopoisk/$kpId';
+      return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId';
     } else if (_activeTab == 'alloha') {
-      return 'https://alloha.club/embed/kp/$kpId';
+      return 'https://embed.v-service.club/?kp=$kpId';
     } else if (_activeTab == 'backup') {
-      return 'https://kodik.info/find-player?kinopoiskID=$kpId';
+      return 'https://kodik.online/find-player?kinopoiskID=$kpId';
+    } else if (_activeTab == 'rezka') {
+      return 'https://streamguard.cc/embed/kinopoisk/$kpId';
     } else {
       return 'https://api.atomics.ws/embed/trailer-kp/$kpId';
     }
@@ -519,14 +521,20 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                                   const SizedBox(width: 6),
                                   _buildCompactTab(
                                     label: 'Резервный',
+                                    isActive: _activeTab == 'backup',
+                                    onTap: () => _switchTab('backup'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _buildCompactTab(
+                                    label: 'Резервный-2',
                                     isActive: _activeTab == 'alloha',
                                     onTap: () => _switchTab('alloha'),
                                   ),
                                   const SizedBox(width: 6),
                                   _buildCompactTab(
-                                    label: 'Резервный-2',
-                                    isActive: _activeTab == 'backup',
-                                    onTap: () => _switchTab('backup'),
+                                    label: 'Резервный-3',
+                                    isActive: _activeTab == 'rezka',
+                                    onTap: () => _switchTab('rezka'),
                                   ),
                                   const SizedBox(width: 6),
                                   _buildCompactTab(

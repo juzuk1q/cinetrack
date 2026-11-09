@@ -6,7 +6,17 @@ import '../models/catalog_item.dart';
 
 class KinopoiskService {
   static const String _baseUrl = 'https://kinopoiskapiunofficial.tech';
-  static const String _apiKey = '94660b64-04f7-4aad-92f2-bf025a953f99';
+  static final List<String> _apiKeys = [
+    '177d7b2b-c494-45dc-ae84-7e486611f512',
+    '94660b64-04f7-4aad-92f2-bf025a953f99',
+  ];
+  static int _currentKeyIndex = 0;
+
+  static String get _apiKey => _apiKeys[_currentKeyIndex % _apiKeys.length];
+
+  static void _rotateKey() {
+    _currentKeyIndex = (_currentKeyIndex + 1) % _apiKeys.length;
+  }
 
   static final Map<String, List<CatalogItem>> _cache = {};
 
@@ -14,6 +24,22 @@ class KinopoiskService {
         'X-API-KEY': _apiKey,
         'Content-Type': 'application/json',
       };
+
+  static Future<http.Response> _getWithRetry(Uri uri) async {
+    for (int attempt = 0; attempt < _apiKeys.length; attempt++) {
+      try {
+        final resp = await http.get(uri, headers: _headers);
+        if (resp.statusCode == 402 || resp.statusCode == 429) {
+          _rotateKey();
+          continue;
+        }
+        return resp;
+      } catch (_) {
+        _rotateKey();
+      }
+    }
+    return http.get(uri, headers: _headers);
+  }
 
   // Standard Lordfilm genre mappings to Kinopoisk API genre IDs
   static const Map<String, int> genreMap = {
@@ -70,7 +96,7 @@ class KinopoiskService {
 
     try {
       final uri = Uri.parse('$_baseUrl/api/v2.2/films/collections?type=TOP_POPULAR_ALL&page=$page');
-      final response = await http.get(uri, headers: _headers);
+      final response = await _getWithRetry(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -106,7 +132,7 @@ class KinopoiskService {
     try {
       final uri = Uri.parse(
           '$_baseUrl/api/v2.1/films/search-by-keyword?keyword=${Uri.encodeQueryComponent(keyword.trim())}&page=$page');
-      final response = await http.get(uri, headers: _headers);
+      final response = await _getWithRetry(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -145,7 +171,7 @@ class KinopoiskService {
 
     try {
       final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id');
-      final response = await http.get(uri, headers: _headers);
+      final response = await _getWithRetry(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -213,7 +239,7 @@ class KinopoiskService {
       }
 
       final uri = Uri.parse('$_baseUrl/api/v2.2/films').replace(queryParameters: queryParams);
-      final response = await http.get(uri, headers: _headers);
+      final response = await _getWithRetry(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -264,7 +290,7 @@ class KinopoiskService {
 
     try {
       final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id/images?type=STILL&page=1');
-      final response = await http.get(uri, headers: _headers);
+      final response = await _getWithRetry(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -287,7 +313,7 @@ class KinopoiskService {
   Future<List<Map<String, dynamic>>> getFilmVideos(int id) async {
     try {
       final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id/videos');
-      final response = await http.get(uri, headers: _headers);
+      final response = await _getWithRetry(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));

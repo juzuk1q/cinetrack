@@ -417,6 +417,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   }
 
   Widget _buildRoomCard(WatchRoom room) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(currentUserProvider);
     final isAdmin = ref.watch(isAdminProvider);
     final isOwner = user != null &&
@@ -468,13 +469,15 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                   const Spacer(),
                   Row(
                     children: [
-                      const Icon(Icons.people_alt_rounded,
-                          size: 16, color: Colors.white54),
+                      Icon(Icons.people_alt_rounded,
+                          size: 16,
+                          color: isDark ? Colors.white54 : const Color(0xFF64748B)),
                       const SizedBox(width: 4),
                       Text(
                         '${room.participantCount}',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 13),
+                        style: TextStyle(
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                            fontSize: 13),
                       ),
                       if (canDelete) ...[
                         const SizedBox(width: 8),
@@ -518,10 +521,10 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                         width: 36,
                         height: 50,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorBuilder: (_, __, ___) => Icon(
                             Icons.movie_rounded,
                             size: 28,
-                            color: Colors.white24),
+                            color: isDark ? Colors.white24 : Colors.black26),
                       ),
                     )
                   else
@@ -555,13 +558,15 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                           'Организатор: ${room.ownerName}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 11),
+                          style: TextStyle(
+                              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                              fontSize: 11),
                         ),
                         Text(
                           'Сеанс: ${DateFormat('d MMM, HH:mm', 'ru').format(room.scheduledAt)}',
-                          style: const TextStyle(
-                              color: Colors.white38, fontSize: 11),
+                          style: TextStyle(
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                              fontSize: 11),
                         ),
                       ],
                     ),
@@ -578,11 +583,14 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isWatching
                         ? const Color(0xFF7C3AED)
-                        : const Color(0xFF252540),
+                        : (isDark ? const Color(0xFF252540) : const Color(0xFFE2E8F0)),
+                    foregroundColor: isWatching
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : const Color(0xFF0F172A)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 3,
+                    elevation: isWatching ? 3 : 1,
                   ),
                   icon: const Icon(Icons.login_rounded, size: 18),
                   label: const Text(

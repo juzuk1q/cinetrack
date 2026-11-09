@@ -1,3 +1,6 @@
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -289,6 +292,87 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     context.go(uri.toString());
   }
 
+  void _openTrailerModal(CatalogItem item) {
+    final kpId = item.kinopoiskId ?? 258687;
+    final viewId = 'cinetrack-detail-trailer-$kpId-${DateTime.now().millisecondsSinceEpoch}';
+    final trailerUrl = 'https://api.atomics.ws/embed/trailer-kp/$kpId';
+
+    final iframe = html.IFrameElement()
+      ..src = trailerUrl
+      ..referrerPolicy = 'no-referrer'
+      ..setAttribute('referrerpolicy', 'no-referrer')
+      ..style.border = 'none'
+      ..style.width = '100%'
+      ..style.height = '100%'
+      ..style.backgroundColor = '#0A0A14'
+      ..allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      viewId,
+      (int id) => iframe,
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Container(
+          width: 960,
+          height: 560,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F0F1A),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFF7C3AED), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
+                blurRadius: 36,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                color: const Color(0xFF16162A),
+                child: Row(
+                  children: [
+                    const Icon(Icons.play_circle_fill_rounded,
+                        color: Color(0xFF9F67FF), size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Официальный трейлер: ${item.title} (${item.year})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          fontSize: 14.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                      onPressed: () => Navigator.pop(ctx),
+                      tooltip: 'Закрыть',
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: HtmlElementView(viewType: viewId),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _startPartyWatch() {
     if (_item == null) return;
     final user = ref.read(currentUserProvider);
@@ -565,15 +649,17 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     final ratingKp = item.rating;
     final ratingImdb = item.ratingImdb ?? (item.rating > 0.5 ? item.rating - 0.2 : 8.1);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0C0C16),
+      backgroundColor: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF1F5F9),
       body: Stack(
         fit: StackFit.expand,
         children: [
           // Ambient blurred cover backdrop to remove empty dark dead space
           Positioned.fill(
             child: Opacity(
-              opacity: 0.18,
+              opacity: isDark ? 0.18 : 0.08,
               child: Image.network(
                 CatalogItem.fixPosterUrl(heroImageUrl, kpId: item.kinopoiskId),
                 fit: BoxFit.cover,
@@ -585,15 +671,21 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             child: BackdropFilter(
               filter: ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xEE0C0C16),
-                      Color(0xF50C0C16),
-                      Color(0xFF0C0C16),
-                    ],
+                    colors: isDark
+                        ? const [
+                            Color(0xEE0C0C16),
+                            Color(0xF50C0C16),
+                            Color(0xFF0C0C16),
+                          ]
+                        : const [
+                            Color(0xEEF1F5F9),
+                            Color(0xF5F1F5F9),
+                            Color(0xFFF1F5F9),
+                          ],
                   ),
                 ),
               ),
@@ -611,17 +703,81 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Top Navigation Bar above the hero card (never overlaps title or poster)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                } else {
+                                  context.go('/library');
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(30),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF1E1E34)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                      color: isDark
+                                          ? Colors.white12
+                                          : const Color(0xFFCBD5E1)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                          alpha: isDark ? 0.3 : 0.05),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.arrow_back_rounded,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'В каталог',
+                                      style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Main Hero Card
                       Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF141424),
+                          color: isDark ? const Color(0xFF141424) : Colors.white,
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.15),
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.15)
+                                : const Color(0xFFE2E8F0),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.6),
+                              color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.08),
                               blurRadius: 32,
                               offset: const Offset(0, 16),
                             ),
@@ -629,115 +785,69 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(26.5),
-                          child: Stack(
-                            children: [
-                      // Responsive Two-Column Layout (Matching the user mockup)
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth > 900;
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isWide = constraints.maxWidth > 900;
 
-                          if (isWide) {
-                            return IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Left Column: Details, Badges, Synopsis, Actions & Carousel
-                                  Expanded(
-                                    flex: 7,
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(36, 24, 24, 24),
-                                      child: _buildDetailsColumn(
-                                          item, ratingKp, ratingImdb, isSaved, savedStatus),
+                              if (isWide) {
+                                return IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      // Left Column: Details, Badges, Synopsis, Actions & Carousel
+                                      Expanded(
+                                        flex: 7,
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(36, 28, 24, 28),
+                                          child: _buildDetailsColumn(
+                                              item, ratingKp, ratingImdb, isSaved, savedStatus, isDark),
+                                        ),
+                                      ),
+
+                                      // Right Column: Huge Hero Poster Cutout with Soft Blend
+                                      Expanded(
+                                        flex: 5,
+                                        child: _buildHeroPoster(heroImageUrl),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              } else {
+                                // Mobile / Compact Layout
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    SizedBox(
+                                      height: 380,
+                                      child: _buildHeroPoster(heroImageUrl),
                                     ),
-                                  ),
-
-                                  // Right Column: Huge Hero Poster Cutout with Soft Blend
-                                  Expanded(
-                                    flex: 5,
-                                    child: _buildHeroPoster(heroImageUrl),
-                                  ),
-                                ],
-                              ),
-                            );
-                          } else {
-                            // Mobile / Compact Layout
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                SizedBox(
-                                  height: 380,
-                                  child: _buildHeroPoster(heroImageUrl),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: _buildDetailsColumn(
-                                      item, ratingKp, ratingImdb, isSaved, savedStatus),
-                                ),
-                              ],
-                            );
-                          }
-                        },
-                      ),
-
-                      // Top Navigation Bar inside the Card (Back Button)
-                      Positioned(
-                        top: 20,
-                        left: 24,
-                        child: InkWell(
-                          onTap: () {
-                            if (Navigator.canPop(context)) {
-                              Navigator.pop(context);
-                            } else {
-                              context.go('/library');
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(30),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.15)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.arrow_back_rounded,
-                                    size: 16, color: Colors.white),
-                                SizedBox(width: 6),
-                                Text(
-                                  'В каталог',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: _buildDetailsColumn(
+                                          item, ratingKp, ratingImdb, isSaved, savedStatus, isDark),
+                                    ),
+                                  ],
+                                );
+                              }
+                            },
                           ),
                         ),
                       ),
+                      const SizedBox(height: 28),
+                      _buildSimilarMoviesSection(item),
+                      const SizedBox(height: 28),
+                      _buildSocialSection(item, userDisplayName),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 28),
-              _buildSimilarMoviesSection(item),
-              const SizedBox(height: 28),
-              _buildSocialSection(item, userDisplayName),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
-    ),
+    ],
   ),
-],
-),
-],
-),
-    );
+);
   }
 
   // Large Hero Poster on the Right with Soft Dark Vignette
@@ -866,7 +976,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   // Left Details Column (Typography, Badges, Ratings, Buttons & Bottom Photos)
   Widget _buildDetailsColumn(
       CatalogItem item, double ratingKp, double ratingImdb, bool isSaved,
-      [String? savedStatus]) {
+      [String? savedStatus, bool isDark = true]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -876,10 +986,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         // Big Movie Title (Stylized bold typography like MONSTERS, INC.)
         Text(
           item.title.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 34,
             fontWeight: FontWeight.w900,
-            color: Colors.white,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
             letterSpacing: 0.8,
             height: 1.1,
           ),
@@ -890,9 +1000,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           const SizedBox(height: 4),
           Text(
             item.nameOriginal!,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Colors.white54,
+              color: isDark ? Colors.white54 : const Color(0xFF64748B),
               fontWeight: FontWeight.w500,
               fontStyle: FontStyle.italic,
             ),
@@ -909,14 +1019,16 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: const Color(0xFF282845),
+                color: isDark ? const Color(0xFF282845) : const Color(0xFFEEF2F6),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white24, width: 0.8),
+                border: Border.all(
+                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    width: 0.8),
               ),
               child: Text(
                 item.displayTypeLabel.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
@@ -929,14 +1041,16 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1B1B2E),
+                  color: isDark ? const Color(0xFF1B1B2E) : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white12, width: 0.8),
+                  border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      width: 0.8),
                 ),
                 child: Text(
                   g,
-                  style: const TextStyle(
-                    color: Colors.white70,
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1072,17 +1186,15 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         // Synopsis (Description)
         Text(
           item.description,
-          maxLines: 4,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 13,
-            height: 1.5,
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF334155),
+            fontSize: 13.5,
+            height: 1.6,
           ),
         ),
         const SizedBox(height: 22),
 
-        // Action Buttons Row (Matching mockup: [▶ Watch] [🍿 Совместный] [🔖 В коллекцию] [⋯])
+        // Action Buttons Row (Matching mockup: [▶ Watch] [🎬 Трейлер] [🍿 Совместный] [🔖 В коллекцию])
         Wrap(
           spacing: 12,
           runSpacing: 10,
@@ -1091,32 +1203,56 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             // Primary White Pill Button: [ ▶ Watch ]
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
+                backgroundColor: isDark ? Colors.white : const Color(0xFF7C3AED),
+                foregroundColor: isDark ? Colors.black : Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
-                elevation: 6,
+                elevation: 4,
               ),
-              icon: const Icon(Icons.play_arrow_rounded,
-                  size: 20, color: Colors.black),
-              label: const Text(
+              icon: Icon(Icons.play_arrow_rounded,
+                  size: 20, color: isDark ? Colors.black : Colors.white),
+              label: Text(
                 'Смотреть онлайн',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black,
+                  color: isDark ? Colors.black : Colors.white,
                 ),
               ),
               onPressed: _startSoloWatch,
             ),
 
+            // Secondary Button: [ 🎬 Трейлер ▶ ] (Opens trailer inline modal, without navigating away)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+                backgroundColor: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFFF1F5F9),
+                side: BorderSide(
+                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    width: 1.2),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              icon: const Icon(Icons.play_circle_outline_rounded,
+                  size: 18, color: Color(0xFFF59E0B)),
+              label: const Text(
+                'Трейлер ▶',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              onPressed: () => _openTrailerModal(item),
+            ),
+
             // Secondary Button: [ 🍿 Совместный просмотр ]
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                foregroundColor: isDark ? Colors.white : const Color(0xFF6D28D9),
+                backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.12),
                 side: const BorderSide(color: Color(0xFF7C3AED), width: 1.2),
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -1240,7 +1376,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             children: [
               // Trailer Thumbnail Card (Play icon + duration badge)
               InkWell(
-                onTap: _startSoloWatch,
+                onTap: () => _openTrailerModal(item),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   width: 130,

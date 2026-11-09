@@ -186,14 +186,17 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
       if (seen.add(key)) results.add(it);
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF16162A),
+        color: isDark ? const Color(0xFF16162A) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.5)),
+        border: Border.all(
+            color: const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.5 : 0.3)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.7),
+            color: Colors.black.withValues(alpha: isDark ? 0.7 : 0.15),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -206,7 +209,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: const Color(0xFF1E1E34),
+            color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF1F5F9),
             child: Row(
               children: [
                 const Icon(Icons.search_rounded, size: 16, color: Color(0xFF9F67FF)),
@@ -214,10 +217,10 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 Expanded(
                   child: Text(
                     'Результаты поиска: «$_searchQuery»',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -236,7 +239,9 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 ],
                 Text(
                   '${results.length} найдено',
-                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -247,7 +252,9 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
               child: Center(
                 child: Text(
                   'Ничего не найдено по запросу «$_searchQuery»',
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  style: TextStyle(
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      fontSize: 13),
                 ),
               ),
             )
@@ -258,14 +265,15 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 itemCount: results.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, color: Colors.white10),
+                separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                 itemBuilder: (context, i) {
                   final movie = results[i];
                   return Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      hoverColor: const Color(0xFF7C3AED).withValues(alpha: 0.25),
+                      hoverColor: const Color(0xFF7C3AED).withValues(alpha: 0.15),
                       onTap: () => _onMovieSelected(movie),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -295,18 +303,18 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                                 children: [
                                   Text(
                                     movie.title,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 14,
-                                      color: Colors.white,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                                     ),
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
                                     '${movie.year} • ${movie.displayTypeLabel} • ${movie.genres.take(2).join(', ')}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11.5,
-                                      color: Colors.white60,
+                                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
                                     ),
                                   ),
                                 ],
@@ -417,17 +425,22 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
     final roleIcon = userProf?.roleIcon ?? (isAdmin ? '⭐' : '🍿');
     final liveRoomsCount = rooms.where((r) => r.status != 'finished').length;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentRoute = widget.activeRoute ?? '';
 
     return Container(
       height: 68,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0F1A).withValues(alpha: 0.98),
-        border: const Border(bottom: BorderSide(color: Colors.white12)),
+        color: isDark
+            ? const Color(0xFF0F0F1A).withValues(alpha: 0.98)
+            : Colors.white.withValues(alpha: 0.98),
+        border: Border(
+            bottom: BorderSide(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0))),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -460,12 +473,12 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                       color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 10),
-                const Text(
+                Text(
                   'CineTrack',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -481,12 +494,14 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 label: 'Главная',
                 isSelected: currentRoute == '/home' || currentRoute == '/',
                 onTap: () => context.go('/home'),
+                isDark: isDark,
               ),
               const SizedBox(width: 18),
               _buildNavLink(
                 label: 'Фильмы',
                 isSelected: currentRoute == '/library',
                 onTap: () => context.go('/library'),
+                isDark: isDark,
               ),
               const SizedBox(width: 18),
               _buildNavLink(
@@ -494,12 +509,14 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 badgeCount: liveRoomsCount > 0 ? liveRoomsCount : null,
                 isSelected: currentRoute.startsWith('/rooms'),
                 onTap: () => context.go('/rooms'),
+                isDark: isDark,
               ),
               const SizedBox(width: 18),
               _buildNavLink(
                 label: 'Моя коллекция',
                 isSelected: currentRoute.startsWith('/profile'),
                 onTap: () => context.go('/profile'),
+                isDark: isDark,
               ),
             ],
           ),
@@ -526,21 +543,30 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 focusNode: _searchFocus,
                 onChanged: _onSearchChanged,
                 onSubmitted: _onSubmitted,
-                style: const TextStyle(fontSize: 13, color: Colors.white),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: const Color(0xFF1B1B2F),
+                  fillColor: isDark
+                      ? const Color(0xFF1B1B2F)
+                      : const Color(0xFFF1F5F9),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
                   hintText: 'Поиск фильмов, сериалов, аниме...',
-                  hintStyle:
-                      const TextStyle(fontSize: 12, color: Colors.white38),
-                  prefixIcon: const Icon(Icons.search_rounded,
-                      size: 18, color: Colors.white54),
+                  hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                  prefixIcon: Icon(Icons.search_rounded,
+                      size: 18,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B)),
                   suffixIcon: _searchCtrl.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear_rounded,
-                              size: 16, color: Colors.white54),
+                          icon: Icon(Icons.clear_rounded,
+                              size: 16,
+                              color: isDark
+                                  ? Colors.white54
+                                  : const Color(0xFF64748B)),
                           onPressed: () {
                             _searchCtrl.clear();
                             _onSearchChanged('');
@@ -549,15 +575,18 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                       : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: Colors.white12),
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: Colors.white12),
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 1.5),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF7C3AED), width: 1.5),
                   ),
                 ),
               ),
@@ -594,12 +623,14 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B1B2F),
+                color: isDark
+                    ? const Color(0xFF1B1B2F)
+                    : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
                   color: isAdmin
                       ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
-                      : Colors.white12,
+                      : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
                 ),
               ),
               child: Row(
@@ -633,8 +664,8 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                       displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                         fontWeight: FontWeight.w700,
                         fontSize: 12.5,
                       ),
@@ -660,8 +691,11 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
     int? badgeCount,
     bool isSpecialAdmin = false,
     required VoidCallback onTap,
+    bool isDark = true,
   }) {
-    Color textColor = isSelected ? Colors.white : Colors.white60;
+    Color textColor = isDark
+        ? (isSelected ? Colors.white : Colors.white60)
+        : (isSelected ? const Color(0xFF7C3AED) : const Color(0xFF475569));
     if (isSpecialAdmin) {
       textColor = isSelected ? const Color(0xFFF59E0B) : const Color(0xFFFBBF24);
     }
