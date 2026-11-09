@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +24,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
   String _animeSubFilter = 'all'; // 'all', 'series', 'movies'
 
   final List<int> _years = [2026, 2025, 2024, 2023, 2022, 2021, 2020];
@@ -99,6 +101,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -132,6 +135,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           moviePoster: item.posterUrl,
           movieYear: item.year,
           kinopoiskId: item.kinopoiskId,
+          videoSourceType: 'catalog',
+          videoUrl: 'https://kinobox.tv/embed/kinopoisk/${item.kinopoiskId ?? 258687}',
           scheduledAt: DateTime.now(),
           ownerName: ownerName,
           ownerId: ownerId,
@@ -477,11 +482,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   ),
                                 ),
                                 onChanged: (val) {
-                                  ref
-                                      .read(catalogProvider.notifier)
-                                      .setSearchQuery(val.trim());
+                                  _searchDebounce?.cancel();
+                                  _searchDebounce =
+                                      Timer(const Duration(milliseconds: 350), () {
+                                    if (mounted) {
+                                      ref
+                                          .read(catalogProvider.notifier)
+                                          .setSearchQuery(val.trim());
+                                    }
+                                  });
                                 },
                                 onSubmitted: (val) {
+                                  _searchDebounce?.cancel();
                                   ref
                                       .read(catalogProvider.notifier)
                                       .setSearchQuery(val.trim());
@@ -729,6 +741,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       );
     }
 
+    final catalogState = ref.watch(catalogProvider);
+    final isLoadingMore = catalogState.isLoadingMore;
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1280),
@@ -747,27 +762,52 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               crossAxisCount = 6;
             }
 
-            return GridView.builder(
-              padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                childAspectRatio: 0.68,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 20,
-              ),
-              itemCount: items.length,
-              itemBuilder: (context, i) {
-                final item = items[i];
-                final inColl = userTitles.contains(item.title.toLowerCase().trim());
-                return _CatalogCardWidget(
-                  item: item,
-                  alreadyInCollection: inColl,
-                  onTap: () => _showMovieDetailDialog(item),
-                  onAddToCollection: () => _addToMyCollection(item),
-                  onSoloWatch: () => _startSoloWatch(item),
-                  onPartyWatch: () => _startPartyWatch(item),
-                );
+            return NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification scrollInfo) {
+                if (scrollInfo.metrics.pixels >=
+                    scrollInfo.metrics.maxScrollExtent - 400) {
+                  ref.read(catalogProvider.notifier).loadMore();
+                }
+                return false;
               },
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  childAspectRatio: 0.68,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 20,
+                ),
+                itemCount: items.length + (isLoadingMore ? 1 : 0),
+                itemBuilder: (context, i) {
+                  if (i >= items.length) {
+                    return Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1E34),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Color(0xFF9F67FF)),
+                        ),
+                      ),
+                    );
+                  }
+                  final item = items[i];
+                  final inColl = userTitles.contains(item.title.toLowerCase().trim());
+                  return _CatalogCardWidget(
+                    item: item,
+                    alreadyInCollection: inColl,
+                    onTap: () => _showMovieDetailDialog(item),
+                    onAddToCollection: () => _addToMyCollection(item),
+                    onSoloWatch: () => _startSoloWatch(item),
+                    onPartyWatch: () => _startPartyWatch(item),
+                  );
+                },
+              ),
             );
           },
         ),

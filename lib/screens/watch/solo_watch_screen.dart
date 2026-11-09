@@ -138,7 +138,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     final kpId = widget.kinopoiskId ?? 258687;
 
     if (_activeTab == 'collaps') {
-      return 'https://api.delivembd.ws/embed/kp/$kpId';
+      return 'https://kinobox.tv/embed/kinopoisk/$kpId';
     } else if (_activeTab == 'alloha') {
       return 'https://alloha.club/embed/kp/$kpId';
     } else if (_activeTab == 'backup') {
@@ -248,7 +248,6 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
   List<FranchiseStep> _getFranchiseTimeline() {
     final curTitle = widget.title.toLowerCase();
-    final curYear = widget.year ?? 2020;
 
     if (curTitle.contains('гуль') || curTitle.contains('ghoul')) {
       return [
@@ -343,41 +342,48 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           kinopoiskId: 749374,
         ),
       ];
+    } else if (curTitle.contains('демон') || curTitle.contains('kimetsu') || curTitle.contains('клинок')) {
+      return [
+        const FranchiseStep(
+          title: 'Клинок, рассекающий демонов (Сезон 1)',
+          typeLabel: 'Сериал',
+          year: 2019,
+          isCurrent: true,
+          kinopoiskId: 1220920,
+        ),
+        const FranchiseStep(
+          title: 'Поезд «Бесконечный» (Фильм)',
+          typeLabel: 'Полный метр',
+          year: 2020,
+          isCurrent: false,
+          kinopoiskId: 1347949,
+        ),
+        const FranchiseStep(
+          title: 'Квартал красных фонарей (Сезон 2)',
+          typeLabel: 'Сериал',
+          year: 2021,
+          isCurrent: false,
+          kinopoiskId: 1220920,
+        ),
+        const FranchiseStep(
+          title: 'Деревня кузнецов (Сезон 3)',
+          typeLabel: 'Сериал',
+          year: 2023,
+          isCurrent: false,
+          kinopoiskId: 1220920,
+        ),
+        const FranchiseStep(
+          title: 'Тренировки столпов (Сезон 4)',
+          typeLabel: 'Сериал',
+          year: 2024,
+          isCurrent: false,
+          kinopoiskId: 1220920,
+        ),
+      ];
     }
 
-    // Default chronological context
-    final isSeries = widget.type == 'series' || widget.type == 'anime';
-    return [
-      FranchiseStep(
-        title: isSeries
-            ? 'Предыстория / Сезон 1'
-            : 'Первая часть франшизы',
-        typeLabel: isSeries ? 'Сериал' : 'Фильм',
-        year: curYear > 2005 ? curYear - 2 : curYear,
-        isCurrent: false,
-      ),
-      FranchiseStep(
-        title: widget.title,
-        typeLabel: isSeries ? 'Сериал' : 'Фильм',
-        year: curYear,
-        isCurrent: true,
-        kinopoiskId: widget.kinopoiskId,
-      ),
-      FranchiseStep(
-        title: isSeries
-            ? 'Продолжение / Сезон 2'
-            : 'Сиквел / Финал саги',
-        typeLabel: isSeries ? 'Сериал' : 'Фильм',
-        year: curYear + 2,
-        isCurrent: false,
-      ),
-      FranchiseStep(
-        title: 'Спин-офф вселенной',
-        typeLabel: 'Спецвыпуск',
-        year: curYear + 4,
-        isCurrent: false,
-      ),
-    ];
+    // Only return franchise steps if movie is part of a real franchise!
+    return const [];
   }
 
   @override
@@ -506,19 +512,19 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                                 children: [
                                   // Compact Player Tabs
                                   _buildCompactTab(
-                                    label: 'Collaps HD',
+                                    label: 'Основной',
                                     isActive: _activeTab == 'collaps',
                                     onTap: () => _switchTab('collaps'),
                                   ),
                                   const SizedBox(width: 6),
                                   _buildCompactTab(
-                                    label: 'Alloha',
+                                    label: 'Резервный',
                                     isActive: _activeTab == 'alloha',
                                     onTap: () => _switchTab('alloha'),
                                   ),
                                   const SizedBox(width: 6),
                                   _buildCompactTab(
-                                    label: 'Kodik',
+                                    label: 'Резервный-2',
                                     isActive: _activeTab == 'backup',
                                     onTap: () => _switchTab('backup'),
                                   ),
@@ -670,10 +676,11 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
                             const SizedBox(height: 28),
 
-                            // 1. Franchise Chronology / Universe Sequence Timeline
-                            _buildFranchiseTimelineSection(franchiseTimeline),
-
-                            const SizedBox(height: 28),
+                            // 1. Franchise Chronology / Universe Sequence Timeline (only if movie belongs to a franchise)
+                            if (franchiseTimeline.isNotEmpty) ...[
+                              _buildFranchiseTimelineSection(franchiseTimeline),
+                              const SizedBox(height: 28),
+                            ],
 
                             // 2. Similar Movies Carousel
                             if (similar.isNotEmpty) ...[

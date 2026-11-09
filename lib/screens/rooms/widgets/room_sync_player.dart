@@ -93,29 +93,25 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
   bool get canControl => widget.isHost || widget.room.allowGuestControl;
 
   final List<String> _onlinePlayerNames = [
-    'Смотреть онлайн (Collaps HD)',
-    'Продвинутый плеер (Alloha)',
-    'Запасной плеер (Kodik)',
-    'Трейлер',
+    'Основной',
+    'Резервный',
+    'Резервный-2',
+    'Трейлер ▶',
   ];
 
   String _getOnlinePlayerUrl(int index) {
     final kpId = widget.room.kinopoiskId ?? 301;
     switch (index) {
       case 0:
-        // Плеер 1 (Collaps HD): 4K/1080p, озвучки Дубляж, LostFilm, HDRezka, AniLibria
-        return 'https://api.delivembd.ws/embed/kp/$kpId';
+        return 'https://kinobox.tv/embed/kinopoisk/$kpId';
       case 1:
-        // Плеер 2 (Alloha Player): продвинутый плеер с переводами и качеством
         return 'https://alloha.club/embed/kp/$kpId';
       case 2:
-        // Плеер 3 (Kodik): надежный резервный плеер без внешних надстроек
         return 'https://kodik.info/find-player?kinopoiskID=$kpId';
       case 3:
-        // Kinopoisk Atomics trailer (работает стабильно в РФ без блокировок YouTube)
         return 'https://api.atomics.ws/embed/trailer-kp/$kpId';
       default:
-        return 'https://alloha.club/embed/kp/$kpId';
+        return 'https://kinobox.tv/embed/kinopoisk/$kpId';
     }
   }
 
@@ -136,6 +132,10 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
   void initState() {
     super.initState();
     _sourceType = widget.room.videoSourceType;
+    if (_sourceType == 'kinopoisk' ||
+        (_sourceType == 'none' && widget.room.kinopoiskId != null)) {
+      _sourceType = 'catalog';
+    }
     _videoUrl = widget.room.videoUrl;
     _localFileName = widget.room.videoFileName;
 

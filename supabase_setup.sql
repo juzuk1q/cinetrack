@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     username        TEXT,
     avatar_url      TEXT,
     banner_url      TEXT,
-    role            TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin')),
+    role            TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin', 'developer', 'coder', 'creator')),
     custom_title    TEXT,
     is_private      BOOLEAN NOT NULL DEFAULT false,
     friends         JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -42,6 +42,11 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS block_until TIMESTAMPTZ;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 
+-- Обновление ограничения допустимых ролей (user, moderator, admin, developer, coder, creator)
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check 
+    CHECK (role IN ('user', 'moderator', 'admin', 'developer', 'coder', 'creator'));
+
 -- Индексы для быстрого поиска по username и email
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles(username);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
@@ -61,7 +66,7 @@ CREATE POLICY "Пользователи могут обновлять свой �
     TO authenticated
     USING (
         auth.uid() = id OR EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'creator', 'developer')
         )
     );
 

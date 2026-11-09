@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../data/curated_catalog.dart';
 import '../models/catalog_item.dart';
+import '../services/kinopoisk_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/room_provider.dart';
 import '../providers/theme_provider.dart';
@@ -31,6 +32,9 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
   OverlayEntry? _overlayEntry;
   String _searchQuery = '';
   Timer? _blurTimer;
+  Timer? _searchDebounce;
+  List<CatalogItem> _remoteSearchResults = [];
+  bool _isSearchingRemote = false;
 
   @override
   void initState() {
@@ -53,6 +57,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
   @override
   void dispose() {
     _blurTimer?.cancel();
+    _searchDebounce?.cancel();
     _hideSearchOverlay();
     _searchCtrl.dispose();
     _searchFocus.dispose();
@@ -63,10 +68,40 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
     setState(() {
       _searchQuery = val.trim();
     });
+    _overlayEntry?.markNeedsBuild();
     if (_searchQuery.isNotEmpty) {
       _blurTimer?.cancel();
       _showSearchOverlay();
+
+      _searchDebounce?.cancel();
+      _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+        final currentQ = _searchQuery;
+        if (currentQ.isEmpty) return;
+        setState(() {
+          _isSearchingRemote = true;
+        });
+        _overlayEntry?.markNeedsBuild();
+        try {
+          final results = await KinopoiskService().search(currentQ);
+          if (mounted && _searchQuery == currentQ) {
+            setState(() {
+              _remoteSearchResults = results;
+              _isSearchingRemote = false;
+            });
+            _overlayEntry?.markNeedsBuild();
+          }
+        } catch (_) {
+          if (mounted) {
+            setState(() {
+              _isSearchingRemote = false;
+            });
+            _overlayEntry?.markNeedsBuild();
+          }
+        }
+      });
     } else {
+      _remoteSearchResults = [];
+      _isSearchingRemote = false;
       _hideSearchOverlay();
     }
   }
@@ -87,11 +122,11 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
       final overlayState = Overlay.of(context, rootOverlay: true);
       _overlayEntry = OverlayEntry(
         builder: (ctx) => Positioned(
-          width: 440,
+          width: 480,
           child: CompositedTransformFollower(
             link: _layerLink,
             showWhenUnlinked: false,
-            offset: const Offset(-40, 48),
+            offset: const Offset(-20, 48),
             child: Material(
               color: Colors.transparent,
               child: _buildSearchDropdown(),
@@ -124,7 +159,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
 
   Widget _buildSearchDropdown() {
     final q = _searchQuery.toLowerCase();
-    final results = CuratedCatalog.items.where((item) {
+    final localMatches = CuratedCatalog.items.where((item) {
       final matchTitle = item.title.toLowerCase().contains(q);
       final matchOriginal = item.nameOriginal?.toLowerCase().contains(q) ?? false;
       final matchGenre = item.genres.any((g) => g.toLowerCase().contains(q));
@@ -142,6 +177,17 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
           matchYear ||
           matchKpId;
     }).toList();
+
+    final seen = <String>{};
+    final results = <CatalogItem>[];
+    for (final it in localMatches) {
+      final key = it.kinopoiskId != null ? 'id_${it.kinopoiskId}' : 't_${it.title.toLowerCase()}';
+      if (seen.add(key)) results.add(it);
+    }
+    for (final it in _remoteSearchResults) {
+      final key = it.kinopoiskId != null ? 'id_${it.kinopoiskId}' : 't_${it.title.toLowerCase()}';
+      if (seen.add(key)) results.add(it);
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -180,6 +226,17 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (_isSearchingRemote) ...[
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9F67FF)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Text(
                   '${results.length} найдено',
                   style: const TextStyle(fontSize: 11, color: Colors.white54),
@@ -323,6 +380,8 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
         item.director.toLowerCase().contains(query)).firstOrNull;
     if (match != null) {
       _onMovieSelected(match);
+    } else if (_remoteSearchResults.isNotEmpty) {
+      _onMovieSelected(_remoteSearchResults.first);
     } else {
       context.go('/library?q=${Uri.encodeComponent(q.trim())}');
     }
@@ -463,7 +522,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
           CompositedTransformTarget(
             link: _layerLink,
             child: SizedBox(
-              width: 340,
+              width: 400,
               height: 42,
               child: TextField(
                 controller: _searchCtrl,

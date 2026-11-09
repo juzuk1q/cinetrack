@@ -242,8 +242,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     if (_item == null || _item!.kinopoiskId == null) return;
     final kpId = _item!.kinopoiskId!;
 
-    // Fetch full details if synopsis was truncated
+    // Fetch full details if synopsis was truncated or placeholder
     if (_item!.description.contains('временно отсутствует') ||
+        _item!.description.contains('эксклюзивной коллекции') ||
+        _item!.director == 'Мировой кинематограф' ||
         _item!.coverUrl == null) {
       try {
         final full = await KinopoiskService().getFilmById(kpId);
@@ -300,10 +302,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           moviePoster: _item!.posterUrl,
           movieYear: _item!.year,
           kinopoiskId: _item!.kinopoiskId,
-          videoSourceType: _item!.kinopoiskId != null ? 'kinopoisk' : 'url',
+          videoSourceType: 'catalog',
           videoUrl: _item!.kinopoiskId != null
-              ? 'https://api.delivembd.ws/embed/kp/${_item!.kinopoiskId}'
-              : 'https://api.delivembd.ws/embed/kp/258687',
+              ? 'https://kinobox.tv/embed/kinopoisk/${_item!.kinopoiskId}'
+              : 'https://kinobox.tv/embed/kinopoisk/258687',
           scheduledAt: DateTime.now(),
           ownerName: ownerName,
           ownerId: ownerId,

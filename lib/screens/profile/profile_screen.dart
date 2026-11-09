@@ -33,6 +33,109 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _statusFilter = 'all'; // 'all', 'want_to_watch', 'watching', 'watched'
   final _friendSearchCtrl = TextEditingController();
 
+  UserProfile? _remoteUserProfile;
+  bool _isLoadingRemoteUser = false;
+  bool _hasFetchedRemoteUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.targetUsername != null && widget.targetUsername!.trim().isNotEmpty) {
+      _fetchRemoteUser(widget.targetUsername!);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.targetUsername != oldWidget.targetUsername) {
+      if (widget.targetUsername != null && widget.targetUsername!.trim().isNotEmpty) {
+        _fetchRemoteUser(widget.targetUsername!);
+      } else {
+        setState(() {
+          _remoteUserProfile = null;
+          _hasFetchedRemoteUser = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchRemoteUser(String username) async {
+    final clean = username.trim().toLowerCase().replaceAll('@', '');
+    if (clean.isEmpty) return;
+
+    final allUsers = ref.read(adminUsersProvider);
+    for (final u in allUsers) {
+      if (u.handle.toLowerCase() == clean ||
+          u.username.toLowerCase() == clean ||
+          u.id == clean) {
+        if (mounted) {
+          setState(() {
+            _remoteUserProfile = u;
+            _hasFetchedRemoteUser = true;
+          });
+        }
+        return;
+      }
+    }
+
+    setState(() {
+      _isLoadingRemoteUser = true;
+    });
+
+    try {
+      final res = await supabase
+          .from('profiles')
+          .select()
+          .or('username.ilike.$clean,display_name.ilike.$clean,id.eq.$clean')
+          .maybeSingle();
+
+      if (res != null && mounted) {
+        final up = UserProfile(
+          id: res['id'] as String? ?? clean,
+          email: res['email'] as String? ?? '$clean@cinetrack.local',
+          displayName: res['display_name'] as String? ?? clean,
+          username: res['username'] as String? ?? clean,
+          role: res['role'] as String? ?? 'user',
+          createdAt: res['created_at'] != null
+              ? DateTime.tryParse(res['created_at']) ?? DateTime.now()
+              : DateTime.now(),
+          customTitle: res['custom_title'] as String?,
+          bannerUrl: res['banner_url'] as String?,
+          avatarUrl: res['avatar_url'] as String?,
+          isPrivate: res['is_private'] as bool? ?? false,
+          friends: (res['friends'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const [],
+          unlockedTitles: (res['unlocked_titles'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const ['welcome'],
+          isBlocked: res['is_blocked'] as bool? ?? false,
+          isFrozen: res['is_frozen'] as bool? ?? false,
+          blockReason: res['block_reason'] as String?,
+          blockUntil: res['block_until'] != null
+              ? DateTime.tryParse(res['block_until'])
+              : null,
+        );
+        setState(() {
+          _remoteUserProfile = up;
+          _isLoadingRemoteUser = false;
+          _hasFetchedRemoteUser = true;
+        });
+        return;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _isLoadingRemoteUser = false;
+        _hasFetchedRemoteUser = true;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _friendSearchCtrl.dispose();
@@ -116,18 +219,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     UserProfile? otherProfile;
     if (isTargetingOther) {
-      final clean = widget.targetUsername!.toLowerCase().replaceAll('@', '');
-      for (final u in allUsers) {
-        if (u.handle.toLowerCase() == clean ||
-            u.username.toLowerCase() == clean ||
-            u.email.toLowerCase() == '$clean@cinetrack.local' ||
-            u.id == clean) {
-          otherProfile = u;
-          break;
+      if (_isLoadingRemoteUser) {
+        return const Scaffold(
+          backgroundColor: Color(0xFF0F0F1A),
+          body: Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF7C3AED),
+            ),
+          ),
+        );
+      }
+
+      otherProfile = _remoteUserProfile;
+      if (otherProfile == null) {
+        final clean = widget.targetUsername!.toLowerCase().replaceAll('@', '');
+        for (final u in allUsers) {
+          if (u.handle.toLowerCase() == clean ||
+              u.username.toLowerCase() == clean ||
+              u.email.toLowerCase() == '$clean@cinetrack.local' ||
+              u.id == clean) {
+            otherProfile = u;
+            break;
+          }
         }
       }
-      // If user profile is not found, render dedicated 404 page
-      if (otherProfile == null) {
+
+      // If user profile is not found after remote check, render dedicated 404 page
+      if (otherProfile == null && _hasFetchedRemoteUser) {
         return Scaffold(
           backgroundColor: const Color(0xFF0F0F1A),
           body: Column(
@@ -213,9 +331,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         isViewingSelf ? myAvatar : otherProfile!.avatarUrl;
     final effectiveIsPrivate =
         isViewingSelf ? myIsPrivate : otherProfile!.isPrivate;
-    final effectiveUnlockedTitles = isViewingSelf
-        ? myUnlockedTitles
-        : (otherProfile?.unlockedTitles ?? const <String>['welcome']);
     final isFriend = !isViewingSelf && myFriends.contains(otherProfile!.handle);
 
     return Scaffold(
@@ -532,7 +647,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 6),
 
-                                  // Handle & Privacy Badge
+                                  // Handle, Copy Link Icon & Privacy Lock Icon
                                   Row(
                                     children: [
                                       Text(
@@ -543,91 +658,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 7, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: effectiveIsPrivate
-                                              ? Colors.orange.withValues(alpha: 0.15)
-                                              : Colors.green.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: effectiveIsPrivate
-                                                ? Colors.orangeAccent.withValues(alpha: 0.4)
-                                                : Colors.greenAccent.withValues(alpha: 0.4),
-                                            width: 0.8,
+                                      const SizedBox(width: 4),
+                                      Tooltip(
+                                        message: 'Скопировать ссылку на профиль',
+                                        child: InkWell(
+                                          onTap: () {
+                                            final link = kIsWeb
+                                                ? '${html.window.location.origin}/user/@$effectiveUsername'
+                                                : 'https://cinetrack.x1kwq.workers.dev/user/@$effectiveUsername';
+                                            Clipboard.setData(ClipboardData(text: link));
+                                            TopNotification.showSuccess(
+                                              context,
+                                              'Ссылка на профиль скопирована! 📋',
+                                            );
+                                          },
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(4),
+                                            child: Icon(Icons.copy_rounded,
+                                                size: 14, color: Colors.white60),
                                           ),
                                         ),
-                                        child: Text(
-                                          effectiveIsPrivate
-                                              ? 'Приватный профиль 🔒'
-                                              : 'Открытый профиль 🌐',
-                                          style: TextStyle(
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Tooltip(
+                                        message: effectiveIsPrivate
+                                            ? 'Приватный профиль (закрыт)'
+                                            : 'Открытый профиль',
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: effectiveIsPrivate
+                                                ? Colors.orange.withValues(alpha: 0.15)
+                                                : Colors.green.withValues(alpha: 0.15),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            effectiveIsPrivate
+                                                ? Icons.lock_rounded
+                                                : Icons.lock_open_rounded,
+                                            size: 13,
                                             color: effectiveIsPrivate
                                                 ? Colors.orangeAccent
-                                                : Colors.greenAccent,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
+                                                : const Color(0xFF10B981),
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Персональный профиль, личная коллекция и совместные просмотры',
-                                    style: TextStyle(
-                                        color: Colors.white38, fontSize: 11),
-                                  ),
-
-                                  // Earned Achievements & Titles badge pills
-                                  if (effectiveUnlockedTitles.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      children: effectiveUnlockedTitles.map((achId) {
-                                        final ach = UserAchievementsCatalog.list
-                                            .where((a) => a.id == achId || a.title == achId)
-                                            .firstOrNull;
-                                        final displayIcon = ach?.icon ?? '⭐';
-                                        final displayTitle = ach?.title ?? achId;
-                                        final displayDesc = ach?.description ?? 'Особый полученный титул профиля';
-
-                                        return Tooltip(
-                                          message: '$displayTitle: $displayDesc',
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 7, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF261D42),
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(
-                                                  color: const Color(0xFF9F67FF).withValues(alpha: 0.4),
-                                                  width: 0.8),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(displayIcon,
-                                                    style: const TextStyle(fontSize: 12)),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  displayTitle,
-                                                  style: const TextStyle(
-                                                    fontSize: 10.5,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
@@ -667,21 +745,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             const SizedBox(width: 8),
 
-                            // Copy Link to Profile Button
-                            IconButton(
-                              icon: const Icon(Icons.share_rounded, size: 18, color: Colors.white70),
-                              tooltip: 'Скопировать ссылку на профиль',
-                              onPressed: () {
-                                final link = kIsWeb
-                                    ? '${html.window.location.origin}/user/@$myUsername'
-                                    : 'https://cinetrack.x1kwq.workers.dev/user/@$myUsername';
-                                Clipboard.setData(ClipboardData(text: link));
-                                TopNotification.showSuccess(
-                                  context,
-                                  'Ссылка на профиль скопирована! 📋',
-                                );
-                              },
-                            ),
+
 
                             // Staff access: Admin Panel
                             if (isAdmin) ...[
@@ -1069,69 +1133,75 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   borderRadius: BorderRadius.circular(14),
                   side: const BorderSide(color: Colors.white10),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  child: Row(
-                    children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: const Color(0xFF7C3AED),
-                            backgroundImage: avatar != null && avatar.isNotEmpty
-                                ? NetworkImage(avatar)
-                                : null,
-                            child: (avatar == null || avatar.isEmpty)
-                                ? Text(
-                                    name.isNotEmpty ? name[0].toUpperCase() : 'F',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF16162A), width: 1.5),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () {
+                    context.go('/user/@$friendHandle');
+                  },
+                  hoverColor: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    child: Row(
+                      children: [
+                        Stack(
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700, fontSize: 14),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '@$friendHandle',
-                                  style: const TextStyle(
-                                      color: Colors.white54, fontSize: 12),
-                                ),
-                              ],
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: const Color(0xFF7C3AED),
+                              backgroundImage: avatar != null && avatar.isNotEmpty
+                                  ? NetworkImage(avatar)
+                                  : null,
+                              child: (avatar == null || avatar.isEmpty)
+                                  ? Text(
+                                      name.isNotEmpty ? name[0].toUpperCase() : 'F',
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    )
+                                  : null,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                  color: Color(0xFFD8B4FE), fontSize: 11),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFF16162A), width: 1.5),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700, fontSize: 14),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '@$friendHandle',
+                                    style: const TextStyle(
+                                        color: Colors.white54, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                    color: Color(0xFFD8B4FE), fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
 
                       // Actions: Invite to Room & Remove
                       ElevatedButton.icon(
@@ -1171,18 +1241,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ],
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
 
-  void _handleAddFriend(String handle) {
+  Future<void> _handleAddFriend(String handle) async {
     final clean = handle.replaceAll('@', '').trim();
     if (clean.isEmpty) return;
     _friendSearchCtrl.clear();
     ref.read(profileCustomizationProvider.notifier).addFriend(clean);
+
+    final curUser = ref.read(currentUserProvider);
+    if (curUser != null) {
+      try {
+        final currentFriends = ref.read(profileCustomizationProvider)?.friends ?? [];
+        await supabase.from('profiles').update({
+          'friends': currentFriends,
+        }).eq('id', curUser.id);
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
     TopNotification.showSuccess(
       context,
       'Пользователь @$clean успешно добавлен в список друзей! 🤝',

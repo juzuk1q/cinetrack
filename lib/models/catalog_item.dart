@@ -79,6 +79,7 @@ class CatalogItem {
     404900: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1900788/fb35416f-3b0d-4b96-bc65-cf6923f9e329/x1000',
     77044: 'https://avatars.mds.yandex.net/get-kinopoisk-image/4486454/bae692d9-8260-46a4-9188-8509a72aa005/x1000',
     841681: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1900788/e5d98938-605a-4c8a-b0d6-5f93d926aa0c/x1000',
+    1015471: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/84478174-8b68-450f-bc4d-5c683ee30248/x1000',
     1047883: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/70580cf5-3287-42d6-8a76-2c715e2f6172/x1000',
     775276: 'https://avatars.mds.yandex.net/get-kinopoisk-image/4716873/893bba73-3105-4944-8d18-a38f929f2759/x1000',
     915196: 'https://avatars.mds.yandex.net/get-kinopoisk-image/10703859/1e653cad-c84f-4617-b61e-949b3228ef36/x1000',
@@ -90,7 +91,7 @@ class CatalogItem {
     749374: 'https://avatars.mds.yandex.net/get-kinopoisk-image/6201401/e42e60bc-0772-4a3a-a24f-4218febf9386/x1000',
     571896: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1900788/9ecb0974-ad01-4fde-9067-c6d147b880f4/x1000',
     406148: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1946459/0368a21d-64dd-4340-b097-205dc9512ba4/x1000',
-    1111663: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/f127f07d-1866-4d48-b4a2-fe445640faa9/x1000',
+    1220920: 'https://avatars.mds.yandex.net/get-kinopoisk-image/10671298/32621935-61a6-4479-ae42-829f5642e6b0/x1000',
     681831: 'https://avatars.mds.yandex.net/get-kinopoisk-image/10835644/73941f07-7652-4943-83e1-7849aa398974/x1000',
     79849: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/32cd6904-1e01-4562-a700-d82f5d351215/x1000',
     1318972: 'https://avatars.mds.yandex.net/get-kinopoisk-image/6201401/90d57813-387c-44c4-81c1-ecddb3c417a5/x1000',
@@ -149,7 +150,11 @@ class CatalogItem {
   });
 
   factory CatalogItem.fromKinopoisk(Map<String, dynamic> json, {String? fallbackCategory}) {
-    final kpId = (json['kinopoiskId'] ?? json['filmId']) as int?;
+    final kpRaw = json['kinopoiskId'] ?? json['filmId'];
+    final kpId = kpRaw is num
+        ? kpRaw.toInt()
+        : (kpRaw is String ? int.tryParse(kpRaw) : null);
+
     final title = (json['nameRu'] as String?)?.isNotEmpty == true
         ? json['nameRu'] as String
         : (json['nameOriginal'] as String?)?.isNotEmpty == true
@@ -240,8 +245,23 @@ class CatalogItem {
       ratingImdb = double.tryParse(imdbRaw);
     }
 
-    final filmLength = json['filmLength'] as int?;
-    final slogan = json['slogan'] as String?;
+    int? filmLength;
+    final flRaw = json['filmLength'];
+    if (flRaw is num) {
+      filmLength = flRaw.toInt();
+    } else if (flRaw is String) {
+      if (flRaw.contains(':')) {
+        final parts = flRaw.split(':');
+        if (parts.length >= 2) {
+          final h = int.tryParse(parts[0]) ?? 0;
+          final m = int.tryParse(parts[1]) ?? 0;
+          filmLength = h * 60 + m;
+        }
+      } else {
+        filmLength = int.tryParse(flRaw);
+      }
+    }
+    final slogan = json['slogan']?.toString();
 
     return CatalogItem(
       kinopoiskId: kpId,

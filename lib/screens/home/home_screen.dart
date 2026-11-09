@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/curated_catalog.dart';
 import '../../models/catalog_item.dart';
 import '../../models/media_item.dart';
 import '../../models/watch_room.dart';
@@ -98,7 +99,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       slogan: 'В мире монстров легко стать одним из них',
     ),
     const CatalogItem(
-      kinopoiskId: 1047883,
+      kinopoiskId: 1015471,
       title: 'Райя и последний дракон',
       nameOriginal: 'Raya and the Last Dragon',
       type: 'cartoon',
@@ -110,9 +111,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       description:
           'Отважная воительница Райя отправляется на поиски последнего дракона Сису, чтобы объединить разрозненные народы Кумандры и победить древних демонов Друунов.',
       posterUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/70580cf5-3287-42d6-8a76-2c715e2f6172/x1000',
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/84478174-8b68-450f-bc4d-5c683ee30248/x1000',
       coverUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/70580cf5-3287-42d6-8a76-2c715e2f6172/x1000',
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/84478174-8b68-450f-bc4d-5c683ee30248/x1000',
       rating: 8.2,
       ratingImdb: 8.3,
       filmLength: 107,
@@ -446,16 +447,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'kpId': 502838,
     },
     {
-      'title': 'Клинок демонов',
-      'originalTitle': 'Demon Slayer',
+      'title': 'Клинок, рассекающий демонов',
+      'originalTitle': 'Kimetsu no Yaiba',
       'meta': '16+ • 4 Сезона • Аниме, Фэнтези',
       'year': 2019,
-      'rating': 8.2,
+      'rating': 8.3,
       'mpa': '16+',
       'genres': 'Аниме, Фэнтези, Боевик',
       'posterUrl':
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/f127f07d-1866-4d48-b4a2-fe445640faa9/x1000',
-      'kpId': 1111663,
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/10671298/32621935-61a6-4479-ae42-829f5642e6b0/x1000',
+      'kpId': 1220920,
     },
     {
       'title': 'Настоящий детектив',
@@ -474,6 +475,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static CatalogItem _toCatalogItem(Map<String, dynamic> m) {
     final title = m['title'] as String;
     final kpId = m['kpId'] as int?;
+
+    // Match against rich CuratedCatalog if present
+    final curated = CuratedCatalog.items.where((c) {
+      if (kpId != null && c.kinopoiskId != null && c.kinopoiskId == kpId) {
+        return true;
+      }
+      final t = c.title.toLowerCase().trim();
+      final targetT = title.toLowerCase().trim();
+      return t == targetT || targetT.contains(t) || t.contains(targetT);
+    }).firstOrNull;
+    if (curated != null) {
+      return curated;
+    }
+
     final posterUrl = m['posterUrl'] as String;
     final year = (m['year'] as num?)?.toInt() ?? 2024;
     final rating = (m['rating'] as num?)?.toDouble() ?? 8.5;
@@ -490,9 +505,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       typeLabel: isSeries ? 'Сериал' : 'Фильм',
       genres: genresList,
       year: year,
-      director: 'Мировой кинематограф',
-      actors: 'Культовый актёрский состав',
-      description: 'Рейтинговый шедевр кино из эксклюзивной коллекции CineTrack.',
+      director: genresList.firstOrNull ?? 'Режиссер',
+      actors: '',
+      description: 'Популярное произведение мирового кинематографа.',
       posterUrl: posterUrl,
       coverUrl: posterUrl,
       rating: rating,

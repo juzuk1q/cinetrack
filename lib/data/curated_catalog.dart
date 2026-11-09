@@ -416,9 +416,9 @@ class CuratedCatalog {
       filmLength: 24,
     ),
     CatalogItem(
-      kinopoiskId: 1115867,
+      kinopoiskId: 1220920,
       title: 'Клинок, рассекающий демонов',
-      nameOriginal: 'Demon Slayer: Kimetsu no Yaiba',
+      nameOriginal: 'Kimetsu no Yaiba',
       type: 'anime',
       typeLabel: 'Аниме-сериал',
       genres: ['Аниме', 'Боевик', 'Фэнтези'],
@@ -428,10 +428,10 @@ class CuratedCatalog {
       description:
           'Юноша Тандзиро Камадо становится истребителем демонов, чтобы найти способ исцелить свою младшую сестру Нэдзуко, обращенную в демона.',
       posterUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/a26986cf-2cf1-4560-845a-6ee892d11342/x1000',
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/10671298/32621935-61a6-4479-ae42-829f5642e6b0/x1000',
       coverUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/a26986cf-2cf1-4560-845a-6ee892d11342/x1000',
-      rating: 8.2,
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/10671298/32621935-61a6-4479-ae42-829f5642e6b0/x1000',
+      rating: 8.3,
       ratingImdb: 8.6,
       filmLength: 25,
     ),
@@ -498,7 +498,7 @@ class CuratedCatalog {
 
     // МУЛЬТФИЛЬМЫ
     CatalogItem(
-      kinopoiskId: 1047883,
+      kinopoiskId: 1015471,
       title: 'Райя и последний дракон',
       nameOriginal: 'Raya and the Last Dragon',
       type: 'cartoon',
@@ -510,9 +510,9 @@ class CuratedCatalog {
       description:
           'Отважная воительница Райя отправляется на поиски последнего дракона Сису, чтобы объединить разрозненные народы и победить древних монстров.',
       posterUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/70580cf5-3287-42d6-8a76-2c715e2f6172/x1000',
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/84478174-8b68-450f-bc4d-5c683ee30248/x1000',
       coverUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/70580cf5-3287-42d6-8a76-2c715e2f6172/x1000',
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/84478174-8b68-450f-bc4d-5c683ee30248/x1000',
       rating: 8.2,
       ratingImdb: 7.3,
       filmLength: 107,

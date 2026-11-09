@@ -75,9 +75,14 @@ class KinopoiskService {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final List<dynamic> items = data['items'] ?? [];
-        final results = items
-            .map((item) => CatalogItem.fromKinopoisk(item as Map<String, dynamic>))
-            .toList();
+        final results = <CatalogItem>[];
+        for (final it in items) {
+          try {
+            if (it is Map<String, dynamic>) {
+              results.add(CatalogItem.fromKinopoisk(it));
+            }
+          } catch (_) {}
+        }
 
         if (results.isNotEmpty) {
           _cache[cacheKey] = results;
@@ -106,9 +111,14 @@ class KinopoiskService {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final List<dynamic> items = data['films'] ?? data['items'] ?? [];
-        final results = items
-            .map((item) => CatalogItem.fromKinopoisk(item as Map<String, dynamic>))
-            .toList();
+        final results = <CatalogItem>[];
+        for (final it in items) {
+          try {
+            if (it is Map<String, dynamic>) {
+              results.add(CatalogItem.fromKinopoisk(it));
+            }
+          } catch (_) {}
+        }
 
         if (results.isNotEmpty) {
           _cache[cacheKey] = results;
@@ -208,12 +218,17 @@ class KinopoiskService {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final List<dynamic> items = data['items'] ?? [];
-        final results = items
-            .map((item) => CatalogItem.fromKinopoisk(
-                  item as Map<String, dynamic>,
-                  fallbackCategory: category,
-                ))
-            .toList();
+        final results = <CatalogItem>[];
+        for (final it in items) {
+          try {
+            if (it is Map<String, dynamic>) {
+              results.add(CatalogItem.fromKinopoisk(
+                it,
+                fallbackCategory: category,
+              ));
+            }
+          } catch (_) {}
+        }
 
         if (results.isNotEmpty) {
           _cache[cacheKey] = results;

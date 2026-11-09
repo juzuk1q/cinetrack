@@ -41,28 +41,40 @@ class CatalogFilterState {
 
 class CatalogState {
   final bool isLoading;
+  final bool isLoadingMore;
   final List<CatalogItem> items;
   final String? error;
   final CatalogFilterState filter;
+  final int currentPage;
+  final bool hasMore;
 
   const CatalogState({
     this.isLoading = false,
+    this.isLoadingMore = false,
     this.items = const [],
     this.error,
     this.filter = const CatalogFilterState(),
+    this.currentPage = 1,
+    this.hasMore = true,
   });
 
   CatalogState copyWith({
     bool? isLoading,
+    bool? isLoadingMore,
     List<CatalogItem>? items,
     String? error,
     CatalogFilterState? filter,
+    int? currentPage,
+    bool? hasMore,
   }) {
     return CatalogState(
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       items: items ?? this.items,
       error: error,
       filter: filter ?? this.filter,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 }
@@ -75,14 +87,20 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
   }
 
   Future<void> loadCatalog() async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      isLoading: true,
+      isLoadingMore: false,
+      error: null,
+      currentPage: 1,
+      hasMore: true,
+    );
 
     try {
       final filter = state.filter;
       List<CatalogItem> results;
 
       if (filter.searchQuery.trim().isNotEmpty) {
-        var rawResults = await _service.search(filter.searchQuery.trim());
+        var rawResults = await _service.search(filter.searchQuery.trim(), page: 1);
 
         // Respect active category filter (e.g. Anime only shows anime, Series only shows series)
         if (filter.category != 'all') {
@@ -132,12 +150,69 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
           genreId: genreId > 0 ? genreId : null,
           countryId: countryId > 0 ? countryId : null,
           year: filter.year,
+          page: 1,
         );
       }
 
-      state = state.copyWith(isLoading: false, items: results);
+      state = state.copyWith(
+        isLoading: false,
+        items: results,
+        currentPage: 1,
+        hasMore: results.length >= 10,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+
+    final nextPage = state.currentPage + 1;
+    state = state.copyWith(isLoadingMore: true);
+
+    try {
+      final filter = state.filter;
+      List<CatalogItem> newItems = [];
+
+      if (filter.searchQuery.trim().isNotEmpty) {
+        newItems = await _service.search(filter.searchQuery.trim(), page: nextPage);
+      } else {
+        final genreId = KinopoiskService.genreMap[filter.genre] ?? 0;
+        final countryId = KinopoiskService.countryMap[filter.country] ?? 0;
+
+        newItems = await _service.getByCategory(
+          category: filter.category,
+          genreId: genreId > 0 ? genreId : null,
+          countryId: countryId > 0 ? countryId : null,
+          year: filter.year,
+          page: nextPage,
+        );
+      }
+
+      if (newItems.isEmpty) {
+        state = state.copyWith(isLoadingMore: false, hasMore: false);
+        return;
+      }
+
+      // Deduplicate new items with existing ones
+      final existingIds = state.items
+          .map((i) => i.kinopoiskId != null ? 'id_${i.kinopoiskId}' : 't_${i.title.toLowerCase()}')
+          .toSet();
+
+      final filteredNew = newItems.where((i) {
+        final key = i.kinopoiskId != null ? 'id_${i.kinopoiskId}' : 't_${i.title.toLowerCase()}';
+        return !existingIds.contains(key);
+      }).toList();
+
+      state = state.copyWith(
+        isLoadingMore: false,
+        items: [...state.items, ...filteredNew],
+        currentPage: nextPage,
+        hasMore: newItems.length >= 8,
+      );
+    } catch (_) {
+      state = state.copyWith(isLoadingMore: false, hasMore: false);
     }
   }
 
