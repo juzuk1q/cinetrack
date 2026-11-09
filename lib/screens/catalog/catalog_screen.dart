@@ -11,7 +11,7 @@ import '../../models/media_item.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/media_provider.dart';
 import '../../providers/stats_provider.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../widgets/app_header.dart';
 
 class CatalogScreen extends ConsumerStatefulWidget {
   const CatalogScreen({super.key});
@@ -116,9 +116,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final filtered = _getFilteredItems();
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          const AppSidebar(selectedIndex: 2),
+          const AppHeader(activeRoute: '/library'),
           Expanded(
             child: CustomScrollView(
               slivers: [

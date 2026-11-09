@@ -255,7 +255,26 @@ class CuratedCatalog {
       rating: 9.1,
     ),
 
-    // МУЛЬТФИЛЬМЫ
+    // МУЛЬТФИЛЬМЫ И АНИМЕ
+    CatalogItem(
+      kinopoiskId: 841681,
+      title: 'Токийский гуль',
+      nameOriginal: 'Tokyo Ghoul',
+      type: 'cartoon',
+      typeLabel: 'Аниме-сериал',
+      genres: ['Аниме', 'Ужасы', 'Боевик', 'Фэнтези', 'Драма'],
+      year: 2014,
+      director: 'Сюхэй Морита',
+      actors: 'Нацуки Ханаэ, Сора Амамия, Синтаро Асанума',
+      description:
+          'С обычным студентом Кэном Канэки случается беда, парень попадает в больницу. Но на этом неприятности не заканчиваются: ему пересаживают органы гулей – существ, поедающих плоть людей. После злосчастной операции Канэки становится одним из чудовищ, пытается стать своим, но для людей он теперь изгой, обреченный на уничтожение.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/841681.jpg',
+      coverUrl:
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/1900788/e5d98938-605a-4c8a-b0d6-5f93d926aa0c/orig',
+      rating: 7.1,
+      ratingImdb: 7.8,
+    ),
     CatalogItem(
       title: 'Унесённые призраками',
       type: 'cartoon',

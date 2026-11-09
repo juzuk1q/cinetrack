@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/media_provider.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../widgets/app_header.dart';
 import '../../widgets/filter_bar.dart';
 import '../../widgets/media_card.dart';
 
@@ -30,9 +30,9 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
     final filters = ref.watch(filtersProvider);
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          const AppSidebar(selectedIndex: 1),
+          const AppHeader(activeRoute: '/library'),
           Expanded(
             child: Column(
               children: [

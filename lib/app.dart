@@ -2,19 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/theme.dart';
+import 'models/catalog_item.dart';
 import 'providers/auth_provider.dart';
+import 'screens/admin/admin_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/media/media_detail_screen.dart';
 import 'screens/media/add_edit_media_screen.dart';
+import 'screens/movie/movie_detail_screen.dart';
 import 'screens/library/library_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/rooms/rooms_screen.dart';
 import 'screens/rooms/room_detail_screen.dart';
+import 'screens/watch/solo_watch_screen.dart';
 import 'screens/planner/planner_screen.dart';
 import 'screens/stats/stats_screen.dart';
 
@@ -43,23 +46,34 @@ class CineTrackApp extends ConsumerWidget {
 }
 
 final _routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.read(authStateProvider);
+  final authNotifier = ref.read(authStateProvider);
+  final authRepo = ref.read(authRepositoryProvider);
 
   return GoRouter(
     initialLocation: '/home',
     redirect: (context, state) {
-      final session = Supabase.instance.client.auth.currentSession;
-      final isLoggedIn = session != null;
-      final isAuthRoute =
-          state.matchedLocation == '/login' ||
+      final user = authRepo.currentUser;
+      final isAuth = user != null;
+      final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register';
 
-      if (!isLoggedIn && !isAuthRoute) return '/login';
-      if (isLoggedIn && isAuthRoute) return '/home';
+      // Если пользователь не вошел — перенаправляем на экран авторизации
+      if (!isAuth && !isAuthRoute) {
+        return '/login';
+      }
+      // Если пользователь уже вошел и пытается открыть логин/регистрацию — перенаправляем на главную
+      if (isAuth && isAuthRoute) {
+        return '/home';
+      }
       return null;
     },
-    refreshListenable: authState,
+    refreshListenable: authNotifier,
     routes: [
+      GoRoute(
+        path: '/admin',
+        name: 'admin',
+        builder: (context, state) => const AdminScreen(),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',
@@ -74,6 +88,40 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/home',
         name: 'home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/watch',
+        name: 'solo-watch',
+        builder: (context, state) {
+          final title = state.uri.queryParameters['title'] ?? 'Фильм';
+          final year = int.tryParse(state.uri.queryParameters['year'] ?? '');
+          final kinopoiskId = int.tryParse(state.uri.queryParameters['kpId'] ?? '');
+          final poster = state.uri.queryParameters['poster'];
+          final type = state.uri.queryParameters['type'] ?? 'movie';
+          final desc = state.uri.queryParameters['desc'];
+          final genres = state.uri.queryParameters['genres'];
+          return SoloWatchScreen(
+            title: title,
+            year: year,
+            kinopoiskId: kinopoiskId,
+            posterUrl: poster,
+            type: type,
+            description: desc,
+            genres: genres,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/movie/:id',
+        name: 'movie-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final item = state.extra as CatalogItem?;
+          return MovieDetailScreen(
+            movieId: id,
+            initialItem: item,
+          );
+        },
       ),
       GoRoute(
         path: '/library',
@@ -94,6 +142,14 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/user/:username',
+        name: 'user-profile',
+        builder: (context, state) {
+          final username = state.pathParameters['username'];
+          return ProfileScreen(targetUsername: username);
+        },
       ),
       GoRoute(
         path: '/rooms',

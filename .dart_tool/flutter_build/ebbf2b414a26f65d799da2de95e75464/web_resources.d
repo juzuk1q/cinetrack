@@ -1,1 +1,0 @@
-:  C:\\Users\\juzuk1q\\.gemini\\antigravity\\scratch\\cinetrack\\web\\index.html

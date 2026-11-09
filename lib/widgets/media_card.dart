@@ -1,88 +1,131 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants.dart';
 import '../core/theme.dart';
+import '../models/catalog_item.dart';
 import '../models/media_item.dart';
 
-class MediaCard extends StatelessWidget {
+class MediaCard extends StatefulWidget {
   final MediaItem item;
   final bool listView;
 
   const MediaCard({super.key, required this.item, this.listView = false});
 
   @override
+  State<MediaCard> createState() => _MediaCardState();
+}
+
+class _MediaCardState extends State<MediaCard> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    if (listView) return _buildListTile(context);
+    if (widget.listView) return _buildListTile(context);
     return _buildGridCard(context);
   }
 
   Widget _buildGridCard(BuildContext context) {
-    return InkWell(
-      onTap: () => context.go('/media/${item.id}'),
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Poster
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildPoster(),
-                  // Type badge
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _TypeBadge(type: item.type),
-                  ),
-                  // Status badge
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: _StatusBadge(status: item.status),
-                  ),
-                ],
+    final item = widget.item;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedScale(
+        scale: _isHovered ? 1.03 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: _isHovered
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : [],
+          ),
+          child: InkWell(
+            onTap: () => context.go('/media/${item.id}'),
+            borderRadius: BorderRadius.circular(16),
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: _isHovered
+                      ? const Color(0xFF7C3AED)
+                      : Colors.white10,
+                  width: _isHovered ? 1.4 : 0.8,
+                ),
               ),
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                  // Poster
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildPoster(),
+                        // Type badge
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: _TypeBadge(type: item.type),
+                        ),
+                        // Status badge
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: _StatusBadge(status: item.status),
+                        ),
+                      ],
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (item.year != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      '${item.year}',
-                      style: Theme.of(context).textTheme.labelSmall,
+                  // Info
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (item.year != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '${item.year}',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                        if (item.rating != null) ...[
+                          const SizedBox(height: 4),
+                          _StarRatingSmall(rating: item.rating!),
+                        ],
+                      ],
                     ),
-                  ],
-                  if (item.rating != null) ...[
-                    const SizedBox(height: 4),
-                    _StarRatingSmall(rating: item.rating!),
-                  ],
+                  ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildListTile(BuildContext context) {
+    final item = widget.item;
     return Card(
       child: InkWell(
         onTap: () => context.go('/media/${item.id}'),
@@ -156,9 +199,9 @@ class MediaCard extends StatelessWidget {
   }
 
   Widget _buildPoster() {
-    if (item.posterUrl != null && item.posterUrl!.isNotEmpty) {
+    if (widget.item.posterUrl != null && widget.item.posterUrl!.isNotEmpty) {
       return Image.network(
-        item.posterUrl!,
+        CatalogItem.fixPosterUrl(widget.item.posterUrl),
         fit: BoxFit.cover,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -187,9 +230,9 @@ class MediaCard extends StatelessWidget {
       color: const Color(0xFF252540),
       child: Center(
         child: Icon(
-          item.type == 'cartoon'
+          widget.item.type == 'cartoon'
               ? Icons.animation_rounded
-              : item.type == 'series'
+              : widget.item.type == 'series'
                   ? Icons.tv_rounded
                   : Icons.movie_rounded,
           size: 36,

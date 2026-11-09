@@ -3,13 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/constants.dart';
-import '../../data/curated_catalog.dart';
-import '../../models/catalog_item.dart';
 import '../../models/watch_room.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/room_provider.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../widgets/app_header.dart';
 
 class RoomsScreen extends ConsumerStatefulWidget {
   const RoomsScreen({super.key});
@@ -21,12 +18,50 @@ class RoomsScreen extends ConsumerStatefulWidget {
 class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   String _filter = 'all'; // 'all', 'watching', 'preparing'
 
+  void _confirmDeleteRoom(BuildContext context, WatchRoom room) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E34),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+            SizedBox(width: 10),
+            Text('Удалить комнату?'),
+          ],
+        ),
+        content: Text(
+          'Вы уверены, что хотите удалить «${room.title}»?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(roomsProvider.notifier).deleteRoom(room.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Комната «${room.title}» удалена')),
+              );
+            },
+            child: const Text('Удалить', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCreateRoomDialog() {
     final titleCtrl = TextEditingController();
-    final movieCtrl = TextEditingController();
-    CatalogItem? selectedMovie;
-    DateTime scheduledDate = DateTime.now().add(const Duration(hours: 1));
-    String movieType = 'movie';
+    final passwordCtrl = TextEditingController();
+    bool isPasswordObscured = true;
+    int? maxUsers;
+    double sliderVal = 50.0;
+    final limitTextCtrl = TextEditingController(text: '∞');
 
     showDialog(
       context: context,
@@ -42,122 +77,163 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                 ],
               ),
               content: SizedBox(
-                width: 500,
+                width: 460,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Пригласите друзей или присоединяйтесь к совместному просмотру фильмов с живым чатом!',
+                        'Приглашайте друзей к совместному просмотру. Видеоисточник (фильм из каталога, VK Видео, прямая ссылка или файл) вы выберете внутри комнаты!',
                         style: TextStyle(color: Colors.white60, fontSize: 13),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
 
                       // Room Title
                       TextField(
                         controller: titleCtrl,
                         decoration: const InputDecoration(
                           labelText: 'Название комнаты *',
-                          hintText: 'Например, «Киновечер пятницы»',
+                          hintText: 'Например, «Киновечер с друзьями»',
                           prefixIcon: Icon(Icons.meeting_room_outlined),
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Choose Movie from catalog
-                      const Text('Выберите фильм из библиотеки:',
-                          style: TextStyle(
+                      // Room Password (optional)
+                      TextField(
+                        controller: passwordCtrl,
+                        obscureText: isPasswordObscured,
+                        decoration: InputDecoration(
+                          labelText: 'Пароль для входа (необязательно)',
+                          hintText: 'Оставьте пустым для открытого входа',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              isPasswordObscured
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              setDlgState(() {
+                                isPasswordObscured = !isPasswordObscured;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Max Participants (Slider + Precise TextField)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Лимит участников:',
+                            style: TextStyle(
                               color: Color(0xFF9F67FF),
                               fontWeight: FontWeight.w600,
-                              fontSize: 12)),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<CatalogItem>(
-                        isExpanded: true,
-                        hint: const Text('Выберите фильм/сериал...'),
-                        initialValue: selectedMovie,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.movie_outlined),
-                        ),
-                        items: CuratedCatalog.items.map((m) {
-                          return DropdownMenuItem<CatalogItem>(
-                            value: m,
-                            child: Text(
-                              '${m.title} (${m.year}) — ${AppConstants.mediaTypes[m.type]}',
-                              overflow: TextOverflow.ellipsis,
+                              fontSize: 12,
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setDlgState(() {
-                            selectedMovie = val;
-                            if (val != null) {
-                              movieCtrl.text = val.title;
-                              movieType = val.type;
-                            }
-                          });
-                        },
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: sliderVal >= 50
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                                  : const Color(0xFF7C3AED).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: sliderVal >= 50
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFF7C3AED),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              sliderVal >= 50
+                                  ? '♾ Без лимита'
+                                  : '${sliderVal.round()} чел.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: sliderVal >= 50
+                                    ? const Color(0xFF34D399)
+                                    : const Color(0xFFC084FC),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-
-                      // Or enter manual movie title
-                      TextField(
-                        controller: movieCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Или введите своё название фильма',
-                          prefixIcon: Icon(Icons.edit_note_rounded),
-                        ),
-                        onChanged: (v) {
-                          if (selectedMovie != null &&
-                              selectedMovie!.title != v) {
-                            setDlgState(() => selectedMovie = null);
-                          }
-                        },
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: const Color(0xFF7C3AED),
+                                inactiveTrackColor: Colors.white12,
+                                thumbColor: const Color(0xFF9F67FF),
+                                overlayColor: const Color(0xFF7C3AED).withValues(alpha: 0.2),
+                                trackHeight: 4,
+                              ),
+                              child: Slider(
+                                value: sliderVal,
+                                min: 2,
+                                max: 50,
+                                divisions: 48,
+                                onChanged: (val) {
+                                  setDlgState(() {
+                                    sliderVal = val;
+                                    if (val >= 50) {
+                                      maxUsers = null;
+                                      limitTextCtrl.text = '∞';
+                                    } else {
+                                      maxUsers = val.round();
+                                      limitTextCtrl.text = val.round().toString();
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 74,
+                            child: TextField(
+                              controller: limitTextCtrl,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                hintText: '2-50',
+                                hintStyle: const TextStyle(fontSize: 11, color: Colors.white30),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onChanged: (text) {
+                                final parsed = int.tryParse(text.trim());
+                                setDlgState(() {
+                                  if (parsed == null || parsed >= 50 || parsed <= 0) {
+                                    sliderVal = 50.0;
+                                    maxUsers = null;
+                                  } else {
+                                    final clamped = parsed.clamp(2, 49);
+                                    sliderVal = clamped.toDouble();
+                                    maxUsers = clamped;
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-
-                      // Scheduled Date/Time
-                      ListTile(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: const BorderSide(color: Colors.white12)),
-                        leading: const Icon(Icons.access_time_rounded,
-                            color: Color(0xFF9F67FF)),
-                        title: const Text('Время сеанса',
-                            style: TextStyle(fontSize: 14)),
-                        subtitle: Text(
-                          DateFormat('d MMMM, HH:mm', 'ru').format(scheduledDate),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        trailing: const Icon(Icons.edit_calendar_rounded, size: 20),
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: scheduledDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 30)),
-                            locale: const Locale('ru'),
-                          );
-                          if (date != null && context.mounted) {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(scheduledDate),
-                            );
-                            if (time != null) {
-                              setDlgState(() {
-                                scheduledDate = DateTime(
-                                  date.year,
-                                  date.month,
-                                  date.day,
-                                  time.hour,
-                                  time.minute,
-                                );
-                              });
-                            }
-                          }
-                        },
+                      Text(
+                        sliderVal >= 50
+                            ? '♾ Ползунок справа: количество участников неограниченно'
+                            : 'Точная настройка: максимум ${sliderVal.round()} зрителей одновременно',
+                        style: const TextStyle(fontSize: 11, color: Colors.white54),
                       ),
                     ],
                   ),
@@ -169,30 +245,37 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                   child: const Text('Отмена'),
                 ),
                 ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 12),
+                  ),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Создать комнату'),
                   onPressed: () {
                     final title = titleCtrl.text.trim();
-                    final movie = movieCtrl.text.trim();
-                    if (title.isEmpty || movie.isEmpty) {
+                    if (title.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Заполните название комнаты и фильма')),
+                            content: Text('Введите название комнаты')),
                       );
                       return;
                     }
 
                     final user = ref.read(currentUserProvider);
-                    final ownerName = user?.email?.split('@').first ?? 'Организатор';
+                    final ownerName =
+                        user?.email?.split('@').first ?? 'Организатор';
+                    final clientToken = RoomRepository.getClientToken();
+                    final ownerId = user?.id ?? clientToken;
+                    final pwd = passwordCtrl.text.trim();
 
                     final room = ref.read(roomsProvider.notifier).createRoom(
                           title: title,
-                          movieTitle: movie,
-                          movieType: selectedMovie?.type ?? movieType,
-                          moviePoster: selectedMovie?.posterUrl,
-                          movieYear: selectedMovie?.year,
-                          scheduledAt: scheduledDate,
                           ownerName: ownerName,
+                          ownerId: ownerId,
+                          password: pwd.isNotEmpty ? pwd : null,
+                          maxParticipants: maxUsers,
+                          videoSourceType: 'none',
                         );
 
                     Navigator.pop(ctx);
@@ -217,9 +300,9 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
     }).toList();
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          const AppSidebar(selectedIndex: 2),
+          const AppHeader(activeRoute: '/rooms'),
           Expanded(
             child: CustomScrollView(
               slivers: [
@@ -313,6 +396,13 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   }
 
   Widget _buildRoomCard(WatchRoom room) {
+    final user = ref.watch(currentUserProvider);
+    final isAdmin = ref.watch(isAdminProvider);
+    final isOwner = user != null &&
+        (room.ownerId == user.id ||
+            room.ownerName.toLowerCase() ==
+                (user.email?.split('@').first ?? '').toLowerCase());
+    final canDelete = isOwner || isAdmin;
     final isWatching = room.status == 'watching';
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -330,21 +420,27 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isWatching
-                          ? const Color(0xFF10B981).withValues(alpha: 0.2)
-                          : const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: isWatching
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFFF59E0B),
+                        color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
                         width: 0.8,
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(isWatching ? '🍿 Смотрят сейчас' : '⏳ Запланирован'),
+                        const Icon(Icons.person_rounded,
+                            size: 11, color: Color(0xFF9F67FF)),
+                        const SizedBox(width: 4),
+                        Text(
+                          room.ownerName,
+                          style: const TextStyle(
+                            color: Color(0xFF9F67FF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -359,6 +455,19 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 13),
                       ),
+                      if (canDelete) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18, color: Colors.redAccent),
+                          tooltip: isOwner
+                              ? 'Удалить свою комнату'
+                              : 'Удалить комнату (Администратор)',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _confirmDeleteRoom(context, room),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -440,17 +549,29 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
               ),
               const Spacer(),
 
-              // Enter button
+              // Enter button (Comfortable height 48px)
               SizedBox(
                 width: double.infinity,
+                height: 48,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isWatching
                         ? const Color(0xFF7C3AED)
                         : const Color(0xFF252540),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 3,
                   ),
-                  icon: const Icon(Icons.login_rounded, size: 16),
-                  label: const Text('Войти в комнату'),
+                  icon: const Icon(Icons.login_rounded, size: 18),
+                  label: const Text(
+                    'Войти в комнату',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
                   onPressed: () => context.go('/rooms/${room.id}'),
                 ),
               ),

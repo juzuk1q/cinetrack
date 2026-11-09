@@ -1,9 +1,4 @@
 @echo off
-chcp 65001 > nul
-echo ========================================================
-echo   Запуск CineTrack (Flutter Web)
-echo ========================================================
-echo.
-echo Запуск в браузере Chrome...
-flutter run -d chrome
+
+flutter run -d chrome --web-port=3000 --web-hostname=127.0.0.1
 pause

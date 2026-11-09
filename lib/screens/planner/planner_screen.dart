@@ -6,7 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../models/media_item.dart';
 import '../../providers/media_provider.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../widgets/app_header.dart';
 
 class PlannerScreen extends ConsumerStatefulWidget {
   const PlannerScreen({super.key});
@@ -52,9 +52,9 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     final plannedAsync = ref.watch(plannedMediaProvider);
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          const AppSidebar(selectedIndex: 4),
+          const AppHeader(activeRoute: '/planner'),
           Expanded(
             child: plannedAsync.when(
               data: (items) {

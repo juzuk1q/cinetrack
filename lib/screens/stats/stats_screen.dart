@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../../providers/stats_provider.dart';
 import '../../repositories/stats_repository.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../widgets/app_header.dart';
 
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
@@ -15,9 +15,9 @@ class StatsScreen extends ConsumerWidget {
     final statsAsync = ref.watch(statsDataProvider);
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          const AppSidebar(selectedIndex: 5),
+          const AppHeader(activeRoute: '/stats'),
           Expanded(
             child: statsAsync.when(
               data: (stats) => _buildContent(context, ref, stats),

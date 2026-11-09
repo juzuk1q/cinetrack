@@ -11,7 +11,7 @@ import '../../models/media_item.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/media_provider.dart';
 import '../../providers/stats_provider.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../widgets/app_header.dart';
 
 class AddEditMediaScreen extends ConsumerStatefulWidget {
   final String? mediaId;
@@ -228,9 +228,9 @@ class _AddEditMediaScreenState extends ConsumerState<AddEditMediaScreen> {
 
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          const AppSidebar(selectedIndex: 1),
+          const AppHeader(activeRoute: '/library'),
           Expanded(
             child: CustomScrollView(
               slivers: [

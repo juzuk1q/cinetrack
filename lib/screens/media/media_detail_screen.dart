@@ -3,13 +3,13 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/media_item.dart';
 import '../../providers/media_provider.dart';
-import '../../widgets/app_sidebar.dart';
+import '../../providers/room_provider.dart';
+import '../../widgets/app_header.dart';
 
 class MediaDetailScreen extends ConsumerWidget {
   final String mediaId;
@@ -20,9 +20,9 @@ class MediaDetailScreen extends ConsumerWidget {
     final itemAsync = ref.watch(mediaItemProvider(mediaId));
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          const AppSidebar(selectedIndex: 1),
+          const AppHeader(activeRoute: '/library'),
           Expanded(
             child: itemAsync.when(
               data: (item) {
@@ -228,7 +228,7 @@ class MediaDetailScreen extends ConsumerWidget {
                           const SizedBox(height: 20),
 
                           // Where to watch online
-                          _buildStreamingSection(context, item),
+                          _buildStreamingSection(context, item, ref),
 
                           const SizedBox(height: 24),
 
@@ -310,44 +310,76 @@ class MediaDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStreamingSection(BuildContext context, MediaItem item) {
-    final query = Uri.encodeComponent('${item.title} ${item.year ?? ''}');
+  Widget _buildStreamingSection(BuildContext context, MediaItem item, WidgetRef ref) {
     return _buildSection(
       context,
-      'ГДЕ СМОТРЕТЬ ОНЛАЙН',
+      'СМОТРЕТЬ ОНЛАЙН',
       Wrap(
-        spacing: 10,
+        spacing: 12,
         runSpacing: 10,
         children: [
-          _StreamingPill(
-            label: 'Lordfilm',
-            icon: Icons.movie_filter_rounded,
-            color: const Color(0xFFF59E0B),
-            url: 'https://yandex.ru/search/?text=${Uri.encodeComponent('lordfilm ${item.title} ${item.year ?? ''}')}',
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFF59E0B)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            icon: const Icon(Icons.person_rounded, color: Color(0xFFF59E0B)),
+            label: const Text(
+              'Смотреть одному 👤',
+              style: TextStyle(
+                  color: Color(0xFFF59E0B), fontWeight: FontWeight.w700),
+            ),
+            onPressed: () {
+              final uri = Uri(
+                path: '/watch',
+                queryParameters: {
+                  'title': item.title,
+                  if (item.year != null) 'year': item.year.toString(),
+                  if (item.posterUrl != null) 'poster': item.posterUrl!,
+                  'type': item.type,
+                  if (item.description != null) 'desc': item.description!,
+                  'genres': item.genres.join(', '),
+                },
+              );
+              context.go(uri.toString());
+            },
           ),
-          _StreamingPill(
-            label: 'Кинопоиск',
-            icon: Icons.play_circle_fill_rounded,
-            color: const Color(0xFFFF5500),
-            url: 'https://www.kinopoisk.ru/index.php?kp_query=$query',
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C3AED),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            icon: const Icon(Icons.groups_rounded),
+            label: const Text(
+              'Смотреть с друзьями 🍿',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            onPressed: () {
+              final room = ref.read(roomsProvider.notifier).createRoom(
+                    title: 'Совместный просмотр: ${item.title}',
+                    movieTitle: item.title,
+                    movieType: item.type,
+                    moviePoster: item.posterUrl,
+                    movieYear: item.year,
+                    scheduledAt: DateTime.now(),
+                    ownerName: 'Организатор',
+                  );
+              context.go('/rooms/${room.id}');
+            },
           ),
-          _StreamingPill(
-            label: 'Иви (ivi)',
-            icon: Icons.movie_creation_rounded,
-            color: const Color(0xFFEA125E),
-            url: 'https://www.ivi.ru/search/?q=$query',
-          ),
-          _StreamingPill(
-            label: 'Трейлер (YouTube)',
-            icon: Icons.video_library_rounded,
-            color: const Color(0xFFFF0000),
-            url: 'https://www.youtube.com/results?search_query=${Uri.encodeComponent('${item.title} ${item.year ?? ''} трейлер')}',
-          ),
-          _StreamingPill(
-            label: 'Поиск онлайн',
-            icon: Icons.search_rounded,
-            color: const Color(0xFF3B82F6),
-            url: 'https://yandex.ru/search/?text=${Uri.encodeComponent('${item.title} ${item.year ?? ''} смотреть онлайн')}',
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.white24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            icon: const Icon(Icons.info_outline_rounded, size: 16, color: Colors.white70),
+            label: const Text(
+              'Инфо & Кадры 🎬',
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white70),
+            ),
+            onPressed: () {
+              context.push('/movie/${Uri.encodeComponent(item.title)}');
+            },
           ),
         ],
       ),
@@ -449,56 +481,6 @@ class _StatusChip extends StatelessWidget {
             style: TextStyle(color: color, fontWeight: FontWeight.w600),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StreamingPill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final String url;
-
-  const _StreamingPill({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.url,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.platformDefault,
-      ),
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Icon(Icons.open_in_new_rounded, size: 13, color: Colors.white38),
-          ],
-        ),
       ),
     );
   }

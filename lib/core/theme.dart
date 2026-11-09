@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 class AppTheme {
   AppTheme._();
@@ -67,6 +67,7 @@ class AppTheme {
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         elevation: 3,
+        minimumSize: const Size(64, 48),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -84,6 +85,25 @@ class AppTheme {
       style: OutlinedButton.styleFrom(
         foregroundColor: _primaryLight,
         side: const BorderSide(color: _primary, width: 1.5),
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        textStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
+      ),
+    ),
+
+    // FilledButton
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(64, 48),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -95,6 +115,7 @@ class AppTheme {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: _primaryLight,
+        minimumSize: const Size(48, 42),
       ),
     ),
 
