@@ -70,10 +70,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ? dbProfile!.username
             : emailPrefix);
 
-    final myTitle = customProfile?.customTitle?.isNotEmpty == true
-        ? customProfile!.customTitle!
-        : (dbProfile?.customTitle?.isNotEmpty == true
-            ? dbProfile!.customTitle!
+    final myTitle = dbProfile?.customTitle?.isNotEmpty == true
+        ? dbProfile!.customTitle!
+        : (customProfile?.customTitle?.isNotEmpty == true
+            ? customProfile!.customTitle!
             : (dbProfile?.effectiveTitle ?? 'Новичок стримов 🍿'));
 
     final myRoleLabel = dbProfile?.roleLabel ?? (isAdmin ? 'Администратор ⭐' : 'Зритель 🍿');
@@ -126,16 +126,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           break;
         }
       }
-      otherProfile ??= UserProfile(
-        id: 'user_$clean',
-        email: '$clean@cinetrack.local',
-        displayName: clean,
-        username: clean,
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        role: 'user',
-        customTitle: 'Киноман 🎬',
-        isPrivate: false,
-      );
+      // If user profile is not found, render dedicated 404 page
+      if (otherProfile == null) {
+        return Scaffold(
+          backgroundColor: const Color(0xFF0F0F1A),
+          body: Column(
+            children: [
+              const AppHeader(activeRoute: '/profile'),
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.04),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: const Icon(
+                            Icons.person_off_rounded,
+                            size: 64,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Данный профиль не найден :(',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Пользователь @${widget.targetUsername} не существует или был удален.',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white60,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C3AED),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () => context.go('/'),
+                          icon: const Icon(Icons.home_rounded),
+                          label: const Text('На главную',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     }
 
     final isViewingSelf = !isTargetingOther;
@@ -171,18 +229,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
           // 2. User Profile Header with Banner & Discord-style Card
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(32, 20, 32, 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16162A),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 20, 32, 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16162A),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
                       color: Colors.black.withValues(alpha: 0.4),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
@@ -528,11 +589,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       runSpacing: 4,
                                       children: effectiveUnlockedTitles.map((achId) {
                                         final ach = UserAchievementsCatalog.list
-                                            .where((a) => a.id == achId)
+                                            .where((a) => a.id == achId || a.title == achId)
                                             .firstOrNull;
-                                        if (ach == null) return const SizedBox();
+                                        final displayIcon = ach?.icon ?? '⭐';
+                                        final displayTitle = ach?.title ?? achId;
+                                        final displayDesc = ach?.description ?? 'Особый полученный титул профиля';
+
                                         return Tooltip(
-                                          message: '${ach.title}: ${ach.description}',
+                                          message: '$displayTitle: $displayDesc',
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 7, vertical: 3),
@@ -546,11 +610,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Text(ach.icon,
+                                                Text(displayIcon,
                                                     style: const TextStyle(fontSize: 12)),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  ach.title,
+                                                  displayTitle,
                                                   style: const TextStyle(
                                                     fontSize: 10.5,
                                                     fontWeight: FontWeight.w700,
@@ -619,7 +683,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               },
                             ),
 
-                            // Staff access: Admin Panel + Quick Switch Key
+                            // Staff access: Admin Panel
                             if (isAdmin) ...[
                               const SizedBox(width: 8),
                               ElevatedButton.icon(
@@ -640,31 +704,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         fontWeight: FontWeight.w800,
                                         fontSize: 12)),
                                 onPressed: () => context.go('/admin'),
-                              ),
-                              const SizedBox(width: 6),
-                              IconButton(
-                                icon: const Icon(Icons.vpn_key_rounded, size: 18, color: Color(0xFFFBBF24)),
-                                tooltip: 'Сменить ранг / ввести мастер-ключ 🔑',
-                                onPressed: () => _showActivateRoleDialog(context),
-                              ),
-                            ] else ...[
-                              const SizedBox(width: 8),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF59E0B),
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.vpn_key_rounded, size: 16),
-                                label: const Text('Активировать права',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12)),
-                                onPressed: () => _showActivateRoleDialog(context),
                               ),
                             ],
                           ] else ...[
@@ -734,10 +773,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
           ),
+        ),
+      ),
 
-          // If viewing other user's private profile and not friend: show private lock card
-          if (!isViewingSelf && effectiveIsPrivate && !isFriend)
-            SliverToBoxAdapter(
+      // If viewing other user's private profile: show private lock card
+      if (!isViewingSelf && effectiveIsPrivate)
+        SliverToBoxAdapter(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
                 child: Container(
@@ -765,36 +809,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Пользователь @$effectiveUsername ограничил доступ к своей коллекции и статистике. Добавьте его в друзья, чтобы просматривать совместные фильмы!',
+                        'Пользователь @$effectiveUsername ограничил доступ к своему профилю. Коллекция фильмов, статистика и список друзей скрыты.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.white60, fontSize: 13, height: 1.4),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        ),
-                        icon: const Icon(Icons.person_add_rounded),
-                        label: const Text('Добавить в друзья'),
-                        onPressed: () {
-                          ref
-                              .read(profileCustomizationProvider.notifier)
-                              .addFriend(otherProfile!.handle);
-                          TopNotification.showSuccess(
-                            context,
-                            'Запрос в друзья отправлен @$effectiveUsername',
-                          );
-                        },
                       ),
                     ],
                   ),
                 ),
               ),
-            )
-          else ...[
-            // 3. Tab Switcher Bar: [ 🔖 Коллекция ] vs [ 📊 Статистика ] vs [ 👥 Друзья ]
-            SliverToBoxAdapter(
+            ),
+          ),
+        )
+      else ...[
+        // 3. Tab Switcher Bar: [ 🔖 Коллекция ] vs [ 📊 Статистика ] vs [ 👥 Друзья ]
+        SliverToBoxAdapter(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: Row(
@@ -802,7 +833,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     _buildSectionTab(
                       index: 0,
                       icon: Icons.bookmark_added_rounded,
-                      label: 'Моя коллекция & Избранное',
+                      label: isViewingSelf ? 'Моя коллекция & Избранное' : 'Коллекция',
                       badgeCount: mediaAsync.value?.length,
                     ),
                     const SizedBox(width: 12),
@@ -816,18 +847,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       index: 2,
                       icon: Icons.people_alt_rounded,
                       label: 'Друзья',
-                      badgeCount: myFriends.length,
+                      badgeCount: isViewingSelf ? myFriends.length : (otherProfile?.friends.length ?? 0),
                     ),
                   ],
                 ),
               ),
             ),
+          ),
+        ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-            // 4. Body based on active tab
-            if (_activeTab == 0)
-              SliverToBoxAdapter(
+        // 4. Body based on active tab
+        if (_activeTab == 0)
+          SliverToBoxAdapter(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: mediaAsync.when(
@@ -841,9 +877,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     error: (e, _) => Center(child: Text('Ошибка загрузки: $e')),
                   ),
                 ),
-              )
-            else if (_activeTab == 1)
-              SliverToBoxAdapter(
+              ),
+            ),
+          )
+        else if (_activeTab == 1)
+          SliverToBoxAdapter(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: statsAsync.when(
@@ -857,15 +898,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     error: (e, _) => Center(child: Text('Ошибка: $e')),
                   ),
                 ),
-              )
-            else
-              SliverToBoxAdapter(
+              ),
+            ),
+          )
+        else
+          SliverToBoxAdapter(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: _buildFriendsBody(context, myFriends, allUsers),
+                  child: _buildFriendsBody(
+                    context,
+                    isViewingSelf ? myFriends : (otherProfile?.friends ?? []),
+                    allUsers,
+                  ),
                 ),
               ),
-          ],
+            ),
+          ),
+      ],
 
           const SliverToBoxAdapter(child: SizedBox(height: 60)),
         ],
@@ -1365,7 +1417,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.8,
+              childAspectRatio: 2.2,
               children: [
                 _buildKpiCard(
                   title: 'Всего в коллекции',
@@ -1901,61 +1953,104 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.white12),
                         ),
-                        child: ListView.separated(
+                        child: ListView(
                           shrinkWrap: true,
                           padding: const EdgeInsets.all(8),
-                          itemCount: UserAchievementsCatalog.list.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
-                          itemBuilder: (ctx, idx) {
-                            final ach = UserAchievementsCatalog.list[idx];
-                            final isUnlocked = availableUnlocked.contains(ach.id);
-                            final isEquipped = selectedTitle == ach.title;
-
-                            return ListTile(
-                              dense: true,
-                              leading: Text(ach.icon, style: const TextStyle(fontSize: 22)),
-                              title: Row(
-                                children: [
-                                  Text(
-                                    ach.title,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: isUnlocked ? Colors.white : Colors.white38,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (isEquipped)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF7C3AED),
-                                        borderRadius: BorderRadius.circular(4),
+                          children: [
+                            // Custom awarded titles
+                            for (final extraTitle in availableUnlocked.where((id) =>
+                                !UserAchievementsCatalog.list.any((a) => a.id == id || a.title == id))) ...[
+                              ListTile(
+                                dense: true,
+                                leading: const Text('⭐', style: TextStyle(fontSize: 22)),
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      extraTitle,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
                                       ),
-                                      child: const Text('Надет 👑', style: TextStyle(fontSize: 9, color: Colors.white)),
-                                    )
-                                  else if (isUnlocked)
-                                    const Text('✅', style: TextStyle(fontSize: 11))
-                                  else
-                                    const Text('🔒', style: TextStyle(fontSize: 11)),
-                                ],
-                              ),
-                              subtitle: Text(
-                                ach.description,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isUnlocked ? Colors.white60 : Colors.white24,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (selectedTitle == extraTitle)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF7C3AED),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text('Надет 👑', style: TextStyle(fontSize: 9, color: Colors.white)),
+                                      )
+                                    else
+                                      const Text('✅', style: TextStyle(fontSize: 11)),
+                                  ],
+                                ),
+                                subtitle: const Text(
+                                  'Особый полученный титул',
+                                  style: TextStyle(fontSize: 11, color: Colors.white60),
+                                ),
+                                trailing: TextButton(
+                                  onPressed: () {
+                                    setDlgState(() => selectedTitle = extraTitle);
+                                  },
+                                  child: Text(selectedTitle == extraTitle ? 'Выбран' : 'Надеть'),
                                 ),
                               ),
-                              trailing: isUnlocked
-                                  ? TextButton(
-                                      onPressed: () {
-                                        setDlgState(() => selectedTitle = ach.title);
-                                      },
-                                      child: Text(isEquipped ? 'Выбран' : 'Надеть'),
-                                    )
-                                  : const Text('Закрыто', style: TextStyle(fontSize: 11, color: Colors.white24)),
-                            );
-                          },
+                              const Divider(height: 1, color: Colors.white10),
+                            ],
+                            for (final ach in UserAchievementsCatalog.list) ...[
+                              ListTile(
+                                dense: true,
+                                leading: Text(ach.icon, style: const TextStyle(fontSize: 22)),
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      ach.title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: (availableUnlocked.contains(ach.id) || availableUnlocked.contains(ach.title))
+                                            ? Colors.white
+                                            : Colors.white38,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (selectedTitle == ach.title)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF7C3AED),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text('Надет 👑', style: TextStyle(fontSize: 9, color: Colors.white)),
+                                      )
+                                    else if (availableUnlocked.contains(ach.id) || availableUnlocked.contains(ach.title))
+                                      const Text('✅', style: TextStyle(fontSize: 11))
+                                    else
+                                      const Text('🔒', style: TextStyle(fontSize: 11)),
+                                  ],
+                                ),
+                                subtitle: Text(
+                                  ach.description,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: (availableUnlocked.contains(ach.id) || availableUnlocked.contains(ach.title))
+                                        ? Colors.white60
+                                        : Colors.white24,
+                                  ),
+                                ),
+                                trailing: (availableUnlocked.contains(ach.id) || availableUnlocked.contains(ach.title))
+                                    ? TextButton(
+                                        onPressed: () {
+                                          setDlgState(() => selectedTitle = ach.title);
+                                        },
+                                        child: Text(selectedTitle == ach.title ? 'Выбран' : 'Надеть'),
+                                      )
+                                    : const Text('Закрыто', style: TextStyle(fontSize: 11, color: Colors.white24)),
+                              ),
+                              const Divider(height: 1, color: Colors.white10),
+                            ],
+                          ],
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -2118,49 +2213,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           );
                         },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 4b. Role & Staff Activation Key Card
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.vpn_key_rounded, color: Color(0xFFFBBF24)),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Права доступа и ранги (Мастер-ключ)',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white),
-                                  ),
-                                  Text(
-                                    'Активировать статус Создателя 👑, Разработчика 💻, Админа ⭐ или Модератора 🛡️',
-                                    style: TextStyle(fontSize: 11, color: Colors.white60),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFF59E0B),
-                                foregroundColor: Colors.black,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              ),
-                              icon: const Icon(Icons.key_rounded, size: 15),
-                              label: const Text('Активировать', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              onPressed: () => _showActivateRoleDialog(context),
-                            ),
-                          ],
-                        ),
                       ),
                       const SizedBox(height: 16),
 
@@ -2475,171 +2527,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showActivateRoleDialog(BuildContext context) {
-    final secretCodeCtrl = TextEditingController();
-
-    Future<void> claimRole(String targetRole, {String? successTitle}) async {
-      final user = ref.read(currentUserProvider);
-      if (user == null) return;
-
-      try {
-        await supabase
-            .from('profiles')
-            .update({'role': targetRole})
-            .eq('id', user.id);
-      } catch (_) {}
-
-      await ref.read(adminUsersProvider.notifier).updateRole(user.id, targetRole);
-      ref.invalidate(userProfileProvider);
-      ref.read(adminUsersProvider.notifier).refresh();
-
-      if (!context.mounted) return;
-      secretCodeCtrl.clear();
-      Navigator.of(context, rootNavigator: true).pop();
-
-      final roleLabel = targetRole == 'creator'
-          ? 'Создатель 👑'
-          : (targetRole == 'developer'
-              ? 'Разработчик 💻'
-              : (targetRole == 'admin' ? 'Администратор ⭐' : 'Модератор 🛡️'));
-
-      TopNotification.showSuccess(
-        context,
-        'Поздравляем! Вам успешно присвоен статус «$roleLabel»',
-        title: successTitle ?? 'Ранг обновлен',
-      );
-    }
-
-    void submitCode() async {
-      final code = secretCodeCtrl.text.trim().toLowerCase();
-      if (code == 'cinetrack_creator_2026' || code == 'creator' || code == 'owner') {
-        await claimRole('creator', successTitle: 'Создатель платформы 👑');
-      } else if (code == 'cinetrack_dev_2026' || code == 'developer' || code == 'coder') {
-        await claimRole('developer', successTitle: 'Разработчик платформы 💻');
-      } else if (code == 'cinetrack_admin_2026' || code == 'admin') {
-        await claimRole('admin', successTitle: 'Администратор ⭐');
-      } else if (code == 'cinetrack_mod_2026' || code == 'moderator' || code == 'mod') {
-        await claimRole('moderator', successTitle: 'Модератор 🛡️');
-      } else {
-        TopNotification.showError(
-          context,
-          'Неверный мастер-ключ. Проверьте правильность ввода.',
-          title: 'Ошибка доступа',
-        );
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E34),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.vpn_key_rounded, color: Color(0xFFFBBF24)),
-            SizedBox(width: 10),
-            Text('Активация прав & рангов'),
-          ],
-        ),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Выберите ранг для моментального переключения или введите мастер-ключ:',
-                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              const Text('Быстрое переключение ранга:',
-                  style: TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('👑', style: TextStyle(fontSize: 16)),
-                    label: const Text('Создатель', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => claimRole('creator', successTitle: 'Создатель платформы 👑'),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF06B6D4),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('💻', style: TextStyle(fontSize: 16)),
-                    label: const Text('Разработчик', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => claimRole('developer', successTitle: 'Разработчик 💻'),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEAB308),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('⭐', style: TextStyle(fontSize: 16)),
-                    label: const Text('Администратор', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => claimRole('admin', successTitle: 'Администратор ⭐'),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('🛡️', style: TextStyle(fontSize: 16)),
-                    label: const Text('Модератор', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => claimRole('moderator', successTitle: 'Модератор 🛡️'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              const Divider(color: Colors.white10),
-              const SizedBox(height: 10),
-              const Text('Или ввод мастер-ключа:', style: TextStyle(color: Colors.white60, fontSize: 11)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: secretCodeCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Мастер-ключ',
-                  hintText: 'cinetrack_creator_2026 / cinetrack_admin_2026',
-                  prefixIcon: Icon(Icons.security_rounded),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Ключи: cinetrack_creator_2026 (Создатель 👑), cinetrack_admin_2026 (Админ ⭐)',
-                style: TextStyle(color: Colors.white38, fontSize: 11),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED),
-            ),
-            onPressed: submitCode,
-            child: const Text('Подтвердить'),
-          ),
-        ],
       ),
     );
   }

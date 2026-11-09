@@ -281,6 +281,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         Wrap(
                           spacing: 10,
                           runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             _buildFilterChip('all', 'Все категории',
                                 Icons.all_inclusive_rounded),
@@ -292,6 +293,26 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                                 'anime', 'Аниме', Icons.bolt_rounded),
                             _buildFilterChip('cartoon', 'Мультфильмы',
                                 Icons.animation_outlined),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF7C3AED),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                              ),
+                              icon: const Text('🎲',
+                                  style: TextStyle(fontSize: 14)),
+                              label: const Text('Случайный выбор',
+                                  style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700)),
+                              onPressed: () => _pickRandomMovie(
+                                  filtered.isNotEmpty
+                                      ? filtered
+                                      : CuratedCatalog.items),
+                            ),
                           ],
                         ),
                       ],
@@ -376,6 +397,18 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         ],
       ),
     );
+  }
+
+  void _pickRandomMovie(List<CatalogItem> items) {
+    if (items.isEmpty) return;
+    final list = List<CatalogItem>.from(items)..shuffle();
+    final item = list.first;
+    TopNotification.showSuccess(
+      context,
+      'Выбран фильм: «${item.title}» 🎲',
+      title: 'Случайный фильм',
+    );
+    context.go('/movie/${item.kinopoiskId ?? item.title}');
   }
 
   Widget _buildFilterChip(String type, String label, IconData icon) {

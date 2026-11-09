@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants.dart';
 import '../../data/curated_catalog.dart';
 import '../../models/catalog_item.dart';
 import '../../models/media_item.dart';
@@ -38,6 +39,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   // Reviews and Episode Comments state
   int _socialTab = 0; // 0: Reviews, 1: Episode Comments
   int _activeEpisode = 1;
+  String _reviewSort = 'popular'; // 'popular' | 'date' | 'rating'
+  bool _reviewSortAsc = false;
   final TextEditingController _newCommentCtrl = TextEditingController();
   final TextEditingController _timecodeCtrl = TextEditingController();
   late List<_MovieReview> _reviews;
@@ -64,6 +67,28 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     }
 
     final lower = rawId.toLowerCase();
+
+    // Check curated master catalog first for instant response
+    final curated = CuratedCatalog.items.where((c) {
+      if (c.kinopoiskId != null && c.kinopoiskId.toString() == rawId) return true;
+      if ((rawId == '395646' || rawId == '406148') &&
+          (c.kinopoiskId == 406148 || c.nameOriginal == 'Death Note' || c.title == 'Тетрадь смерти')) {
+        return true;
+      }
+      final t = c.title.toLowerCase();
+      final o = c.nameOriginal?.toLowerCase() ?? '';
+      return t == lower || o == lower || lower.contains(t) || t.contains(lower);
+    }).firstOrNull;
+
+    if (curated != null) {
+      setState(() {
+        _item = curated;
+        _isLoading = false;
+      });
+      _loadExtendedData();
+      return;
+    }
+
     if (rawId == '258687' || lower.contains('интерстеллар') || lower.contains('interstellar')) {
       setState(() {
         _item = const CatalogItem(
@@ -275,6 +300,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           moviePoster: _item!.posterUrl,
           movieYear: _item!.year,
           kinopoiskId: _item!.kinopoiskId,
+          videoSourceType: _item!.kinopoiskId != null ? 'kinopoisk' : 'url',
+          videoUrl: _item!.kinopoiskId != null
+              ? 'https://api.delivembd.ws/embed/kp/${_item!.kinopoiskId}'
+              : 'https://api.delivembd.ws/embed/kp/258687',
           scheduledAt: DateTime.now(),
           ownerName: ownerName,
           ownerId: ownerId,
@@ -289,7 +318,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     context.go('/rooms/${room.id}');
   }
 
-  Future<void> _toggleCollection() async {
+  Future<void> _setCollectionStatus(String status) async {
     if (_item == null) return;
     final user = ref.read(currentUserProvider);
     if (user == null) {
@@ -305,27 +334,44 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       return m.title.trim().toLowerCase() == _item!.title.trim().toLowerCase();
     }).firstOrNull;
 
+    if (status == 'delete') {
+      if (existing != null) {
+        try {
+          await ref.read(mediaNotifierProvider.notifier).delete(existing.id);
+          ref.invalidate(mediaListProvider);
+          ref.invalidate(statsDataProvider);
+          setState(() => _isSavedToCollection = false);
+          if (!mounted) return;
+          TopNotification.showSuccess(
+            context,
+            '«${_item!.title}» удалён из вашей коллекции 🗑️',
+            title: 'Коллекция',
+          );
+        } catch (e) {
+          if (!mounted) return;
+          TopNotification.showError(context, 'Ошибка удаления: $e');
+        }
+      }
+      return;
+    }
+
     if (existing != null) {
-      // Remove from collection
       try {
-        await ref.read(mediaNotifierProvider.notifier).delete(existing.id);
+        final updated = existing.copyWith(status: status);
+        await ref.read(mediaNotifierProvider.notifier).update(existing.id, updated);
         ref.invalidate(mediaListProvider);
         ref.invalidate(statsDataProvider);
-
-        setState(() => _isSavedToCollection = false);
+        setState(() => _isSavedToCollection = true);
         if (!mounted) return;
+        final label = AppConstants.statuses[status] ?? status;
         TopNotification.showSuccess(
           context,
-          '«${_item!.title}» удалён из вашей коллекции 🗑️',
-          title: 'Коллекция',
+          'Статус фильма «${_item!.title}» изменён на «$label» ⭐',
+          title: 'Коллекция обновлена',
         );
       } catch (e) {
         if (!mounted) return;
-        TopNotification.showError(
-          context,
-          'Ошибка удаления: $e',
-          title: 'Ошибка',
-        );
+        TopNotification.showError(context, 'Ошибка обновления статуса: $e');
       }
       return;
     }
@@ -343,7 +389,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       description: _item!.description,
       posterUrl: _item!.posterUrl,
       kinopoiskId: _item!.kinopoiskId,
-      status: 'want_to_watch',
+      status: status,
       createdAt: now,
       updatedAt: now,
     );
@@ -352,22 +398,109 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       await ref.read(mediaNotifierProvider.notifier).create(mediaItem);
       ref.invalidate(mediaListProvider);
       ref.invalidate(statsDataProvider);
-
       setState(() => _isSavedToCollection = true);
       if (!mounted) return;
+      final label = AppConstants.statuses[status] ?? status;
       TopNotification.showSuccess(
         context,
-        '«${_item!.title}» сохранён в вашу коллекцию! ⭐',
+        '«${_item!.title}» добавлен в коллекцию: «$label» ⭐',
         title: 'Коллекция',
       );
     } catch (e) {
       if (!mounted) return;
-      TopNotification.showError(
-        context,
-        'Ошибка добавления: $e',
-        title: 'Ошибка',
-      );
+      TopNotification.showError(context, 'Ошибка добавления: $e');
     }
+  }
+
+  void _openImageLightbox(List<String> images, int initialIndex) {
+    if (images.isEmpty) return;
+    int currentIndex = initialIndex;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final currentUrl = images[currentIndex];
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 720),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: InteractiveViewer(
+                      child: Image.network(
+                        CatalogItem.fixPosterUrl(currentUrl),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Container(
+                          padding: const EdgeInsets.all(40),
+                          color: const Color(0xFF16162A),
+                          child: const Icon(Icons.broken_image_rounded, size: 64, color: Colors.white30),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                    style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ),
+                Positioned(
+                  top: 14,
+                  left: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Text(
+                      '${currentIndex + 1} / ${images.length}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+                if (images.length > 1)
+                  Positioned(
+                    left: 12,
+                    child: IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 36),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                      onPressed: () {
+                        setDialogState(() {
+                          currentIndex = (currentIndex - 1 + images.length) % images.length;
+                        });
+                      },
+                    ),
+                  ),
+                if (images.length > 1)
+                  Positioned(
+                    right: 12,
+                    child: IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 36),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                      onPressed: () {
+                        setDialogState(() {
+                          currentIndex = (currentIndex + 1) % images.length;
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -403,15 +536,17 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         user?.email?.split('@').first ?? 'Зритель';
 
     final mediaListAsync = ref.watch(mediaListProvider);
-    final isSaved = mediaListAsync.maybeWhen(
-      data: (list) => list.any((m) {
+    final savedMediaItem = mediaListAsync.maybeWhen(
+      data: (list) => list.where((m) {
         if (item.kinopoiskId != null && m.kinopoiskId != null) {
           return m.kinopoiskId == item.kinopoiskId;
         }
         return m.title.trim().toLowerCase() == item.title.trim().toLowerCase();
-      }),
-      orElse: () => _isSavedToCollection,
+      }).firstOrNull,
+      orElse: () => null,
     );
+    final isSaved = savedMediaItem != null || _isSavedToCollection;
+    final savedStatus = savedMediaItem?.status;
 
     final heroImageUrl = item.coverUrl ?? item.posterUrl;
     final ratingKp = item.rating;
@@ -499,7 +634,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                     child: Padding(
                                       padding: const EdgeInsets.fromLTRB(36, 24, 24, 24),
                                       child: _buildDetailsColumn(
-                                          item, ratingKp, ratingImdb, isSaved),
+                                          item, ratingKp, ratingImdb, isSaved, savedStatus),
                                     ),
                                   ),
 
@@ -523,7 +658,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                 Padding(
                                   padding: const EdgeInsets.all(24),
                                   child: _buildDetailsColumn(
-                                      item, ratingKp, ratingImdb, isSaved),
+                                      item, ratingKp, ratingImdb, isSaved, savedStatus),
                                 ),
                               ],
                             );
@@ -654,9 +789,71 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
+  String _getBestVoiceover(CatalogItem item) {
+    if (item.type == 'anime') {
+      return 'AniLibria (9.8 ★) • Выбор зрителей';
+    } else if (item.type == 'series') {
+      return 'LostFilm / HDRezka (9.6 ★) • Выбор зрителей';
+    }
+    return 'Дублированный перевод (9.7 ★) • Выбор зрителей';
+  }
+
+  Map<String, dynamic> _getContentAdvisory(CatalogItem item) {
+    final lowerGenres = item.genres.map((g) => g.toLowerCase()).toSet();
+    final lowerDesc = item.description.toLowerCase();
+    final isGory = lowerGenres.contains('ужасы') ||
+        lowerGenres.contains('криминал') ||
+        lowerGenres.contains('боевик') ||
+        lowerDesc.contains('плоть') ||
+        lowerDesc.contains('убий') ||
+        lowerDesc.contains('кров') ||
+        lowerDesc.contains('смерт') ||
+        item.title.contains('Гуль') ||
+        item.title.contains('Тетрадь смерти');
+
+    if (isGory) {
+      return {
+        'badge': '18+ ⚠️ Сцены насилия & кровь',
+        'desc': 'Присутствуют напряжённые сцены, жестокость и кровь',
+        'isWarning': true,
+      };
+    }
+    return {
+      'badge': '12+ 🟢 Без жестоких сцен',
+      'desc': 'Подходит для семейного просмотра, без сцен крови и насилия',
+      'isWarning': false,
+    };
+  }
+
+  PopupMenuItem<String> _buildStatusMenuItem(
+      String value, String icon, String title, bool isSelected) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 15)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFF9F67FF) : Colors.white,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          if (isSelected)
+            const Icon(Icons.check_rounded, size: 16, color: Color(0xFF9F67FF)),
+        ],
+      ),
+    );
+  }
+
   // Left Details Column (Typography, Badges, Ratings, Buttons & Bottom Photos)
   Widget _buildDetailsColumn(
-      CatalogItem item, double ratingKp, double ratingImdb, bool isSaved) {
+      CatalogItem item, double ratingKp, double ratingImdb, bool isSaved,
+      [String? savedStatus]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -794,13 +991,65 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               ),
             ),
 
-            // Year & Runtime / Awards
+            // Year & Runtime
             Text(
-              '${item.year} год  •  ${item.filmLength != null ? '${item.filmLength} мин' : (item.isSeries ? 'Все серии' : 'Полный метр')}',
+              '${item.year} год${item.filmLength != null ? '  •  ${item.filmLength} мин' : ''}',
               style: const TextStyle(
                 color: Color(0xFFC7D2FE),
                 fontWeight: FontWeight.w600,
                 fontSize: 11.5,
+              ),
+            ),
+
+            // Content advisory (Triggers / Violence / Family)
+            Builder(builder: (context) {
+              final advisory = _getContentAdvisory(item);
+              final isWarning = advisory['isWarning'] as bool;
+              return Tooltip(
+                message: advisory['desc'] as String,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isWarning
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.15)
+                        : const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isWarning
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF10B981),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    advisory['badge'] as String,
+                    style: TextStyle(
+                      color: isWarning
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFF6EE7B7),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ),
+              );
+            }),
+
+            // Community voiceover recommendation
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF7C3AED), width: 0.8),
+              ),
+              child: Text(
+                '🎧 ${_getBestVoiceover(item)}',
+                style: const TextStyle(
+                  color: Color(0xFFDDD6FE),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10.5,
+                ),
               ),
             ),
           ],
@@ -870,43 +1119,80 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               onPressed: _startPartyWatch,
             ),
 
-            // Add to Collection Pill Button (Instant Reactive Toggle)
-            InkWell(
-              onTap: _toggleCollection,
-              borderRadius: BorderRadius.circular(30),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSaved
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFF222238),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: isSaved
-                        ? const Color(0xFF10B981)
-                        : Colors.white24,
+            // Add to Collection & Status Category Selector
+            Theme(
+              data: Theme.of(context).copyWith(
+                popupMenuTheme: PopupMenuThemeData(
+                  color: const Color(0xFF1E1E34),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Colors.white12),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isSaved
-                          ? Icons.bookmark_added_rounded
-                          : Icons.bookmark_add_outlined,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isSaved ? 'В коллекции' : 'В коллекцию',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+              ),
+              child: PopupMenuButton<String>(
+                tooltip: 'Выбрать категорию для фильма',
+                onSelected: _setCollectionStatus,
+                itemBuilder: (ctx) => [
+                  _buildStatusMenuItem('want_to_watch', '🕒', 'Хочу посмотреть', savedStatus == 'want_to_watch'),
+                  _buildStatusMenuItem('watching', '🍿', 'Смотрю', savedStatus == 'watching'),
+                  _buildStatusMenuItem('watched', '✅', 'Просмотрено', savedStatus == 'watched'),
+                  if (isSaved) ...[
+                    const PopupMenuDivider(height: 1),
+                    const PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                          SizedBox(width: 8),
+                          Text('Удалить из коллекции', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13)),
+                        ],
                       ),
                     ),
                   ],
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSaved
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFF222238),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: isSaved
+                          ? const Color(0xFF10B981)
+                          : Colors.white24,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSaved
+                            ? Icons.bookmark_added_rounded
+                            : Icons.bookmark_add_outlined,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isSaved
+                            ? (savedStatus == 'want_to_watch'
+                                ? 'Хочу посмотреть 🕒'
+                                : (savedStatus == 'watching'
+                                    ? 'Смотрю 🍿'
+                                    : (savedStatus == 'watched' ? 'Просмотрено ✅' : 'В коллекции')))
+                            : 'В коллекцию',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down_rounded, size: 16, color: Colors.white70),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -994,55 +1280,60 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 ),
               ),
 
-              // Kinopoisk Stills and Backstage photos
-              if (_filmImages.isNotEmpty)
-                ..._filmImages.map((imgUrl) {
-                  return Container(
-                    width: 130,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A2E),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.network(
-                      CatalogItem.fixPosterUrl(imgUrl),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.white10,
-                        child: const Icon(Icons.photo_rounded,
-                            size: 24, color: Colors.white30),
+              // Stills and backstage photos with interactive Lightbox zoom viewer
+              ...(() {
+                final allStills = _filmImages.isNotEmpty
+                    ? _filmImages
+                    : [
+                        if (item.coverUrl != null) item.coverUrl!,
+                        item.posterUrl,
+                      ];
+                return allStills.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final imgUrl = entry.value;
+                  return InkWell(
+                    onTap: () => _openImageLightbox(allStills, idx),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 130,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A2E),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            CatalogItem.fixPosterUrl(imgUrl),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.white10,
+                              child: const Icon(Icons.photo_rounded,
+                                  size: 24, color: Colors.white30),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.zoom_in_rounded,
+                                  size: 14, color: Colors.white70),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
-                })
-              else
-                // Curated fallback stills if API limits
-                ...[
-                  item.coverUrl ?? item.posterUrl,
-                  item.posterUrl,
-                ].map((fallbackUrl) {
-                  return Container(
-                    width: 130,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A2E),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.network(
-                      CatalogItem.fixPosterUrl(fallbackUrl),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.white10,
-                        child: const Icon(Icons.photo_rounded,
-                            size: 24, color: Colors.white30),
-                      ),
-                    ),
-                  );
-                }),
+                });
+              })(),
             ],
           ),
         ),
@@ -1304,6 +1595,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         text:
             'Визуальная часть поражает воображение — детализация воды, шерсти и света сделаны на высочайшем уровне. Но главное здесь — это искренний посыл о доверии в расколотом мире.',
         date: 'Вчера, 18:40',
+        createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
         likes: 24,
       ),
       _MovieReview(
@@ -1316,6 +1608,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         text:
             'Прекрасный семейный просмотр. Юмор отличный, динамика держит до самого конца. Очень рекомендую смотреть именно в оригинале или дубляже.',
         date: '3 дня назад',
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
         likes: 15,
       ),
       _MovieReview(
@@ -1328,6 +1621,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         text:
             'Отличный приключенческий фильм на вечер. Графика 10 из 10, музыка превосходная, хотя сюжетные повороты угадываются с первых минут.',
         date: 'Неделю назад',
+        createdAt: DateTime.now().subtract(const Duration(days: 7)),
         likes: 7,
       ),
     ];
@@ -1429,6 +1723,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
           // TAB 0: Reviews Section
           if (_socialTab == 0) ...[
+            _buildReviewFilterBar(),
+            const SizedBox(height: 16),
             _buildReviewsList(),
           ]
           // TAB 1: Episode Comments / Moments Section
@@ -1438,6 +1734,127 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildReviewFilterBar() {
+    return Row(
+      children: [
+        Text(
+          'Сортировка:',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 12),
+        _buildReviewSortChip(
+          label: 'Популярные',
+          type: 'popular',
+          icon: Icons.trending_up_rounded,
+        ),
+        const SizedBox(width: 8),
+        _buildReviewSortChip(
+          label: 'По дате',
+          type: 'date',
+          hasArrow: true,
+        ),
+        const SizedBox(width: 8),
+        _buildReviewSortChip(
+          label: 'По оценке',
+          type: 'rating',
+          hasArrow: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReviewSortChip({
+    required String label,
+    required String type,
+    IconData? icon,
+    bool hasArrow = false,
+  }) {
+    final isSelected = _reviewSort == type;
+    IconData? arrowIcon;
+    if (isSelected && hasArrow) {
+      arrowIcon =
+          _reviewSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+    } else if (hasArrow) {
+      arrowIcon = Icons.unfold_more_rounded;
+    }
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (_reviewSort == type) {
+            _reviewSortAsc = !_reviewSortAsc;
+          } else {
+            _reviewSort = type;
+            _reviewSortAsc = false;
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF7C3AED).withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF9F67FF) : Colors.white12,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon,
+                  size: 14,
+                  color:
+                      isSelected ? const Color(0xFFA78BFA) : Colors.white60),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            if (arrowIcon != null) ...[
+              const SizedBox(width: 4),
+              Icon(arrowIcon,
+                  size: 14,
+                  color:
+                      isSelected ? const Color(0xFFA78BFA) : Colors.white38),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<_MovieReview> get _sortedReviews {
+    final list = List<_MovieReview>.from(_reviews);
+    if (_reviewSort == 'popular') {
+      list.sort((a, b) => _reviewSortAsc
+          ? a.likes.compareTo(b.likes)
+          : b.likes.compareTo(a.likes));
+    } else if (_reviewSort == 'rating') {
+      list.sort((a, b) => _reviewSortAsc
+          ? a.rating.compareTo(b.rating)
+          : b.rating.compareTo(a.rating));
+    } else if (_reviewSort == 'date') {
+      list.sort((a, b) => _reviewSortAsc
+          ? a.createdAt.compareTo(b.createdAt)
+          : b.createdAt.compareTo(a.createdAt));
+    }
+    return list;
   }
 
   Widget _buildTabPill({
@@ -1471,8 +1888,20 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   }
 
   Widget _buildReviewsList() {
+    final sorted = _sortedReviews;
+    if (sorted.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Text(
+            'Пока нет рецензий. Будьте первым!',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+          ),
+        ),
+      );
+    }
     return Column(
-      children: _reviews.map((rev) {
+      children: sorted.map((rev) {
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(20),
@@ -2249,6 +2678,7 @@ class _MovieReview {
   final String title;
   final String text;
   final String date;
+  final DateTime createdAt;
   int likes;
   bool isLiked = false;
 
@@ -2261,8 +2691,9 @@ class _MovieReview {
     required this.title,
     required this.text,
     required this.date,
+    DateTime? createdAt,
     this.likes = 0,
-  });
+  }) : createdAt = createdAt ?? DateTime.now();
 }
 
 class _EpisodeComment {

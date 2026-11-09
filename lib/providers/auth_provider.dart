@@ -290,9 +290,9 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
         effective = effective.copyWith(
           displayName: custom.displayName.isNotEmpty ? custom.displayName : null,
           username: custom.username.isNotEmpty ? custom.username : null,
-          customTitle: (custom.customTitle != null && custom.customTitle!.trim().isNotEmpty)
-              ? custom.customTitle
-              : effective.customTitle,
+          customTitle: (effective.customTitle != null && effective.customTitle!.trim().isNotEmpty)
+              ? effective.customTitle
+              : custom.customTitle,
           bannerUrl: (custom.bannerUrl != null && custom.bannerUrl!.isNotEmpty)
               ? custom.bannerUrl
               : effective.bannerUrl,

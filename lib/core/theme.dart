@@ -220,6 +220,118 @@ class AppTheme {
     ),
   );
 
+  static final ThemeData lightTheme = ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.light,
+    colorScheme: const ColorScheme.light(
+      primary: _primary,
+      primaryContainer: Color(0xFFDDD6FE),
+      secondary: _secondary,
+      secondaryContainer: Color(0xFFF3E8FF),
+      surface: Colors.white,
+      error: Color(0xFFDC2626),
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Color(0xFF0F172A),
+      onError: Colors.white,
+    ),
+    scaffoldBackgroundColor: const Color(0xFFF1F5F9),
+    cardColor: Colors.white,
+    dividerColor: const Color(0xFFE2E8F0),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.white,
+      foregroundColor: Color(0xFF0F172A),
+      elevation: 0,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        color: Color(0xFF0F172A),
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
+      ),
+      iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+    ),
+    cardTheme: CardThemeData(
+      color: Colors.white,
+      elevation: 2,
+      shadowColor: const Color(0x1A000000),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE2E8F0), width: 0.8),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        textStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _primary,
+        side: const BorderSide(color: _primary, width: 1.5),
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        textStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _primary, width: 2),
+      ),
+      labelStyle: const TextStyle(color: Color(0xFF475569)),
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+      prefixIconColor: const Color(0xFF64748B),
+      suffixIconColor: const Color(0xFF64748B),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800),
+      displayMedium: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700),
+      headlineLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700),
+      headlineMedium: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+      headlineSmall: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+      titleLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+      titleMedium: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
+      titleSmall: TextStyle(color: Color(0xFF1E293B)),
+      bodyLarge: TextStyle(color: Color(0xFF1E293B)),
+      bodyMedium: TextStyle(color: Color(0xFF334155)),
+      bodySmall: TextStyle(color: Color(0xFF64748B)),
+      labelLarge: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+      labelMedium: TextStyle(color: Color(0xFF64748B)),
+      labelSmall: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+    ),
+  );
+
   // Semantic colors for status
   static Color statusColor(String status) {
     switch (status) {

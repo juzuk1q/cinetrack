@@ -52,7 +52,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
   RealtimeChannel? _roomChannel;
   late String _userId;
-  bool _isLightsOff = false;
   bool _isPasswordUnlocked = false;
   bool _hidePassword = true;
   String? _passwordError;
@@ -2889,30 +2888,22 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor:
-          _isLightsOff ? Colors.black : const Color(0xFF0F0F1A),
+      backgroundColor: const Color(0xFF0F0F1A),
       body: Stack(
         children: [
           Column(
+            children: [
+              // Top Room Header
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A1A2E),
+                  border: Border(
+                      bottom: BorderSide(color: Colors.white12)),
+                ),
+                child: Row(
                   children: [
-                    // Top Room Header
-                    GestureDetector(
-                      onTap: _isLightsOff
-                          ? () => setState(() => _isLightsOff = false)
-                          : null,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 250),
-                        opacity: _isLightsOff ? 0.04 : 1.0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF1A1A2E),
-                            border: Border(
-                                bottom: BorderSide(color: Colors.white12)),
-                          ),
-                          child: Row(
-                            children: [
                               IconButton(
                                 icon: const Icon(Icons.arrow_back_rounded),
                                 tooltip: 'Покинуть комнату',
@@ -3055,36 +3046,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                 ),
                               const SizedBox(width: 8),
 
-                              // Cinema Light toggle button
-                              TextButton.icon(
-                                style: TextButton.styleFrom(
-                                  foregroundColor: _isLightsOff
-                                      ? const Color(0xFFF59E0B)
-                                      : Colors.white70,
-                                  backgroundColor: _isLightsOff
-                                      ? const Color(0xFFF59E0B)
-                                      .withValues(alpha: 0.15)
-                                      : Colors.white10,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                ),
-                                icon: Icon(
-                                  _isLightsOff
-                                      ? Icons.lightbulb_rounded
-                                      : Icons.lightbulb_outline_rounded,
-                                  size: 15,
-                                ),
-                                label: Text(
-                                  _isLightsOff ? 'ВКЛ. СВЕТ' : 'СВЕТ',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _isLightsOff = !_isLightsOff;
-                                  });
-                                },
-                              ),
-
                               // Fullscreen Button
                               const SizedBox(width: 8),
                               TextButton.icon(
@@ -3141,8 +3102,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                             ],
                           ),
                         ),
-                      ),
-                    ),
 
                     // Main Content: Movie Player + Compact Chat
                     Expanded(
@@ -3162,18 +3121,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                     width: 1, color: Colors.white12),
                                 SizedBox(
                                   width: 360,
-                                  child: GestureDetector(
-                                    onTap: _isLightsOff
-                                        ? () => setState(
-                                            () => _isLightsOff = false)
-                                        : null,
-                                    child: AnimatedOpacity(
-                                      duration:
-                                          const Duration(milliseconds: 250),
-                                      opacity: _isLightsOff ? 0.04 : 1.0,
-                                      child: _buildChatPane(context, room),
-                                    ),
-                                  ),
+                                  child: _buildChatPane(context, room),
                                 ),
                               ],
                             );
@@ -3214,35 +3162,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                     ),
                   ],
                 ),
-
-          // Floating Light Restore Button in Lights-Off Mode
-          if (_isLightsOff)
-            Positioned(
-              top: 14,
-              right: 20,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B),
-                  foregroundColor: Colors.black,
-                  elevation: 8,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
-                ),
-                icon: const Icon(Icons.lightbulb_rounded,
-                    size: 16, color: Colors.black),
-                label: const Text(
-                  'ВКЛЮЧИТЬ СВЕТ 💡',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _isLightsOff = false;
-                  });
-                },
-              ),
-            ),
 
           // Top-Right Notifications Overlay
           if (_notifications.isNotEmpty)
@@ -3317,21 +3236,14 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Movie Info Card (dimmed when lights off)
-          GestureDetector(
-            onTap: _isLightsOff
-                ? () => setState(() => _isLightsOff = false)
-                : null,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 250),
-              opacity: _isLightsOff ? 0.03 : 1.0,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E34),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12),
-                ),
+          // Movie Info Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E34),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white12),
+            ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -3411,8 +3323,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   ],
                 ),
               ),
-            ),
-          ),
         ],
       ),
     );

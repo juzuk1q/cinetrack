@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/supabase_client.dart';
 import '../../models/user_profile.dart';
 import '../../models/watch_room.dart';
 import '../../providers/auth_provider.dart';
@@ -26,16 +24,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
   final _secretCodeCtrl = TextEditingController();
   String _userSearchQuery = '';
 
-  // Master keys for emergency staff activation
-  static const String masterCreatorKey = 'cinetrack_creator_2026';
-  static const String masterAdminKey = 'cinetrack_admin_2026';
-  static const String masterDevKey = 'cinetrack_dev_2026';
-  static const String masterModKey = 'cinetrack_mod_2026';
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -44,171 +36,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     _searchUserCtrl.dispose();
     _secretCodeCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _claimRole(String targetRole, {String? successTitle}) async {
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
-
-    try {
-      await supabase
-          .from('profiles')
-          .update({'role': targetRole})
-          .eq('id', user.id);
-    } catch (_) {}
-
-    await ref.read(adminUsersProvider.notifier).updateRole(user.id, targetRole);
-    ref.invalidate(userProfileProvider);
-    ref.read(adminUsersProvider.notifier).refresh();
-
-    if (!mounted) return;
-    _secretCodeCtrl.clear();
-    Navigator.of(context, rootNavigator: true).pop();
-
-    final roleLabel = targetRole == 'creator'
-        ? 'Создатель 👑'
-        : (targetRole == 'developer'
-            ? 'Разработчик 💻'
-            : (targetRole == 'admin' ? 'Администратор ⭐' : 'Модератор 🛡️'));
-
-    TopNotification.showSuccess(
-      context,
-      'Поздравляем! Вам успешно присвоен статус «$roleLabel»',
-      title: successTitle ?? 'Ранг обновлен',
-    );
-  }
-
-  void _claimAdminWithCode() async {
-    final code = _secretCodeCtrl.text.trim().toLowerCase();
-    if (code == masterCreatorKey || code == 'creator' || code == 'owner') {
-      await _claimRole('creator', successTitle: 'Создатель платформы 👑');
-    } else if (code == masterDevKey || code == 'developer' || code == 'coder') {
-      await _claimRole('developer', successTitle: 'Разработчик платформы 💻');
-    } else if (code == masterAdminKey || code == 'admin') {
-      await _claimRole('admin', successTitle: 'Администратор ⭐');
-    } else if (code == masterModKey || code == 'moderator' || code == 'mod') {
-      await _claimRole('moderator', successTitle: 'Модератор 🛡️');
-    } else {
-      TopNotification.showError(
-        context,
-        'Неверный мастер-ключ. Проверьте правильность ввода.',
-        title: 'Ошибка доступа',
-      );
-    }
-  }
-
-  void _showActivateAdminDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E34),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.vpn_key_rounded, color: Color(0xFF9F67FF)),
-            SizedBox(width: 10),
-            Text('Активация прав & рангов'),
-          ],
-        ),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Выберите ранг для моментального переключения или введите секретный мастер-ключ:',
-                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-
-              // Quick action buttons for testing and ownership
-              const Text('Быстрое получение ранга:', style: TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('👑', style: TextStyle(fontSize: 16)),
-                    label: const Text('Создатель', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => _claimRole('creator', successTitle: 'Создатель платформы 👑'),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF06B6D4),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('💻', style: TextStyle(fontSize: 16)),
-                    label: const Text('Разработчик', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => _claimRole('developer', successTitle: 'Разработчик 💻'),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEAB308),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('⭐', style: TextStyle(fontSize: 16)),
-                    label: const Text('Администратор', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => _claimRole('admin', successTitle: 'Администратор ⭐'),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Text('🛡️', style: TextStyle(fontSize: 16)),
-                    label: const Text('Модератор', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    onPressed: () => _claimRole('moderator', successTitle: 'Модератор 🛡️'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              const Divider(color: Colors.white10),
-              const SizedBox(height: 10),
-
-              const Text('Или ввод мастер-ключа:', style: TextStyle(color: Colors.white60, fontSize: 11)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _secretCodeCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Мастер-ключ',
-                  hintText: 'cinetrack_creator_2026 / cinetrack_admin_2026',
-                  prefixIcon: Icon(Icons.security_rounded),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Ключи: cinetrack_creator_2026 (Создатель), cinetrack_admin_2026 (Админ)',
-                style: TextStyle(color: Colors.white38, fontSize: 11),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED),
-            ),
-            onPressed: _claimAdminWithCode,
-            child: const Text('Подтвердить'),
-          ),
-        ],
-      ),
-    );
   }
 
   // Manage Titles & Badges Dialog
@@ -597,23 +424,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                     ],
                   ),
                   actions: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                        ),
-                        icon: const Icon(Icons.key_rounded, size: 16),
-                        label: const Text('Сменить ранг / Ключ'),
-                        onPressed: _showActivateAdminDialog,
-                      ),
-                    ),
                     IconButton(
                       icon: const Icon(Icons.refresh_rounded),
-                      tooltip: 'Обновить списки',
+                      tooltip: 'Синхронизировать пользователей и комнаты с базой данных Supabase',
                       onPressed: () {
                         ref.read(adminUsersProvider.notifier).refresh();
                         ref.invalidate(roomsProvider);
@@ -641,10 +454,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                         icon: Icon(Icons.meeting_room_rounded, size: 20),
                         text: 'Все комнаты (Модерация)',
                       ),
-                      Tab(
-                        icon: Icon(Icons.terminal_rounded, size: 20),
-                        text: 'SQL & Инструкции',
-                      ),
                     ],
                   ),
                 ),
@@ -656,7 +465,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                       children: [
                         _buildUsersTab(),
                         _buildRoomsTab(),
-                        _buildSqlGuideTab(),
                       ],
                     ),
             ),
@@ -707,9 +515,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
               ),
-              icon: const Icon(Icons.key_rounded, size: 18),
-              label: const Text('Ввести мастер-ключ администратора'),
-              onPressed: _showActivateAdminDialog,
+              icon: const Icon(Icons.home_rounded, size: 18),
+              label: const Text('Вернуться на главную'),
+              onPressed: () => context.go('/'),
             ),
           ],
         ),
@@ -1390,131 +1198,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // TAB 3: SQL & SETUP INSTRUCTIONS
-  Widget _buildSqlGuideTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Инструкция по развертыванию таблиц и выдаче прав в Supabase',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Для полноценной работы ролей на продакшене выполните следующие SQL-запросы в SQL Editor вашего Supabase проекта:',
-            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-          ),
-          const SizedBox(height: 18),
-          _buildSqlCodeCard(
-            title: '1. Создание таблицы profiles и колонок ограничений',
-            sql: '''
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  email TEXT,
-  display_name TEXT,
-  username TEXT,
-  role TEXT DEFAULT 'user',
-  custom_title TEXT,
-  banner_url TEXT,
-  avatar_url TEXT,
-  is_private BOOLEAN DEFAULT false,
-  is_blocked BOOLEAN DEFAULT false,
-  is_frozen BOOLEAN DEFAULT false,
-  block_reason TEXT,
-  block_until TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Включение Row Level Security
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Public profiles are viewable by everyone."
-  ON public.profiles FOR SELECT USING (true);
-
-CREATE POLICY "Users can insert their own profile."
-  ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Users can update their own profile."
-  ON public.profiles FOR UPDATE USING (auth.uid() = id);
-''',
-          ),
-          const SizedBox(height: 16),
-          _buildSqlCodeCard(
-            title: '2. Назначение роли Создателя (creator) или Администратора (admin)',
-            sql: '''
--- Назначение роли Создателя платформы 👑 (максимальные права):
-UPDATE public.profiles
-SET role = 'creator'
-WHERE email = 'artemtselikov2011@gmail.com';
-
--- Или назначение роли Администратора ⭐:
-UPDATE public.profiles
-SET role = 'admin'
-WHERE email = 'artemtselikov2011@gmail.com';
-
--- Доступные роли: 'creator' (100), 'developer' (80), 'admin' (60), 'moderator' (40), 'user' (10)
-''',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSqlCodeCard({required String title, required String sql}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF141424),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 13),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy_rounded, size: 16),
-                  tooltip: 'Скопировать SQL',
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: sql));
-                    TopNotification.showSuccess(
-                      context,
-                      'SQL-запрос скопирован в буфер обмена',
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Colors.white10),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SelectableText(
-              sql,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: Color(0xFFC084FC),
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -6,11 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'core/theme.dart';
 import 'models/catalog_item.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/admin/admin_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
-import 'screens/media/media_detail_screen.dart';
 import 'screens/media/add_edit_media_screen.dart';
 import 'screens/movie/movie_detail_screen.dart';
 import 'screens/library/library_screen.dart';
@@ -27,9 +27,12 @@ class CineTrackApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'CineTrack',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -174,7 +177,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
         name: 'media-detail',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return MediaDetailScreen(mediaId: id);
+          return MovieDetailScreen(movieId: id);
         },
       ),
       GoRoute(

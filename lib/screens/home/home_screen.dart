@@ -15,7 +15,6 @@ import '../../providers/media_provider.dart';
 import '../../providers/room_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../widgets/app_header.dart';
-import '../../widgets/media_card.dart';
 import '../../widgets/top_notification.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -666,7 +665,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final rooms = ref.watch(roomsProvider);
-    final mediaAsync = ref.watch(mediaListProvider);
     final liveRooms = rooms.where((r) => r.status == 'watching').toList();
 
     return Scaffold(
@@ -682,11 +680,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             padding: const EdgeInsets.fromLTRB(32, 16, 32, 36),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // 2. Huge Cinematic Hero Banner (Raya and the Last Dragon)
+                // 1. Cinematic Hero Banner
                 _buildCinematicHeroBanner(context),
+                const SizedBox(height: 30),
+
+                // 2. Movies Section
+                _buildSectionTitle(
+                  title: 'Фильмы',
+                  subtitle: 'Популярные блокбастеры и новинки проката',
+                  icon: Icons.local_movies_rounded,
+                  accentColor: const Color(0xFF7C3AED),
+                  actionLabel: 'Каталог фильмов >',
+                  onAction: () => context.go('/library'),
+                ),
+                const SizedBox(height: 14),
+                _buildMoviesHorizontalRow(context, featuredMovies),
                 const SizedBox(height: 32),
 
-                // 3. Active Watch Rooms ("Смотрят прямо сейчас с друзьями") - Adapted for CineTrack
+                // 3. TV Shows & Anime Section
+                _buildSectionTitle(
+                  title: 'Сериалы и Аниме',
+                  subtitle: 'Эпизодические шоу, дорамы и популярные аниме-тайтлы',
+                  icon: Icons.video_collection_rounded,
+                  accentColor: const Color(0xFF6366F1),
+                  actionLabel: 'Каталог сериалов >',
+                  onAction: () => context.go('/library'),
+                ),
+                const SizedBox(height: 14),
+                _buildSeriesHorizontalRow(context, featuredSeries),
+                const SizedBox(height: 32),
+
+                // 4. Active Watch Rooms (At the very bottom)
                 _buildSectionTitle(
                   title: 'Комнаты совместного просмотра',
                   subtitle: 'Подключайтесь к синхронному показу с живым чатом',
@@ -701,49 +725,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _buildEmptyRoomCard(context)
                 else
                   _buildLiveRoomsCarousel(context, liveRooms),
-                const SizedBox(height: 34),
-
-                // 4. Movies Section (Matching the bottom row of mockup)
-                _buildSectionTitle(
-                  title: 'Фильмы',
-                  subtitle: 'Популярные блокбастеры и новинки проката',
-                  icon: Icons.local_movies_rounded,
-                  accentColor: const Color(0xFF7C3AED),
-                  actionLabel: 'Каталог фильмов >',
-                  onAction: () => context.go('/library'),
-                ),
-                const SizedBox(height: 14),
-                _buildMoviesHorizontalRow(context, featuredMovies),
-                const SizedBox(height: 34),
-
-                // 5. TV Shows & Anime Section
-                _buildSectionTitle(
-                  title: 'Сериалы и Аниме',
-                  subtitle: 'Эпизодические шоу, дорамы и популярные аниме-тайтлы',
-                  icon: Icons.video_collection_rounded,
-                  accentColor: const Color(0xFF6366F1),
-                  actionLabel: 'Каталог сериалов >',
-                  onAction: () => context.go('/library'),
-                ),
-                const SizedBox(height: 14),
-                _buildSeriesHorizontalRow(context, featuredSeries),
-                const SizedBox(height: 34),
-
-                // 6. User's Queue / Collection
-                _buildSectionTitle(
-                  title: 'Моя коллекция',
-                  subtitle: 'Фильмы и сериалы, сохранённые для личного просмотра',
-                  icon: Icons.bookmark_added_rounded,
-                  accentColor: const Color(0xFFF59E0B),
-                  actionLabel: 'Вся библиотека >',
-                  onAction: () => context.go('/library'),
-                ),
-                const SizedBox(height: 14),
-                mediaAsync.when(
-                  data: (items) => _buildUserQueue(context, items.take(4).toList()),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Text('Ошибка загрузки: $e'),
-                ),
                 const SizedBox(height: 48),
               ]),
             ),
@@ -756,7 +737,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // 2. Cinematic Hero Banner (Dynamic Carousel with Auto-Rotation & Trailer Playback)
   Widget _buildCinematicHeroBanner(BuildContext context) {
     return Container(
-      height: 460,
+      height: 380,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white12),
@@ -1441,7 +1422,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // 4. Movies Horizontal Row (Replicating the exact cards from mockup)
   Widget _buildMoviesHorizontalRow(BuildContext context, List<Map<String, dynamic>> items) {
     return SizedBox(
-      height: 195,
+      height: 175,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
@@ -1464,7 +1445,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                width: 320,
+                width: 270,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.white12),
@@ -1560,7 +1541,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               borderRadius: BorderRadius.circular(14),
               child: Container(
-                width: 140,
+                width: 122,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.white12),
@@ -1644,7 +1625,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // 5. Series & Anime Horizontal Row
   Widget _buildSeriesHorizontalRow(BuildContext context, List<Map<String, dynamic>> items) {
     return SizedBox(
-      height: 195,
+      height: 175,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
@@ -1664,7 +1645,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             borderRadius: BorderRadius.circular(14),
             child: Container(
-              width: 140,
+              width: 122,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white12),
@@ -1904,58 +1885,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildUserQueue(BuildContext context, List<MediaItem> items) {
-    if (items.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: const Color(0xFF16162A),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Center(
-          child: Column(
-            children: [
-              const Icon(Icons.bookmark_border_rounded, size: 36, color: Colors.white24),
-              const SizedBox(height: 10),
-              const Text(
-                'В вашей очереди просмотра пока нет фильмов',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () => context.go('/library'),
-                child: const Text('Выбрать фильм в каталоге'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossCount = constraints.maxWidth > 900
-            ? 4
-            : constraints.maxWidth > 600
-                ? 2
-                : 1;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossCount,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            childAspectRatio: 0.65,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, i) => MediaCard(item: items[i]),
-        );
-      },
     );
   }
 }
