@@ -213,11 +213,18 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   final googleAvatar = user.userMetadata?['avatar_url'] as String? ??
       user.userMetadata?['picture'] as String?;
 
-  // Check saved custom role from local storage if available
+  // Remove legacy un-scoped role if present to avoid role leakage across accounts
+  if (kIsWeb) {
+    try {
+      html.window.localStorage.remove('cinetrack_my_role');
+    } catch (_) {}
+  }
+
+  // Check saved custom role scoped to THIS user ID
   String? locallySavedRole;
   if (kIsWeb) {
     try {
-      locallySavedRole = html.window.localStorage['cinetrack_my_role'];
+      locallySavedRole = html.window.localStorage['cinetrack_my_role_${user.id}'];
     } catch (_) {}
   }
 
@@ -283,16 +290,44 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
         effective = effective.copyWith(
           displayName: custom.displayName.isNotEmpty ? custom.displayName : null,
           username: custom.username.isNotEmpty ? custom.username : null,
-          customTitle: custom.customTitle,
-          bannerUrl: custom.bannerUrl,
+          customTitle: (custom.customTitle != null && custom.customTitle!.trim().isNotEmpty)
+              ? custom.customTitle
+              : effective.customTitle,
+          bannerUrl: (custom.bannerUrl != null && custom.bannerUrl!.isNotEmpty)
+              ? custom.bannerUrl
+              : effective.bannerUrl,
           avatarUrl: (custom.avatarUrl != null && custom.avatarUrl!.isNotEmpty)
               ? custom.avatarUrl
               : effective.avatarUrl,
           isPrivate: custom.isPrivate,
-          friends: custom.friends,
-          unlockedTitles: custom.unlockedTitles,
+          friends: custom.friends.isNotEmpty ? custom.friends : effective.friends,
         );
       }
+
+      // Merge unlocked titles from DB, custom settings, and dynamic platform achievements
+      final mergedUnlocked = <String>{'welcome'};
+      mergedUnlocked.addAll(effective.unlockedTitles);
+      if (custom != null) {
+        mergedUnlocked.addAll(custom.unlockedTitles);
+      }
+      if (effective.role == 'creator' || isOwnerEmail) {
+        mergedUnlocked.addAll([
+          'welcome',
+          'collector_3',
+          'collector_10',
+          'popcorn_master',
+          'party_host',
+          'night_owl',
+          'critic',
+          'social',
+          'anime_guru',
+          'veteran',
+          'legend',
+          'vip_streamer',
+          'coder_badge',
+        ]);
+      }
+      effective = effective.copyWith(unlockedTitles: mergedUnlocked.toList());
       return effective;
     } else {
       // Profile row does not exist in public.profiles. Check if user was deleted from Supabase Auth!
@@ -396,9 +431,10 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
     final current = _ref.read(currentUserProvider);
     final custom = _ref.read(profileCustomizationProvider);
     String? localRole;
-    if (kIsWeb) {
+    if (kIsWeb && current != null) {
       try {
-        localRole = html.window.localStorage['cinetrack_my_role'];
+        html.window.localStorage.remove('cinetrack_my_role');
+        localRole = html.window.localStorage['cinetrack_my_role_${current.id}'];
       } catch (_) {}
     }
 
@@ -607,11 +643,11 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
     ];
     _saveToLocal();
 
-    // If changing own role, also cache locally so it survives session refreshes
+    // If changing own role, also cache locally scoped to user id so it survives session refreshes
     final current = _ref.read(currentUserProvider);
     if (current != null && current.id == userId && kIsWeb) {
       try {
-        html.window.localStorage['cinetrack_my_role'] = newRole;
+        html.window.localStorage['cinetrack_my_role_$userId'] = newRole;
       } catch (_) {}
     }
 
@@ -620,6 +656,7 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
     } catch (e) {
       debugPrint('Note updating role in profiles table: $e');
     }
+    _ref.invalidate(userProfileProvider);
     return true;
   }
 
@@ -639,6 +676,16 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
           u,
     ];
     _saveToLocal();
+
+    // If updating current user's title, immediately sync to reactive customization notifier
+    final current = _ref.read(currentUserProvider);
+    if (current != null && current.id == userId) {
+      _ref.read(profileCustomizationProvider.notifier).updateProfile(
+            customTitle: newTitle,
+            unlockedTitles: unlockedTitles,
+          );
+      _ref.invalidate(userProfileProvider);
+    }
 
     try {
       final updateData = <String, dynamic>{

@@ -48,11 +48,20 @@ final filtersProvider =
   return FiltersNotifier();
 });
 
-// Media list (filtered)
+// Media list (filtered with strict deduplication)
 final mediaListProvider = FutureProvider<List<MediaItem>>((ref) async {
   final repo = ref.watch(mediaRepositoryProvider);
   final filters = ref.watch(filtersProvider);
-  return repo.getAll(filters: filters);
+  final rawList = await repo.getAll(filters: filters);
+  // Guarantee deduplication by Kinopoisk ID or trimmed title
+  final uniqueMap = <String, MediaItem>{};
+  for (final item in rawList) {
+    final key = (item.kinopoiskId != null && item.kinopoiskId! > 0)
+        ? 'kp_${item.kinopoiskId}'
+        : 'title_${item.title.trim().toLowerCase()}';
+    uniqueMap.putIfAbsent(key, () => item);
+  }
+  return uniqueMap.values.toList();
 });
 
 // Single media item

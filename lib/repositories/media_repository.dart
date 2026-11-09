@@ -104,6 +104,23 @@ class MediaRepository {
     if (currentUserId != null && (!data.containsKey('user_id') || data['user_id'] == null)) {
       data['user_id'] = currentUserId;
     }
+
+    final targetUserId = data['user_id'];
+    if (targetUserId != null) {
+      // Check for existing duplicate to prevent adding multiple copies of the same film
+      try {
+        final existing = await supabase
+            .from(_table)
+            .select()
+            .eq('user_id', targetUserId)
+            .ilike('title', item.title.trim())
+            .maybeSingle();
+        if (existing != null) {
+          return MediaItem.fromJson(existing);
+        }
+      } catch (_) {}
+    }
+
     final response = await supabase
         .from(_table)
         .insert(data)

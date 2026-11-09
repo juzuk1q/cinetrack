@@ -93,8 +93,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final myIsPrivate = customProfile?.isPrivate ?? (dbProfile?.isPrivate ?? false);
     final myFriends = customProfile?.friends ?? (dbProfile?.friends ?? const <String>[]);
-    final myUnlockedTitles = customProfile?.unlockedTitles ??
-        (dbProfile?.unlockedTitles ?? const <String>['welcome']);
+    final myUnlockedTitlesSet = <String>{
+      'welcome',
+      ...?dbProfile?.unlockedTitles,
+      ...?customProfile?.unlockedTitles,
+    };
+    final userMediaList = mediaAsync.value ?? [];
+    if (userMediaList.length >= 3) myUnlockedTitlesSet.add('collector_3');
+    if (userMediaList.length >= 10) myUnlockedTitlesSet.add('collector_10');
+    if (userMediaList.any((e) => e.status == 'watched')) myUnlockedTitlesSet.add('popcorn_master');
+    if (myFriends.isNotEmpty) myUnlockedTitlesSet.add('social');
+    if (myRole == 'creator' || isAdmin) {
+      myUnlockedTitlesSet.addAll(['party_host', 'night_owl', 'critic', 'veteran', 'legend', 'vip_streamer', 'coder_badge']);
+    }
+    final myUnlockedTitles = myUnlockedTitlesSet.toList();
 
     // Check if viewing someone else's profile via route
     final isTargetingOther = widget.targetUsername != null &&
@@ -143,6 +155,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         isViewingSelf ? myAvatar : otherProfile!.avatarUrl;
     final effectiveIsPrivate =
         isViewingSelf ? myIsPrivate : otherProfile!.isPrivate;
+    final effectiveUnlockedTitles = isViewingSelf
+        ? myUnlockedTitles
+        : (otherProfile?.unlockedTitles ?? const <String>['welcome']);
     final isFriend = !isViewingSelf && myFriends.contains(otherProfile!.handle);
 
     return Scaffold(
@@ -504,6 +519,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     style: TextStyle(
                                         color: Colors.white38, fontSize: 11),
                                   ),
+
+                                  // Earned Achievements & Titles badge pills
+                                  if (effectiveUnlockedTitles.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: effectiveUnlockedTitles.map((achId) {
+                                        final ach = UserAchievementsCatalog.list
+                                            .where((a) => a.id == achId)
+                                            .firstOrNull;
+                                        if (ach == null) return const SizedBox();
+                                        return Tooltip(
+                                          message: '${ach.title}: ${ach.description}',
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF261D42),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                  color: const Color(0xFF9F67FF).withValues(alpha: 0.4),
+                                                  width: 0.8),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(ach.icon,
+                                                    style: const TextStyle(fontSize: 12)),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  ach.title,
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -548,12 +608,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               icon: const Icon(Icons.share_rounded, size: 18, color: Colors.white70),
                               tooltip: 'Скопировать ссылку на профиль',
                               onPressed: () {
-                                Clipboard.setData(
-                                  ClipboardData(text: '/user/@$myUsername'),
-                                );
+                                final link = kIsWeb
+                                    ? '${html.window.location.origin}/user/@$myUsername'
+                                    : 'https://cinetrack.x1kwq.workers.dev/user/@$myUsername';
+                                Clipboard.setData(ClipboardData(text: link));
                                 TopNotification.showSuccess(
                                   context,
-                                  'Ссылка на ваш профиль скопирована: /user/@$myUsername 📋',
+                                  'Ссылка на профиль скопирована! 📋',
                                 );
                               },
                             ),
@@ -644,12 +705,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               icon: const Icon(Icons.share_rounded, size: 18, color: Colors.white70),
                               tooltip: 'Скопировать ссылку на профиль',
                               onPressed: () {
-                                Clipboard.setData(
-                                  ClipboardData(text: '/user/@$effectiveUsername'),
-                                );
+                                final link = kIsWeb
+                                    ? '${html.window.location.origin}/user/@$effectiveUsername'
+                                    : 'https://cinetrack.x1kwq.workers.dev/user/@$effectiveUsername';
+                                Clipboard.setData(ClipboardData(text: link));
                                 TopNotification.showSuccess(
                                   context,
-                                  'Ссылка на профиль @$effectiveUsername скопирована 📋',
+                                  'Ссылка на профиль скопирована! 📋',
                                 );
                               },
                             ),
@@ -1140,7 +1202,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildCollectionBody(BuildContext context, List<MediaItem> allItems) {
+  Widget _buildCollectionBody(BuildContext context, List<MediaItem> rawItems) {
+    // Deduplicate items to guarantee no duplicate cards
+    final uniqueMap = <String, MediaItem>{};
+    for (final item in rawItems) {
+      final key = (item.kinopoiskId != null && item.kinopoiskId! > 0)
+          ? 'kp_${item.kinopoiskId}'
+          : 'title_${item.title.trim().toLowerCase()}';
+      uniqueMap.putIfAbsent(key, () => item);
+    }
+    final allItems = uniqueMap.values.toList();
+
     final filtered = allItems.where((item) {
       if (_statusFilter == 'all') return true;
       return item.status == _statusFilter;
@@ -2177,7 +2249,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     final banner = selectedBanner.isNotEmpty ? selectedBanner : null;
                     final avatar = selectedAvatar.isNotEmpty ? selectedAvatar : null;
 
-                    // 1. Update local reactive customization provider
+                    // 1. Update local reactive customization provider with unlocked titles
+                    final unlockedList = availableUnlocked.toList();
                     ref.read(profileCustomizationProvider.notifier).updateProfile(
                           displayName: name.isNotEmpty ? name : null,
                           username: username.isNotEmpty ? username : null,
@@ -2185,6 +2258,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           bannerUrl: banner,
                           avatarUrl: avatar,
                           isPrivate: selectedPrivate,
+                          unlockedTitles: unlockedList,
                         );
 
                     // 2. Persist to Supabase `profiles` table so it is stored permanently
@@ -2201,6 +2275,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ? username
                               : (currentUser.email?.split('@').first ?? 'user'),
                           'custom_title': title,
+                          'unlocked_titles': unlockedList,
                           'banner_url': banner,
                           'avatar_url': avatar,
                           'is_private': selectedPrivate,

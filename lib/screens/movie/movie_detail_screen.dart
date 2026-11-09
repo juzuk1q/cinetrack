@@ -297,6 +297,39 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       return;
     }
 
+    final mediaList = ref.read(mediaListProvider).value ?? [];
+    final existing = mediaList.where((m) {
+      if (_item!.kinopoiskId != null && m.kinopoiskId != null) {
+        return m.kinopoiskId == _item!.kinopoiskId;
+      }
+      return m.title.trim().toLowerCase() == _item!.title.trim().toLowerCase();
+    }).firstOrNull;
+
+    if (existing != null) {
+      // Remove from collection
+      try {
+        await ref.read(mediaNotifierProvider.notifier).delete(existing.id);
+        ref.invalidate(mediaListProvider);
+        ref.invalidate(statsDataProvider);
+
+        setState(() => _isSavedToCollection = false);
+        if (!mounted) return;
+        TopNotification.showSuccess(
+          context,
+          '«${_item!.title}» удалён из вашей коллекции 🗑️',
+          title: 'Коллекция',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        TopNotification.showError(
+          context,
+          'Ошибка удаления: $e',
+          title: 'Ошибка',
+        );
+      }
+      return;
+    }
+
     final now = DateTime.now();
     final mediaItem = MediaItem(
       id: '',
@@ -309,6 +342,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       actors: _item!.actors,
       description: _item!.description,
       posterUrl: _item!.posterUrl,
+      kinopoiskId: _item!.kinopoiskId,
       status: 'want_to_watch',
       createdAt: now,
       updatedAt: now,
@@ -367,6 +401,17 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     final user = ref.watch(currentUserProvider);
     final userDisplayName =
         user?.email?.split('@').first ?? 'Зритель';
+
+    final mediaListAsync = ref.watch(mediaListProvider);
+    final isSaved = mediaListAsync.maybeWhen(
+      data: (list) => list.any((m) {
+        if (item.kinopoiskId != null && m.kinopoiskId != null) {
+          return m.kinopoiskId == item.kinopoiskId;
+        }
+        return m.title.trim().toLowerCase() == item.title.trim().toLowerCase();
+      }),
+      orElse: () => _isSavedToCollection,
+    );
 
     final heroImageUrl = item.coverUrl ?? item.posterUrl;
     final ratingKp = item.rating;
@@ -450,11 +495,11 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                 children: [
                                   // Left Column: Details, Badges, Synopsis, Actions & Carousel
                                   Expanded(
-                                    flex: 6,
+                                    flex: 7,
                                     child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(36, 36, 28, 36),
+                                      padding: const EdgeInsets.fromLTRB(36, 24, 24, 24),
                                       child: _buildDetailsColumn(
-                                          item, ratingKp, ratingImdb),
+                                          item, ratingKp, ratingImdb, isSaved),
                                     ),
                                   ),
 
@@ -478,7 +523,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                 Padding(
                                   padding: const EdgeInsets.all(24),
                                   child: _buildDetailsColumn(
-                                      item, ratingKp, ratingImdb),
+                                      item, ratingKp, ratingImdb, isSaved),
                                 ),
                               ],
                             );
@@ -611,12 +656,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
   // Left Details Column (Typography, Badges, Ratings, Buttons & Bottom Photos)
   Widget _buildDetailsColumn(
-      CatalogItem item, double ratingKp, double ratingImdb) {
+      CatalogItem item, double ratingKp, double ratingImdb, bool isSaved) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const SizedBox(height: 36),
+        const SizedBox(height: 12),
 
         // Big Movie Title (Stylized bold typography like MONSTERS, INC.)
         Text(
@@ -825,19 +870,19 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               onPressed: _startPartyWatch,
             ),
 
-            // Add to Collection Pill Button
+            // Add to Collection Pill Button (Instant Reactive Toggle)
             InkWell(
               onTap: _toggleCollection,
               borderRadius: BorderRadius.circular(30),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: _isSavedToCollection
+                  color: isSaved
                       ? const Color(0xFF10B981)
                       : const Color(0xFF222238),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
-                    color: _isSavedToCollection
+                    color: isSaved
                         ? const Color(0xFF10B981)
                         : Colors.white24,
                   ),
@@ -846,7 +891,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _isSavedToCollection
+                      isSaved
                           ? Icons.bookmark_added_rounded
                           : Icons.bookmark_add_outlined,
                       size: 16,
@@ -854,7 +899,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      _isSavedToCollection ? 'В коллекции' : 'В коллекцию',
+                      isSaved ? 'В коллекции' : 'В коллекцию',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -1086,39 +1131,68 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   }
 
   Widget _buildSimilarMoviesSection(CatalogItem currentItem) {
-    final similar = CuratedCatalog.items
-        .where((ci) =>
-            ci.title != currentItem.title &&
-            ci.kinopoiskId != currentItem.kinopoiskId)
-        .take(6)
-        .toList();
+    // Select similar items based on matching genres or same format
+    final matches = CuratedCatalog.items.where((ci) {
+      if (ci.title == currentItem.title ||
+          (ci.kinopoiskId != null && ci.kinopoiskId == currentItem.kinopoiskId)) {
+        return false;
+      }
+      final shareGenre = ci.genres.any((g) => currentItem.genres.contains(g));
+      final shareType = ci.type == currentItem.type;
+      return shareGenre || shareType;
+    }).toList();
+
+    // Fallback if not enough matches
+    if (matches.length < 6) {
+      for (final item in CuratedCatalog.items) {
+        if (!matches.contains(item) &&
+            item.title != currentItem.title &&
+            item.kinopoiskId != currentItem.kinopoiskId) {
+          matches.add(item);
+        }
+      }
+    }
+    final similar = matches.take(10).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.auto_awesome_rounded, size: 18, color: Color(0xFFFFCA28)),
-            SizedBox(width: 8),
-            Text(
+            const Icon(Icons.auto_awesome_rounded,
+                size: 18, color: Color(0xFFFFCA28)),
+            const SizedBox(width: 8),
+            const Text(
               'Похожие фильмы и сериалы',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${similar.length} рекомендаций',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFFC084FC),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
         const SizedBox(height: 14),
         SizedBox(
-          height: 185,
+          height: 235,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: similar.length,
             separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemBuilder: (context, i) {
               final sim = similar[i];
+              final poster = CatalogItem.fixPosterUrl(sim.posterUrl,
+                  kpId: sim.kinopoiskId);
+
               return InkWell(
                 onTap: () => context.push(
                   '/movie/${sim.kinopoiskId ?? sim.title}',
@@ -1126,68 +1200,85 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 ),
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  width: 120,
+                  width: 135,
                   decoration: BoxDecoration(
+                    color: const Color(0xFF16162A),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.white12),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Image.network(
-                        CatalogItem.fixPosterUrl(sim.posterUrl, kpId: sim.kinopoiskId),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: const Color(0xFF1E2230),
-                          child: const Center(
-                            child: Icon(Icons.movie_outlined, color: Colors.white24),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.black87],
-                            stops: [0.5, 1.0],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFFFFCA28), width: 0.8),
-                          ),
-                          child: Text(
-                            '★ ${sim.rating.toStringAsFixed(1)}',
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFFFCA28),
+                      // Poster with standard 2:3 ratio
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              poster,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFF1E2230),
+                                child: const Center(
+                                  child: Icon(Icons.movie_outlined,
+                                      color: Colors.white24),
+                                ),
+                              ),
                             ),
-                          ),
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                      color: const Color(0xFFFFCA28),
+                                      width: 0.8),
+                                ),
+                                child: Text(
+                                  '★ ${sim.rating.toStringAsFixed(1)}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFFFCA28),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
-                        child: Text(
-                          sim.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                      // Title & Meta info below poster
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              sim.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${sim.year} • ${sim.genres.take(1).join('')}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

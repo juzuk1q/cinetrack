@@ -366,6 +366,14 @@ class AuthRepository {
         html.window.localStorage.remove('cinetrack_custom_profile');
         html.window.localStorage.remove('cinetrack_my_role');
         html.window.localStorage.remove('cinetrack_has_password');
+        final keysToRemove = html.window.localStorage.keys
+            .where((k) =>
+                k.startsWith('cinetrack_my_role_') ||
+                k.startsWith('cinetrack_custom_profile_'))
+            .toList();
+        for (final k in keysToRemove) {
+          html.window.localStorage.remove(k);
+        }
       } catch (_) {}
     }
     try {

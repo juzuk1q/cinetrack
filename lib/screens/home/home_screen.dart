@@ -26,6 +26,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const int _kInitialVirtualHeroPage = 5000;
   late final PageController _heroPageCtrl;
   int _currentHeroIndex = 0;
   Timer? _heroTimer;
@@ -34,13 +35,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _heroPageCtrl = PageController();
+    final initialPage =
+        _kInitialVirtualHeroPage - (_kInitialVirtualHeroPage % heroSlides.length);
+    _heroPageCtrl = PageController(initialPage: initialPage);
     _heroTimer = Timer.periodic(const Duration(seconds: 7), (_) {
-      if (!mounted) return;
-      final next = (_currentHeroIndex + 1) % heroSlides.length;
-      _heroPageCtrl.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 600),
+      if (!mounted || !_heroPageCtrl.hasClients) return;
+      _heroPageCtrl.nextPage(
+        duration: const Duration(milliseconds: 650),
         curve: Curves.easeInOutCubic,
       );
     });
@@ -770,15 +771,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // 1. Sliding Pages
+          // 1. Sliding Pages (Infinite Carousel)
           PageView.builder(
             controller: _heroPageCtrl,
-            itemCount: heroSlides.length,
             onPageChanged: (idx) {
-              setState(() => _currentHeroIndex = idx);
+              setState(() => _currentHeroIndex = idx % heroSlides.length);
             },
             itemBuilder: (context, idx) {
-              final slide = heroSlides[idx];
+              final slide = heroSlides[idx % heroSlides.length];
               return _buildHeroSlide(context, slide);
             },
           ),
@@ -791,9 +791,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Center(
               child: InkWell(
                 onTap: () {
-                  final prev = (_currentHeroIndex - 1 + heroSlides.length) % heroSlides.length;
-                  _heroPageCtrl.animateToPage(
-                    prev,
+                  if (!_heroPageCtrl.hasClients) return;
+                  _heroPageCtrl.previousPage(
                     duration: const Duration(milliseconds: 450),
                     curve: Curves.easeInOutCubic,
                   );
@@ -820,9 +819,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Center(
               child: InkWell(
                 onTap: () {
-                  final next = (_currentHeroIndex + 1) % heroSlides.length;
-                  _heroPageCtrl.animateToPage(
-                    next,
+                  if (!_heroPageCtrl.hasClients) return;
+                  _heroPageCtrl.nextPage(
                     duration: const Duration(milliseconds: 450),
                     curve: Curves.easeInOutCubic,
                   );
@@ -852,8 +850,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 final isActive = idx == _currentHeroIndex;
                 return InkWell(
                   onTap: () {
+                    if (!_heroPageCtrl.hasClients) return;
+                    final currentPage =
+                        _heroPageCtrl.page?.round() ?? _kInitialVirtualHeroPage;
+                    final currentModulo = currentPage % heroSlides.length;
+                    final diff = idx - currentModulo;
                     _heroPageCtrl.animateToPage(
-                      idx,
+                      currentPage + diff,
                       duration: const Duration(milliseconds: 450),
                       curve: Curves.easeInOutCubic,
                     );

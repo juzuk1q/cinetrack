@@ -388,11 +388,11 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
     final overlayState = Overlay.of(context, rootOverlay: true);
     _overlayEntry = OverlayEntry(
       builder: (ctx) => Positioned(
-        width: 380,
+        width: 440,
         child: CompositedTransformFollower(
           link: _layerLink,
           showWhenUnlinked: false,
-          offset: const Offset(-80, 44),
+          offset: const Offset(-40, 48),
           child: Material(
             color: Colors.transparent,
             child: _buildSearchDropdown(),
@@ -713,39 +713,28 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 isSelected: currentRoute.startsWith('/profile'),
                 onTap: () => context.go('/profile'),
               ),
-
-              // ADMIN PANEL TAB: Visible ONLY to verified Admins
-              if (isAdmin) ...[
-                const SizedBox(width: 18),
-                _buildNavLink(
-                  label: 'Админ-панель 👑',
-                  isSelected: currentRoute == '/admin',
-                  isSpecialAdmin: true,
-                  onTap: () => context.go('/admin'),
-                ),
-              ],
             ],
           ),
           const Spacer(),
 
-          // Search Field with Live Dropdown Anchor
+          // Search Field with Live Dropdown Anchor (Enlarged)
           CompositedTransformTarget(
             link: _layerLink,
             child: SizedBox(
-              width: 260,
-              height: 38,
+              width: 360,
+              height: 42,
               child: TextField(
                 controller: _searchCtrl,
                 focusNode: _searchFocus,
                 onChanged: _onSearchChanged,
                 onSubmitted: _onSubmitted,
-                style: const TextStyle(fontSize: 12.5, color: Colors.white),
+                style: const TextStyle(fontSize: 13, color: Colors.white),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: const Color(0xFF1B1B2F),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-                  hintText: 'Поиск фильмов (1+1, Интерстеллар)...',
+                  hintText: 'Поиск фильмов, сериалов, аниме...',
                   hintStyle:
                       const TextStyle(fontSize: 12, color: Colors.white38),
                   prefixIcon: const Icon(Icons.search_rounded,

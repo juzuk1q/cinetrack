@@ -9,6 +9,7 @@ class MediaItem {
   final String? actors;
   final String? description;
   final String? posterUrl;
+  final int? kinopoiskId;
   final String status; // want_to_watch | watching | watched
   final int? rating;
   final String? review;
@@ -28,6 +29,7 @@ class MediaItem {
     this.actors,
     this.description,
     this.posterUrl,
+    this.kinopoiskId,
     required this.status,
     this.rating,
     this.review,
@@ -52,6 +54,7 @@ class MediaItem {
       actors: json['actors'] as String?,
       description: json['description'] as String?,
       posterUrl: json['poster_url'] as String?,
+      kinopoiskId: json['kinopoisk_id'] as int?,
       status: json['status'] as String? ?? 'want_to_watch',
       rating: json['rating'] as int?,
       review: json['review'] as String?,
@@ -78,6 +81,7 @@ class MediaItem {
       'actors': actors,
       'description': description,
       'poster_url': posterUrl,
+      'kinopoisk_id': kinopoiskId,
       'status': status,
       'rating': rating,
       'review': review,
@@ -98,6 +102,7 @@ class MediaItem {
       'actors': actors,
       'description': description,
       'poster_url': posterUrl,
+      'kinopoisk_id': kinopoiskId,
       'status': status,
       'rating': rating,
       'review': review,
@@ -121,6 +126,7 @@ class MediaItem {
     String? actors,
     String? description,
     String? posterUrl,
+    int? kinopoiskId,
     String? status,
     int? rating,
     String? review,
@@ -143,6 +149,7 @@ class MediaItem {
       actors: actors ?? this.actors,
       description: description ?? this.description,
       posterUrl: posterUrl ?? this.posterUrl,
+      kinopoiskId: kinopoiskId ?? this.kinopoiskId,
       status: status ?? this.status,
       rating: clearRating ? null : (rating ?? this.rating),
       review: review ?? this.review,
