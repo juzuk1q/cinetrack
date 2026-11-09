@@ -179,8 +179,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ? customProfile!.customTitle!
             : (dbProfile?.effectiveTitle ?? 'Новичок стримов 🍿'));
 
-    final myRoleLabel = dbProfile?.roleLabel ?? (isAdmin ? 'Администратор ⭐' : 'Зритель 🍿');
     final myRole = dbProfile?.role ?? (user?.userMetadata?['role'] as String? ?? 'user');
+    final myRoleLabel = dbProfile?.roleLabel ?? (isAdmin ? 'Администратор ⭐' : null);
 
     final myBanner = customProfile?.bannerUrl?.isNotEmpty == true
         ? customProfile!.bannerUrl!
@@ -212,10 +212,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final myUnlockedTitles = myUnlockedTitlesSet.toList();
 
     // Check if viewing someone else's profile via route
-    final isTargetingOther = widget.targetUsername != null &&
-        widget.targetUsername!.trim().isNotEmpty &&
-        widget.targetUsername!.toLowerCase().replaceAll('@', '') !=
-            myUsername.toLowerCase().replaceAll('@', '');
+    final cleanTarget = widget.targetUsername?.trim().toLowerCase().replaceAll('@', '');
+    final isTargetingSelf = cleanTarget == null ||
+        cleanTarget.isEmpty ||
+        cleanTarget == myUsername.toLowerCase().replaceAll('@', '') ||
+        cleanTarget == emailPrefix.toLowerCase() ||
+        (user != null && cleanTarget == user.id.toLowerCase());
+    final isTargetingOther = !isTargetingSelf;
 
     UserProfile? otherProfile;
     if (isTargetingOther) {
@@ -316,22 +319,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final isViewingSelf = !isTargetingOther;
     final effectiveDisplayName =
-        isViewingSelf ? myDisplayName : otherProfile!.displayName;
+        isViewingSelf ? myDisplayName : (otherProfile?.displayName ?? 'Пользователь');
     final effectiveUsername =
-        isViewingSelf ? myUsername : otherProfile!.handle;
+        isViewingSelf ? myUsername : (otherProfile?.handle ?? 'user');
     final effectiveTitle =
-        isViewingSelf ? myTitle : otherProfile!.effectiveTitle;
-    final effectiveRoleLabel =
-        isViewingSelf ? myRoleLabel : otherProfile!.roleLabel;
+        isViewingSelf ? myTitle : (otherProfile?.effectiveTitle ?? 'Новичок стримов 🍿');
+    final String? effectiveRoleLabel =
+        isViewingSelf ? myRoleLabel : otherProfile?.roleLabel;
     final effectiveRole =
-        isViewingSelf ? myRole : otherProfile!.role;
+        isViewingSelf ? myRole : (otherProfile?.role ?? 'user');
     final effectiveBanner =
-        isViewingSelf ? myBanner : (otherProfile!.bannerUrl ?? myBanner);
+        isViewingSelf ? myBanner : (otherProfile?.bannerUrl ?? myBanner);
     final effectiveAvatar =
-        isViewingSelf ? myAvatar : otherProfile!.avatarUrl;
+        isViewingSelf ? myAvatar : otherProfile?.avatarUrl;
     final effectiveIsPrivate =
-        isViewingSelf ? myIsPrivate : otherProfile!.isPrivate;
-    final isFriend = !isViewingSelf && myFriends.contains(otherProfile!.handle);
+        isViewingSelf ? myIsPrivate : (otherProfile?.isPrivate ?? false);
+    final isFriend = !isViewingSelf && myFriends.contains(otherProfile?.handle ?? '');
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
@@ -510,7 +513,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     right: 4,
                                     child: InkWell(
                                       onTap: () async {
-                                        final newAvatarBase64 = await pickLocalImageBase64();
+                                        final newAvatarBase64 =
+                                            await pickAndCropImageBase64(
+                                          targetAspectRatio: 1.0,
+                                          targetWidth: 400,
+                                          targetHeight: 400,
+                                        );
                                         if (newAvatarBase64 != null) {
                                           ref
                                               .read(profileCustomizationProvider.notifier)
@@ -576,51 +584,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         ),
                                       ),
 
-                                      // 1. System Role Badge (Distinct from titles)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 9, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: effectiveRole == 'creator'
-                                              ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
-                                              : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                  ? const Color(0xFF06B6D4).withValues(alpha: 0.25)
-                                                  : (effectiveRole == 'admin'
-                                                      ? const Color(0xFFEAB308).withValues(alpha: 0.25)
-                                                      : (effectiveRole == 'moderator'
-                                                          ? const Color(0xFF6366F1).withValues(alpha: 0.25)
-                                                          : Colors.white10))),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
+                                      // 1. System Staff Role Badge (Only for administration/moderation)
+                                      if (effectiveRole != 'user' && effectiveRoleLabel != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 9, vertical: 4),
+                                          decoration: BoxDecoration(
                                             color: effectiveRole == 'creator'
-                                                ? const Color(0xFFF59E0B).withValues(alpha: 0.7)
+                                                ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
                                                 : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                    ? const Color(0xFF06B6D4).withValues(alpha: 0.7)
+                                                    ? const Color(0xFF06B6D4).withValues(alpha: 0.25)
                                                     : (effectiveRole == 'admin'
-                                                        ? const Color(0xFFEAB308).withValues(alpha: 0.7)
+                                                        ? const Color(0xFFEAB308).withValues(alpha: 0.25)
                                                         : (effectiveRole == 'moderator'
-                                                            ? const Color(0xFF6366F1).withValues(alpha: 0.7)
-                                                            : Colors.white24))),
-                                            width: 1,
+                                                            ? const Color(0xFF6366F1).withValues(alpha: 0.25)
+                                                            : Colors.white10))),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: effectiveRole == 'creator'
+                                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.7)
+                                                  : (effectiveRole == 'developer' || effectiveRole == 'coder'
+                                                      ? const Color(0xFF06B6D4).withValues(alpha: 0.7)
+                                                      : (effectiveRole == 'admin'
+                                                          ? const Color(0xFFEAB308).withValues(alpha: 0.7)
+                                                          : (effectiveRole == 'moderator'
+                                                              ? const Color(0xFF6366F1).withValues(alpha: 0.7)
+                                                              : Colors.white24))),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            effectiveRoleLabel,
+                                            style: TextStyle(
+                                              color: effectiveRole == 'creator'
+                                                  ? const Color(0xFFFBBF24)
+                                                  : (effectiveRole == 'developer' || effectiveRole == 'coder'
+                                                      ? const Color(0xFF22D3EE)
+                                                      : (effectiveRole == 'admin'
+                                                          ? const Color(0xFFFDE047)
+                                                          : (effectiveRole == 'moderator'
+                                                              ? const Color(0xFFA5B4FC)
+                                                              : Colors.white70))),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                            ),
                                           ),
                                         ),
-                                        child: Text(
-                                          effectiveRoleLabel,
-                                          style: TextStyle(
-                                            color: effectiveRole == 'creator'
-                                                ? const Color(0xFFFBBF24)
-                                                : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                    ? const Color(0xFF22D3EE)
-                                                    : (effectiveRole == 'admin'
-                                                        ? const Color(0xFFFDE047)
-                                                        : (effectiveRole == 'moderator'
-                                                            ? const Color(0xFFA5B4FC)
-                                                            : Colors.white70))),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
 
                                       // 2. Custom Title Badge
                                       Container(
@@ -976,6 +985,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     context,
                     isViewingSelf ? myFriends : (otherProfile?.friends ?? []),
                     allUsers,
+                    isViewingSelf: isViewingSelf,
+                    myFriends: myFriends,
                   ),
                 ),
               ),
@@ -993,64 +1004,72 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildFriendsBody(
     BuildContext context,
     List<String> friends,
-    List<UserProfile> allUsers,
-  ) {
+    List<UserProfile> allUsers, {
+    required bool isViewingSelf,
+    required List<String> myFriends,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Add friend row
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF16162A),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white12),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _friendSearchCtrl,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: 'Добавить друга по @юзернейму (например, alex_cinema, daria_movie)...',
-                    prefixIcon: const Icon(Icons.person_search_rounded, size: 20),
-                    filled: true,
-                    fillColor: const Color(0xFF121222),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+        // Add friend row (ONLY visible on your own profile)
+        if (isViewingSelf) ...[
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF16162A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _friendSearchCtrl,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Добавить друга по @юзернейму (например, alex_cinema, daria_movie)...',
+                      prefixIcon: const Icon(Icons.person_search_rounded, size: 20),
+                      filled: true,
+                      fillColor: const Color(0xFF121222),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    onSubmitted: (val) => _handleAddFriend(val.trim()),
                   ),
-                  onSubmitted: (val) => _handleAddFriend(val.trim()),
                 ),
-              ),
-              const SizedBox(width: 14),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                const SizedBox(width: 14),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.person_add_rounded, size: 18),
+                  label: const Text('Добавить в друзья'),
+                  onPressed: () => _handleAddFriend(_friendSearchCtrl.text.trim()),
                 ),
-                icon: const Icon(Icons.person_add_rounded, size: 18),
-                label: const Text('Добавить в друзья'),
-                onPressed: () => _handleAddFriend(_friendSearchCtrl.text.trim()),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
+          const SizedBox(height: 20),
+        ],
 
         Row(
           children: [
             Text(
-              'Список друзей (${friends.length})',
+              isViewingSelf
+                  ? 'Список друзей (${friends.length})'
+                  : 'Друзья пользователя (${friends.length})',
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
             const Spacer(),
-            const Text(
-              'Приглашайте друзей в комнаты совместного просмотра',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
+            Text(
+              isViewingSelf
+                  ? 'Приглашайте друзей в комнаты совместного просмотра'
+                  : 'Нажмите на карточку, чтобы открыть профиль',
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ],
         ),
@@ -1203,41 +1222,77 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
 
-                      // Actions: Invite to Room & Remove
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                      // Actions:
+                      if (isViewingSelf) ...[
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C3AED),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.tv_rounded, size: 14),
+                          label: const Text('Пригласить в комнату',
+                              style: TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            TopNotification.showSuccess(
+                              context,
+                              'Приглашение отправлено пользователю @$friendHandle! 🍿',
+                              title: 'Приглашение в комнату',
+                            );
+                          },
                         ),
-                        icon: const Icon(Icons.tv_rounded, size: 14),
-                        label: const Text('Пригласить в комнату',
-                            style: TextStyle(fontSize: 12)),
-                        onPressed: () {
-                          TopNotification.showSuccess(
-                            context,
-                            'Приглашение отправлено пользователю @$friendHandle! 🍿',
-                            title: 'Приглашение в комнату',
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            size: 18, color: Colors.white38),
-                        tooltip: 'Удалить из друзей',
-                        onPressed: () {
-                          ref
-                              .read(profileCustomizationProvider.notifier)
-                              .removeFriend(friendHandle);
-                          TopNotification.showWarning(
-                            context,
-                            'Пользователь @$friendHandle удален из друзей',
-                          );
-                        },
-                      ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              size: 18, color: Colors.white38),
+                          tooltip: 'Удалить из друзей',
+                          onPressed: () {
+                            ref
+                                .read(profileCustomizationProvider.notifier)
+                                .removeFriend(friendHandle);
+                            TopNotification.showWarning(
+                              context,
+                              'Пользователь @$friendHandle удален из друзей',
+                            );
+                          },
+                        ),
+                      ] else ...[
+                        if (myFriends.contains(friendHandle))
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_rounded, size: 14, color: Color(0xFF10B981)),
+                                SizedBox(width: 4),
+                                Text('В друзьях',
+                                    style: TextStyle(
+                                        color: Color(0xFF10B981),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          )
+                        else
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF7C3AED)),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.person_add_rounded, size: 14, color: Color(0xFF9F67FF)),
+                            label: const Text('+ В друзья',
+                                style: TextStyle(color: Color(0xFF9F67FF), fontSize: 12)),
+                            onPressed: () => _handleAddFriend(friendHandle),
+                          ),
+                      ],
                     ],
                   ),
                 ),
@@ -1859,9 +1914,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                     ),
                                     icon: const Icon(Icons.upload_file_rounded, size: 14),
-                                    label: const Text('Загрузить баннер (ПК)', style: TextStyle(fontSize: 11)),
+                                    label: const Text('Загрузить баннер (ПК / Телефон 📱)', style: TextStyle(fontSize: 11)),
                                     onPressed: () async {
-                                      final base64Url = await pickLocalImageBase64();
+                                      final base64Url = await pickAndCropImageBase64(
+                                        targetAspectRatio: 3.0,
+                                        targetWidth: 1200,
+                                        targetHeight: 400,
+                                      );
                                       if (base64Url != null) {
                                         setDlgState(() {
                                           selectedBanner = base64Url;
@@ -1899,7 +1958,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           right: 0,
                                           child: InkWell(
                                             onTap: () async {
-                                              final base64Url = await pickLocalImageBase64();
+                                              final base64Url = await pickAndCropImageBase64(
+                                                targetAspectRatio: 1.0,
+                                                targetWidth: 400,
+                                                targetHeight: 400,
+                                              );
                                               if (base64Url != null) {
                                                 setDlgState(() {
                                                   selectedAvatar = base64Url;
@@ -2555,7 +2618,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       setPassState(() => isSaving = true);
                       final newPassword = passCtrl.text;
 
-                      // 1. Attempt Supabase Auth password update
+                      // 1. Attempt Supabase Auth password update & Database RPC
+                      final currentUser = ref.read(currentUserProvider);
+                      if (currentUser != null) {
+                        try {
+                          await supabase.rpc('set_user_password', params: {
+                            'target_user_id': currentUser.id,
+                            'new_password': newPassword,
+                          });
+                        } catch (e) {
+                          debugPrint('Supabase set_user_password note: $e');
+                        }
+                      }
+
                       try {
                         await supabase.auth.updateUser(
                           UserAttributes(password: newPassword),
@@ -2565,7 +2640,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       }
 
                       // 2. Persist credentials locally for seamless login by username and email
-                      final currentUser = ref.read(currentUserProvider);
                       final email = currentUser?.email ?? '';
                       final customProf = ref.read(profileCustomizationProvider);
                       final username = customProf?.username ??

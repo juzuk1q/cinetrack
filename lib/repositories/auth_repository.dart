@@ -222,7 +222,53 @@ class AuthRepository {
       debugPrint('Supabase cloud signIn attempt note: $e');
     }
 
-    // 3. Fallback: Check local stored password credentials (specifically for accounts linked or created with password)
+    // 3. Database Password Verification (via secure PostgreSQL bcrypt RPC)
+    if (authenticatedUser == null) {
+      try {
+        final res = await supabase.rpc('verify_user_password', params: {
+          'login_or_email': cleanInput,
+          'input_password': password,
+        });
+        if (res != null && res is List && res.isNotEmpty) {
+          final row = res.first as Map<String, dynamic>;
+          final uid = row['user_id'] as String;
+          final uEmail = (row['user_email'] as String? ?? targetEmail).trim();
+          final uUsername = (row['user_username'] as String? ?? targetUsername).trim();
+          final uDisplayName = row['user_display_name'] as String? ?? displayName ?? uUsername;
+          final uRole = row['user_role'] as String? ?? role;
+          final isBlocked = row['user_is_blocked'] as bool? ?? false;
+          final isFrozen = row['user_is_frozen'] as bool? ?? false;
+
+          if (isBlocked) {
+            throw 'Ваш аккаунт заблокирован администрацией.';
+          }
+
+          final user = User(
+            id: uid,
+            appMetadata: const {'provider': 'cinetrack'},
+            userMetadata: {
+              'display_name': uDisplayName,
+              'role': uRole,
+              'username': uUsername,
+              'has_password': true,
+              'is_frozen': isFrozen,
+            },
+            aud: 'authenticated',
+            createdAt: DateTime.now().toIso8601String(),
+            email: uEmail.contains('@') ? uEmail : '$uUsername@cinetrack.local',
+          );
+
+          _persistSession(user, uUsername, uRole);
+          _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
+          return user;
+        }
+      } catch (e) {
+        if (e is String) rethrow;
+        debugPrint('verify_user_password RPC note: $e');
+      }
+    }
+
+    // 4. Fallback: Check local stored password credentials (specifically for accounts linked or created with password)
     if (authenticatedUser == null && kIsWeb) {
       final savedPwdByEmail = targetEmail.contains('@')
           ? html.window.localStorage['cinetrack_pwd_${targetEmail.toLowerCase()}']
@@ -294,6 +340,14 @@ class AuthRepository {
         password: password,
         data: {'display_name': finalDisplayName, 'username': cleanUsername},
       );
+      if (res.user != null) {
+        try {
+          await supabase.rpc('set_user_password', params: {
+            'target_user_id': res.user!.id,
+            'new_password': password,
+          });
+        } catch (_) {}
+      }
       if (res.session == null && res.user != null) {
         // Email confirmation is required by Supabase!
         throw EmailConfirmationRequiredException(cleanEmail);
@@ -322,6 +376,8 @@ class AuthRepository {
           'created_at': DateTime.now().toIso8601String(),
         };
         html.window.localStorage[_kSavedUsersKey] = jsonEncode(existing);
+        html.window.localStorage['cinetrack_pwd_${cleanEmail.toLowerCase()}'] = password;
+        html.window.localStorage['cinetrack_pwd_$cleanUsername'] = password;
       } catch (_) {}
     }
 

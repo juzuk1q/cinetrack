@@ -292,7 +292,18 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   void _startPartyWatch() {
     if (_item == null) return;
     final user = ref.read(currentUserProvider);
-    final ownerName = user?.email?.split('@').first ?? 'Организатор';
+    final customProf = ref.read(profileCustomizationProvider);
+    final dbProf = ref.read(userProfileProvider).value;
+    final ownerName = (customProf?.username.isNotEmpty == true
+            ? '@${customProf!.username.replaceAll('@', '')}'
+            : null) ??
+        (dbProf?.username.isNotEmpty == true
+            ? '@${dbProf!.username.replaceAll('@', '')}'
+            : null) ??
+        (user?.userMetadata?['username'] != null
+            ? '@${user!.userMetadata!['username']}'
+            : null) ??
+        (user?.email?.split('@').first ?? 'Организатор');
     final ownerId = user?.id ?? 'host';
 
     final room = ref.read(roomsProvider.notifier).createRoom(

@@ -8,6 +8,7 @@ import 'models/catalog_item.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/admin/admin_screen.dart';
+import 'screens/auth/account_restricted_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
@@ -59,11 +60,23 @@ final _routerProvider = Provider<GoRouter>((ref) {
       final isAuth = user != null;
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register';
+      final isRestrictedRoute = state.matchedLocation == '/restricted';
 
       // Если пользователь не вошел — перенаправляем на экран авторизации
       if (!isAuth && !isAuthRoute) {
         return '/login';
       }
+
+      // Проверка на заморозку / блокировку аккаунта
+      final userProf = ref.read(userProfileProvider).value;
+      final isRestricted = userProf?.isRestricted ?? false;
+      if (isAuth && isRestricted && !isRestrictedRoute) {
+        return '/restricted';
+      }
+      if (isAuth && !isRestricted && isRestrictedRoute) {
+        return '/home';
+      }
+
       // Если пользователь уже вошел и пытается открыть логин/регистрацию — перенаправляем на главную
       if (isAuth && isAuthRoute) {
         return '/home';
@@ -72,6 +85,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
     },
     refreshListenable: authNotifier,
     routes: [
+      GoRoute(
+        path: '/restricted',
+        name: 'restricted',
+        builder: (context, state) => const AccountRestrictedScreen(),
+      ),
       GoRoute(
         path: '/admin',
         name: 'admin',

@@ -263,8 +263,18 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                     }
 
                     final user = ref.read(currentUserProvider);
-                    final ownerName =
-                        user?.email?.split('@').first ?? 'Организатор';
+                    final customProf = ref.read(profileCustomizationProvider);
+                    final dbProf = ref.read(userProfileProvider).value;
+                    final ownerName = (customProf?.username.isNotEmpty == true
+                            ? '@${customProf!.username.replaceAll('@', '')}'
+                            : null) ??
+                        (dbProf?.username.isNotEmpty == true
+                            ? '@${dbProf!.username.replaceAll('@', '')}'
+                            : null) ??
+                        (user?.userMetadata?['username'] != null
+                            ? '@${user!.userMetadata!['username']}'
+                            : null) ??
+                        (user?.email?.split('@').first ?? 'Организатор');
                     final clientToken = RoomRepository.getClientToken();
                     final ownerId = user?.id ?? clientToken;
                     final pwd = passwordCtrl.text.trim();
@@ -304,90 +314,101 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
         children: [
           const AppHeader(activeRoute: '/rooms'),
           Expanded(
-            child: CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  automaticallyImplyLeading: false,
-                  pinned: true,
-                  title: const Text('Комнаты совместного просмотра'),
-                  actions: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Создать комнату'),
-                        onPressed: _showCreateRoomDialog,
-                      ),
-                    ),
-                  ],
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Смотрите кино и сериалы синхронно с друзьями на Lordfilm и Кинопоиске, обсуждайте моменты в живом чате!',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white70,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            ChoiceChip(
-                              label: const Text('Все комнаты'),
-                              selected: _filter == 'all',
-                              onSelected: (_) =>
-                                  setState(() => _filter = 'all'),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1280),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      automaticallyImplyLeading: false,
+                      pinned: true,
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      title: const Text('Комнаты совместного просмотра'),
+                      actions: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 28),
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7C3AED),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             ),
-                            ChoiceChip(
-                              avatar: const Text('🍿'),
-                              label: const Text('Смотрят прямо сейчас'),
-                              selected: _filter == 'watching',
-                              onSelected: (_) =>
-                                  setState(() => _filter = 'watching'),
-                            ),
-                            ChoiceChip(
-                              avatar: const Text('⏳'),
-                              label: const Text('Запланированные'),
-                              selected: _filter == 'preparing',
-                              onSelected: (_) =>
-                                  setState(() => _filter = 'preparing'),
-                            ),
-                          ],
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Создать комнату'),
+                            onPressed: _showCreateRoomDialog,
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Смотрите кино и сериалы синхронно с друзьями на Lordfilm и Кинопоиске, обсуждайте моменты в живом чате!',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white70,
+                                  ),
+                            ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('Все комнаты'),
+                                  selected: _filter == 'all',
+                                  onSelected: (_) =>
+                                      setState(() => _filter = 'all'),
+                                ),
+                                ChoiceChip(
+                                  avatar: const Text('🍿'),
+                                  label: const Text('Смотрят прямо сейчас'),
+                                  selected: _filter == 'watching',
+                                  onSelected: (_) =>
+                                      setState(() => _filter = 'watching'),
+                                ),
+                                ChoiceChip(
+                                  avatar: const Text('⏳'),
+                                  label: const Text('Запланированные'),
+                                  selected: _filter == 'preparing',
+                                  onSelected: (_) =>
+                                      setState(() => _filter = 'preparing'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (rooms.isEmpty)
+                      const SliverFillRemaining(
+                        child: Center(
+                          child: Text('Комнат пока нет. Создайте первую!'),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 380,
+                            childAspectRatio: 1.15,
+                            crossAxisSpacing: 18,
+                            mainAxisSpacing: 18,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, i) => _buildRoomCard(rooms[i]),
+                            childCount: rooms.length,
+                          ),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                  ],
                 ),
-                if (rooms.isEmpty)
-                  const SliverFillRemaining(
-                    child: Center(
-                      child: Text('Комнат пока нет. Создайте первую!'),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 380,
-                        childAspectRatio: 1.15,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) => _buildRoomCard(rooms[i]),
-                        childCount: rooms.length,
-                      ),
-                    ),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
-              ],
+              ),
             ),
           ),
         ],

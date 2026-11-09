@@ -37,8 +37,11 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS friends JSONB NOT NULL DEFA
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS unlocked_titles JSONB NOT NULL DEFAULT '["welcome"]'::jsonb;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN NOT NULL DEFAULT false;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS block_reason TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS block_until TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 
@@ -47,9 +50,21 @@ ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check 
     CHECK (role IN ('user', 'moderator', 'admin', 'developer', 'coder', 'creator'));
 
--- Индексы для быстрого поиска по username и email
-CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles(username);
+-- Индексы для быстрого поиска и УНИКАЛЬНОСТИ username (логина)
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
+DROP INDEX IF EXISTS idx_profiles_username;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique ON public.profiles(LOWER(username));
+
+-- Функция проверки прав персонала (SECURITY DEFINER для предотвращения бесконечной рекурсии в RLS)
+CREATE OR REPLACE FUNCTION public.is_admin_or_staff(check_uid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE id = check_uid AND role IN ('admin', 'creator', 'developer', 'coder')
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Включаем RLS для profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -65,9 +80,7 @@ CREATE POLICY "Пользователи могут обновлять свой �
     ON public.profiles FOR UPDATE
     TO authenticated
     USING (
-        auth.uid() = id OR EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'creator', 'developer')
-        )
+        auth.uid() = id OR public.is_admin_or_staff(auth.uid())
     );
 
 DROP POLICY IF EXISTS "Пользователи могут создавать свой профиль" ON public.profiles;
@@ -75,6 +88,98 @@ CREATE POLICY "Пользователи могут создавать свой �
     ON public.profiles FOR INSERT
     TO authenticated
     WITH CHECK (auth.uid() = id);
+
+-- ==============================================================================
+-- RPC ФУНКЦИИ ДЛЯ БЕЗОПАСНОЙ СМЕНЫ ПАРОЛЕЙ, РОЛЕЙ И ЗАМОРОЗКИ
+-- ==============================================================================
+
+-- 1. Установка пароля пользователя (хеширование через bcrypt/pgcrypto)
+CREATE OR REPLACE FUNCTION public.set_user_password(target_user_id UUID, new_password TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE public.profiles
+    SET password_hash = crypt(new_password, gen_salt('bf')),
+        updated_at = NOW()
+    WHERE id = target_user_id;
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2. Проверка логина/email и пароля при входе
+CREATE OR REPLACE FUNCTION public.verify_user_password(login_or_email TEXT, input_password TEXT)
+RETURNS TABLE (
+    user_id UUID,
+    user_email TEXT,
+    user_username TEXT,
+    user_display_name TEXT,
+    user_role TEXT,
+    user_is_blocked BOOLEAN,
+    user_is_frozen BOOLEAN,
+    user_block_reason TEXT
+) AS $$
+DECLARE
+    found_profile public.profiles%ROWTYPE;
+BEGIN
+    SELECT * INTO found_profile
+    FROM public.profiles
+    WHERE LOWER(profiles.email) = LOWER(TRIM(login_or_email))
+       OR LOWER(profiles.username) = LOWER(TRIM(REPLACE(login_or_email, '@', '')))
+    LIMIT 1;
+
+    IF found_profile.id IS NOT NULL AND found_profile.password_hash IS NOT NULL THEN
+        IF found_profile.password_hash = crypt(input_password, found_profile.password_hash) THEN
+            RETURN QUERY SELECT 
+                found_profile.id,
+                found_profile.email,
+                found_profile.username,
+                found_profile.display_name,
+                found_profile.role,
+                found_profile.is_blocked,
+                found_profile.is_frozen,
+                found_profile.block_reason;
+        END IF;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 3. Назначение роли пользователя модерацией/админом
+CREATE OR REPLACE FUNCTION public.set_user_role(target_user_id UUID, new_role TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    IF new_role NOT IN ('user', 'moderator', 'admin', 'developer', 'coder', 'creator') THEN
+        RAISE EXCEPTION 'Недопустимая роль: %', new_role;
+    END IF;
+
+    UPDATE public.profiles
+    SET role = new_role,
+        updated_at = NOW()
+    WHERE id = target_user_id;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4. Заморозка / блокировка пользователя
+CREATE OR REPLACE FUNCTION public.freeze_or_block_user(
+    target_user_id UUID,
+    set_frozen BOOLEAN,
+    set_blocked BOOLEAN,
+    reason TEXT,
+    freeze_until TIMESTAMPTZ DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE public.profiles
+    SET is_frozen = set_frozen,
+        is_blocked = set_blocked,
+        block_reason = reason,
+        block_until = freeze_until,
+        updated_at = NOW()
+    WHERE id = target_user_id;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- 2. ТРИГГЕР: АВТОМАТИЧЕСКОЕ СОЗДАНИЕ ПРОФИЛЯ ПРИ РЕГИСТРАЦИИ (auth.users)

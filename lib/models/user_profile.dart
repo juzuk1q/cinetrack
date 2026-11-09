@@ -155,7 +155,14 @@ class UserProfile {
     }
   }
 
-  String get roleDisplayName {
+  bool get hasStaffRole =>
+      role == 'creator' ||
+      role == 'developer' ||
+      role == 'coder' ||
+      role == 'admin' ||
+      role == 'moderator';
+
+  String? get roleDisplayName {
     switch (role.toLowerCase()) {
       case 'creator':
         return 'Создатель';
@@ -168,11 +175,11 @@ class UserProfile {
         return 'Модератор';
       case 'user':
       default:
-        return 'Зритель';
+        return null; // Обычный пользователь не имеет плашки роли
     }
   }
 
-  String get roleIcon {
+  String? get roleIcon {
     switch (role.toLowerCase()) {
       case 'creator':
         return '👑';
@@ -185,11 +192,33 @@ class UserProfile {
         return '🛡️';
       case 'user':
       default:
-        return '👤';
+        return null;
     }
   }
 
-  String get roleLabel => '$roleDisplayName $roleIcon';
+  String? get roleLabel {
+    final name = roleDisplayName;
+    final icon = roleIcon;
+    if (name == null || icon == null) return null;
+    return '$name $icon';
+  }
+
+  String get fullRoleTitle {
+    switch (role.toLowerCase()) {
+      case 'creator':
+        return 'Создатель 👑';
+      case 'developer':
+      case 'coder':
+        return 'Разработчик 💻';
+      case 'admin':
+        return 'Администратор ⭐';
+      case 'moderator':
+        return 'Модератор 🛡️';
+      case 'user':
+      default:
+        return 'Пользователь 👤';
+    }
+  }
 
   /// Permission check: whether this profile can manage targetUser (ban, freeze, alter roles)
   bool canManage(UserProfile target) {

@@ -763,7 +763,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                           border: Border.all(color: badgeBorder, width: 0.8),
                         ),
                         child: Text(
-                          user.roleLabel,
+                          user.fullRoleTitle,
                           style: TextStyle(
                             color: badgeText,
                             fontSize: 10.5,
@@ -889,7 +889,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(user.roleLabel, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                      Text(user.fullRoleTitle, style: const TextStyle(fontSize: 12, color: Colors.white70)),
                       const SizedBox(width: 4),
                       const Icon(Icons.shield_rounded, size: 14, color: Color(0xFF9F67FF)),
                     ],
@@ -909,7 +909,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(user.roleLabel, style: const TextStyle(fontSize: 12, color: Colors.white38)),
+                      Text(user.fullRoleTitle, style: const TextStyle(fontSize: 12, color: Colors.white38)),
                       const SizedBox(width: 4),
                       const Icon(Icons.lock_rounded, size: 13, color: Colors.white38),
                     ],
@@ -949,7 +949,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                     return DropdownMenuItem(
                       value: r,
                       child: Text(
-                        dummy.roleLabel,
+                        dummy.fullRoleTitle,
                         style: TextStyle(fontSize: 12, color: itemColor, fontWeight: FontWeight.w600),
                       ),
                     );

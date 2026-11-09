@@ -124,7 +124,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   void _startPartyWatch(CatalogItem item) {
     final user = ref.read(currentUserProvider);
-    final ownerName = user?.email?.split('@').first ?? 'Организатор';
+    final customProf = ref.read(profileCustomizationProvider);
+    final dbProf = ref.read(userProfileProvider).value;
+    final ownerName = (customProf?.username.isNotEmpty == true
+            ? '@${customProf!.username.replaceAll('@', '')}'
+            : null) ??
+        (dbProf?.username.isNotEmpty == true
+            ? '@${dbProf!.username.replaceAll('@', '')}'
+            : null) ??
+        (user?.userMetadata?['username'] != null
+            ? '@${user!.userMetadata!['username']}'
+            : null) ??
+        (user?.email?.split('@').first ?? 'Организатор');
     final clientToken = RoomRepository.getClientToken();
     final ownerId = user?.id ?? clientToken;
 

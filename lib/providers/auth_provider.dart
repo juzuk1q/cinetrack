@@ -11,12 +11,17 @@ import '../core/supabase_client.dart';
 import '../models/user_profile.dart';
 import '../repositories/auth_repository.dart';
 
-/// Helper to pick a local image file from user's computer on Web and convert to base64 Data URL
-Future<String?> pickLocalImageBase64() async {
+/// Helper to pick a local image file from PC or smartphone, auto-crop to target aspect ratio and scale down
+Future<String?> pickAndCropImageBase64({
+  required double targetAspectRatio, // e.g. 1.0 for avatar, 3.0 for banner (1200x400)
+  required int targetWidth,          // e.g. 400 for avatar, 1200 for banner
+  required int targetHeight,         // e.g. 400 for avatar, 400 for banner
+  double quality = 0.85,
+}) async {
   if (!kIsWeb) return null;
   final completer = Completer<String?>();
   final uploadInput = html.FileUploadInputElement()
-    ..accept = 'image/png,image/jpeg,image/webp,image/gif'
+    ..accept = 'image/*'
     ..multiple = false;
 
   uploadInput.click();
@@ -30,20 +35,68 @@ Future<String?> pickLocalImageBase64() async {
     final file = files[0];
     final reader = html.FileReader();
     reader.readAsDataUrl(file);
-    reader.onLoadEnd.listen((event) {
-      final res = reader.result;
-      if (res is String && !completer.isCompleted) {
-        completer.complete(res);
-      } else if (!completer.isCompleted) {
-        completer.complete(null);
+    reader.onLoadEnd.listen((_) {
+      final rawDataUrl = reader.result;
+      if (rawDataUrl is! String) {
+        if (!completer.isCompleted) completer.complete(null);
+        return;
       }
+
+      final img = html.ImageElement()..src = rawDataUrl;
+      img.onLoad.listen((_) {
+        try {
+          final naturalWidth = img.naturalWidth;
+          final naturalHeight = img.naturalHeight;
+          if (naturalWidth == 0 || naturalHeight == 0) {
+            if (!completer.isCompleted) completer.complete(rawDataUrl);
+            return;
+          }
+
+          // Calculate center crop with target aspect ratio
+          final currentRatio = naturalWidth / naturalHeight;
+          num sx = 0, sy = 0, sw = naturalWidth, sh = naturalHeight;
+
+          if (currentRatio > targetAspectRatio) {
+            // Source is wider than target -> crop sides
+            sw = (naturalHeight * targetAspectRatio).round();
+            sx = ((naturalWidth - sw) / 2).round();
+          } else {
+            // Source is taller than target -> crop top/bottom
+            sh = (naturalWidth / targetAspectRatio).round();
+            sy = ((naturalHeight - sh) / 2).round();
+          }
+
+          final canvas = html.CanvasElement(width: targetWidth, height: targetHeight);
+          final ctx = canvas.context2D;
+          ctx.drawImageScaledFromSource(img, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+
+          final croppedDataUrl = canvas.toDataUrl('image/jpeg', quality);
+          if (!completer.isCompleted) completer.complete(croppedDataUrl);
+        } catch (_) {
+          if (!completer.isCompleted) completer.complete(rawDataUrl);
+        }
+      });
+
+      img.onError.listen((_) {
+        if (!completer.isCompleted) completer.complete(rawDataUrl);
+      });
     });
+
     reader.onError.listen((_) {
       if (!completer.isCompleted) completer.complete(null);
     });
   });
 
   return completer.future;
+}
+
+/// Helper to pick a local image file from user's computer or phone on Web and convert to base64 Data URL
+Future<String?> pickLocalImageBase64() async {
+  return pickAndCropImageBase64(
+    targetAspectRatio: 3.0,
+    targetWidth: 1200,
+    targetHeight: 400,
+  );
 }
 
 // Repository provider
@@ -646,7 +699,14 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
     }
 
     try {
-      await supabase.from('profiles').update({'role': newRole}).eq('id', userId);
+      try {
+        await supabase.rpc('set_user_role', params: {
+          'target_user_id': userId,
+          'new_role': newRole,
+        });
+      } catch (_) {
+        await supabase.from('profiles').update({'role': newRole}).eq('id', userId);
+      }
     } catch (e) {
       debugPrint('Note updating role in profiles table: $e');
     }
@@ -717,12 +777,22 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
     _saveToLocal();
 
     try {
-      await supabase.from('profiles').update({
-        'is_blocked': !isFreeze,
-        'is_frozen': isFreeze,
-        'block_reason': reason,
-        'block_until': until?.toIso8601String(),
-      }).eq('id', userId);
+      try {
+        await supabase.rpc('freeze_or_block_user', params: {
+          'target_user_id': userId,
+          'set_frozen': isFreeze,
+          'set_blocked': !isFreeze,
+          'reason': reason,
+          'freeze_until': until?.toIso8601String(),
+        });
+      } catch (_) {
+        await supabase.from('profiles').update({
+          'is_blocked': !isFreeze,
+          'is_frozen': isFreeze,
+          'block_reason': reason,
+          'block_until': until?.toIso8601String(),
+        }).eq('id', userId);
+      }
     } catch (_) {}
     return true;
   }
@@ -755,12 +825,22 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
     _saveToLocal();
 
     try {
-      await supabase.from('profiles').update({
-        'is_blocked': false,
-        'is_frozen': false,
-        'block_reason': null,
-        'block_until': null,
-      }).eq('id', userId);
+      try {
+        await supabase.rpc('freeze_or_block_user', params: {
+          'target_user_id': userId,
+          'set_frozen': false,
+          'set_blocked': false,
+          'reason': null,
+          'freeze_until': null,
+        });
+      } catch (_) {
+        await supabase.from('profiles').update({
+          'is_blocked': false,
+          'is_frozen': false,
+          'block_reason': null,
+          'block_until': null,
+        }).eq('id', userId);
+      }
     } catch (_) {}
     return true;
   }
