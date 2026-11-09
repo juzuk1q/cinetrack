@@ -1,3 +1,6 @@
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -56,10 +59,23 @@ Future<void> main() async {
   try {
     await Supabase.initialize(
       url: 'https://xwfixqgmuhzqbfdsiqmt.supabase.co',
-      // ignore: deprecated_member_use
       anonKey:
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3Zml4cWdtdWh6cWJmZHNpcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzQyNjIsImV4cCI6MjEwODgxMDI2Mn0.PJ17S9wHdLdF0kmADTVO2SS59h2aMpoXCe8A-cLmn5c',
     ).timeout(const Duration(seconds: 4));
+
+    // Clean up ugly OAuth tokens / error queries from browser address bar
+    if (kIsWeb) {
+      try {
+        final currentHref = html.window.location.href;
+        if (currentHref.contains('access_token') ||
+            currentHref.contains('error=') ||
+            currentHref.contains('code=')) {
+          final origin = html.window.location.origin;
+          final cleanPath = html.window.location.pathname ?? '';
+          html.window.history.replaceState(null, 'CineTrack', '$origin$cleanPath');
+        }
+      } catch (_) {}
+    }
   } catch (e) {
     debugPrint('Supabase initialization handled: $e');
   }
