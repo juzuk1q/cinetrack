@@ -602,18 +602,23 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isLoading || _item == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0C0C16),
+        backgroundColor: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF1F5F9),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const CircularProgressIndicator(color: Color(0xFF7C3AED)),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Загрузка информации о фильме...',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 16),
               TextButton.icon(
@@ -648,8 +653,6 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     final heroImageUrl = item.coverUrl ?? item.posterUrl;
     final ratingKp = item.rating;
     final ratingImdb = item.ratingImdb ?? (item.rating > 0.5 ? item.rating - 0.2 : 8.1);
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF1F5F9),
@@ -807,7 +810,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                       // Right Column: Huge Hero Poster Cutout with Soft Blend
                                       Expanded(
                                         flex: 5,
-                                        child: _buildHeroPoster(heroImageUrl),
+                                        child: _buildHeroPoster(heroImageUrl, isDark),
                                       ),
                                     ],
                                   ),
@@ -819,7 +822,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                   children: [
                                     SizedBox(
                                       height: 380,
-                                      child: _buildHeroPoster(heroImageUrl),
+                                      child: _buildHeroPoster(heroImageUrl, isDark),
                                     ),
                                     Padding(
                                       padding: const EdgeInsets.all(24),
@@ -834,9 +837,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 28),
-                      _buildSimilarMoviesSection(item),
+                      _buildSimilarMoviesSection(item, isDark),
                       const SizedBox(height: 28),
-                      _buildSocialSection(item, userDisplayName),
+                      _buildSocialSection(item, userDisplayName, isDark),
                     ],
                   ),
                 ),
@@ -850,8 +853,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 );
   }
 
-  // Large Hero Poster on the Right with Soft Dark Vignette
-  Widget _buildHeroPoster(String imageUrl) {
+  // Large Hero Poster on the Right with Soft Vignette
+  Widget _buildHeroPoster(String imageUrl, [bool isDark = true]) {
+    final vignetteColor = isDark ? const Color(0xFF141424) : Colors.white;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -860,33 +864,36 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           fit: BoxFit.cover,
           alignment: Alignment.center,
           errorBuilder: (_, __, ___) => Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF261042), Color(0xFF1B1B36), Color(0xFF0F172A)],
+                colors: isDark
+                    ? const [Color(0xFF261042), Color(0xFF1B1B36), Color(0xFF0F172A)]
+                    : const [Color(0xFFEDE9FE), Color(0xFFF1F5F9), Color(0xFFCBD5E1)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
             child: Center(
               child: Icon(Icons.movie_filter_rounded,
-                  size: 72, color: Colors.white.withValues(alpha: 0.15)),
+                  size: 72,
+                  color: (isDark ? Colors.white : const Color(0xFF64748B)).withValues(alpha: 0.15)),
             ),
           ),
         ),
 
-        // Gradient Left Shadow to smoothly melt into the dark UI card
+        // Gradient Left Shadow to smoothly melt into the UI card
         Positioned.fill(
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  Color(0xFF141424),
+                  vignetteColor,
                   Colors.transparent,
                   Colors.transparent,
                 ],
-                stops: [0.0, 0.45, 1.0],
+                stops: const [0.0, 0.45, 1.0],
               ),
             ),
           ),
@@ -900,7 +907,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
                 colors: [
-                  const Color(0xFF141424).withValues(alpha: 0.85),
+                  vignetteColor.withValues(alpha: 0.85),
                   Colors.transparent,
                 ],
                 stops: const [0.0, 0.35],
@@ -949,7 +956,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   }
 
   PopupMenuItem<String> _buildStatusMenuItem(
-      String value, String icon, String title, bool isSelected) {
+      String value, String icon, String title, bool isSelected, [bool isDark = true]) {
     return PopupMenuItem<String>(
       value: value,
       child: Row(
@@ -960,7 +967,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             child: Text(
               title,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF9F67FF) : Colors.white,
+                color: isSelected
+                    ? const Color(0xFF9F67FF)
+                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 fontSize: 13,
               ),
@@ -1071,7 +1080,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.15 : 0.2),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
               ),
@@ -1083,8 +1092,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                   const SizedBox(width: 4),
                   Text(
                     'IMDb ${item.effectiveImdb.toStringAsFixed(1)}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF92400E),
                       fontWeight: FontWeight.w800,
                       fontSize: 11,
                     ),
@@ -1097,7 +1106,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF6600).withValues(alpha: 0.15),
+                color: const Color(0xFFFF6600).withValues(alpha: isDark ? 0.15 : 0.2),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: const Color(0xFFFF6600), width: 0.8),
               ),
@@ -1108,8 +1117,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                   const SizedBox(width: 4),
                   Text(
                     'КП ${ratingKp.toStringAsFixed(1)}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF9A3412),
                       fontWeight: FontWeight.w800,
                       fontSize: 11,
                     ),
@@ -1121,8 +1130,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             // Year & Runtime
             Text(
               '${item.year} год${item.filmLength != null ? '  •  ${item.filmLength} мин' : ''}',
-              style: const TextStyle(
-                color: Color(0xFFC7D2FE),
+              style: TextStyle(
+                color: isDark ? const Color(0xFFC7D2FE) : const Color(0xFF64748B),
                 fontWeight: FontWeight.w600,
                 fontSize: 11.5,
               ),
@@ -1138,8 +1147,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: isWarning
-                        ? const Color(0xFFEF4444).withValues(alpha: 0.15)
-                        : const Color(0xFF10B981).withValues(alpha: 0.15),
+                        ? const Color(0xFFEF4444).withValues(alpha: isDark ? 0.15 : 0.2)
+                        : const Color(0xFF10B981).withValues(alpha: isDark ? 0.15 : 0.2),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: isWarning
@@ -1152,8 +1161,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                     advisory['badge'] as String,
                     style: TextStyle(
                       color: isWarning
-                          ? const Color(0xFFFCA5A5)
-                          : const Color(0xFF6EE7B7),
+                          ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626))
+                          : (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669)),
                       fontWeight: FontWeight.w700,
                       fontSize: 10.5,
                     ),
@@ -1166,14 +1175,14 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                color: const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.15 : 0.2),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: const Color(0xFF7C3AED), width: 0.8),
               ),
               child: Text(
                 '🎧 ${_getBestVoiceover(item)}',
-                style: const TextStyle(
-                  color: Color(0xFFDDD6FE),
+                style: TextStyle(
+                  color: isDark ? const Color(0xFFDDD6FE) : const Color(0xFF6D28D9),
                   fontWeight: FontWeight.w700,
                   fontSize: 10.5,
                 ),
@@ -1272,10 +1281,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             Theme(
               data: Theme.of(context).copyWith(
                 popupMenuTheme: PopupMenuThemeData(
-                  color: const Color(0xFF1E1E34),
+                  color: isDark ? const Color(0xFF1E1E34) : Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Colors.white12),
+                    side: BorderSide(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
                   ),
                 ),
               ),
@@ -1283,9 +1294,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 tooltip: 'Выбрать категорию для фильма',
                 onSelected: _setCollectionStatus,
                 itemBuilder: (ctx) => [
-                  _buildStatusMenuItem('want_to_watch', '🕒', 'Хочу посмотреть', savedStatus == 'want_to_watch'),
-                  _buildStatusMenuItem('watching', '🍿', 'Смотрю', savedStatus == 'watching'),
-                  _buildStatusMenuItem('watched', '✅', 'Просмотрено', savedStatus == 'watched'),
+                  _buildStatusMenuItem('want_to_watch', '🕒', 'Хочу посмотреть', savedStatus == 'want_to_watch', isDark),
+                  _buildStatusMenuItem('watching', '🍿', 'Смотрю', savedStatus == 'watching', isDark),
+                  _buildStatusMenuItem('watched', '✅', 'Просмотрено', savedStatus == 'watched', isDark),
                   if (isSaved) ...[
                     const PopupMenuDivider(height: 1),
                     const PopupMenuItem<String>(
@@ -1305,12 +1316,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                   decoration: BoxDecoration(
                     color: isSaved
                         ? const Color(0xFF10B981)
-                        : const Color(0xFF222238),
+                        : (isDark ? const Color(0xFF222238) : const Color(0xFFF1F5F9)),
                     borderRadius: BorderRadius.circular(30),
                     border: Border.all(
                       color: isSaved
                           ? const Color(0xFF10B981)
-                          : Colors.white24,
+                          : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
                     ),
                   ),
                   child: Row(
@@ -1321,7 +1332,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                             ? Icons.bookmark_added_rounded
                             : Icons.bookmark_add_outlined,
                         size: 16,
-                        color: Colors.white,
+                        color: isSaved
+                            ? Colors.white
+                            : (isDark ? Colors.white : const Color(0xFF0F172A)),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -1332,14 +1345,20 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                     ? 'Смотрю 🍿'
                                     : (savedStatus == 'watched' ? 'Просмотрено ✅' : 'В коллекции')))
                             : 'В коллекцию',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: isSaved
+                              ? Colors.white
+                              : (isDark ? Colors.white : const Color(0xFF0F172A)),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.arrow_drop_down_rounded, size: 16, color: Colors.white70),
+                      Icon(Icons.arrow_drop_down_rounded,
+                          size: 16,
+                          color: isSaved
+                              ? Colors.white70
+                              : (isDark ? Colors.white70 : const Color(0xFF64748B))),
                     ],
                   ),
                 ),
@@ -1354,16 +1373,16 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           children: [
             Text(
               'Кадры и видео (${_filmImages.length + 1})',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.3,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded,
-                size: 18, color: Colors.white54),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: isDark ? Colors.white54 : const Color(0xFF94A3B8)),
           ],
         ),
         const SizedBox(height: 12),
@@ -1570,7 +1589,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
-  Widget _buildSimilarMoviesSection(CatalogItem currentItem) {
+  Widget _buildSimilarMoviesSection(CatalogItem currentItem, [bool isDark = true]) {
     // Select similar items based on matching genres or same format
     final matches = CuratedCatalog.items.where((ci) {
       if (ci.title == currentItem.title ||
@@ -1602,20 +1621,20 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             const Icon(Icons.auto_awesome_rounded,
                 size: 18, color: Color(0xFFFFCA28)),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Похожие фильмы и сериалы',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
             ),
             const Spacer(),
             Text(
               '${similar.length} рекомендаций',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFFC084FC),
+                color: isDark ? const Color(0xFFC084FC) : const Color(0xFF7C3AED),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1642,9 +1661,19 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 child: Container(
                   width: 135,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF16162A),
+                    color: isDark ? const Color(0xFF16162A) : Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                    boxShadow: [
+                      if (!isDark)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                    ],
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Column(
@@ -1659,10 +1688,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                               poster,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xFF1E2230),
-                                child: const Center(
+                                color: isDark ? const Color(0xFF1E2230) : const Color(0xFFF1F5F9),
+                                child: Center(
                                   child: Icon(Icons.movie_outlined,
-                                      color: Colors.white24),
+                                      color: isDark ? Colors.white24 : const Color(0xFF94A3B8)),
                                 ),
                               ),
                             ),
@@ -1702,10 +1731,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                               sim.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -1713,9 +1742,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                               '${sim.year} • ${sim.genres.take(1).join('')}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.white54,
+                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -1819,17 +1848,25 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     ];
   }
 
-  Widget _buildSocialSection(CatalogItem item, String userDisplayName) {
+  Widget _buildSocialSection(CatalogItem item, String userDisplayName, [bool isDark = true]) {
     final isSeries = item.type == 'series' || item.type == 'anime';
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF141424),
+        color: isDark ? const Color(0xFF141424) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
           width: 1.5,
         ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+        ],
       ),
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -1842,6 +1879,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 label: '💬 Отзывы и рецензии (${_reviews.length})',
                 isSelected: _socialTab == 0,
                 onTap: () => setState(() => _socialTab = 0),
+                isDark: isDark,
               ),
               const SizedBox(width: 12),
               _buildTabPill(
@@ -1850,6 +1888,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                     : '🎬 Обсуждение моментов',
                 isSelected: _socialTab == 1,
                 onTap: () => setState(() => _socialTab = 1),
+                isDark: isDark,
               ),
               const Spacer(),
               if (_socialTab == 0)
@@ -1872,26 +1911,26 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
           // TAB 0: Reviews Section
           if (_socialTab == 0) ...[
-            _buildReviewFilterBar(),
+            _buildReviewFilterBar(isDark),
             const SizedBox(height: 16),
-            _buildReviewsList(),
+            _buildReviewsList(isDark),
           ]
           // TAB 1: Episode Comments / Moments Section
           else ...[
-            _buildEpisodeCommentsView(userDisplayName, isSeries: isSeries),
+            _buildEpisodeCommentsView(userDisplayName, isSeries: isSeries, isDark: isDark),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildReviewFilterBar() {
+  Widget _buildReviewFilterBar([bool isDark = true]) {
     return Row(
       children: [
         Text(
           'Сортировка:',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.6),
+            color: isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF64748B),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -1901,18 +1940,21 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           label: 'Популярные',
           type: 'popular',
           icon: Icons.trending_up_rounded,
+          isDark: isDark,
         ),
         const SizedBox(width: 8),
         _buildReviewSortChip(
           label: 'По дате',
           type: 'date',
           hasArrow: true,
+          isDark: isDark,
         ),
         const SizedBox(width: 8),
         _buildReviewSortChip(
           label: 'По оценке',
           type: 'rating',
           hasArrow: true,
+          isDark: isDark,
         ),
       ],
     );
@@ -1923,6 +1965,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     required String type,
     IconData? icon,
     bool hasArrow = false,
+    bool isDark = true,
   }) {
     final isSelected = _reviewSort == type;
     IconData? arrowIcon;
@@ -1951,10 +1994,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF7C3AED).withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.05),
+              : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFF9F67FF) : Colors.white12,
+            color: isSelected
+                ? const Color(0xFF9F67FF)
+                : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
           ),
         ),
         child: Row(
@@ -1963,14 +2008,17 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             if (icon != null) ...[
               Icon(icon,
                   size: 14,
-                  color:
-                      isSelected ? const Color(0xFFA78BFA) : Colors.white60),
+                  color: isSelected
+                      ? const Color(0xFFA78BFA)
+                      : (isDark ? Colors.white60 : const Color(0xFF64748B))),
               const SizedBox(width: 4),
             ],
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected
+                    ? (isDark ? Colors.white : const Color(0xFF7C3AED))
+                    : (isDark ? Colors.white70 : const Color(0xFF475569)),
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
@@ -1979,8 +2027,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               const SizedBox(width: 4),
               Icon(arrowIcon,
                   size: 14,
-                  color:
-                      isSelected ? const Color(0xFFA78BFA) : Colors.white38),
+                  color: isSelected
+                      ? const Color(0xFFA78BFA)
+                      : (isDark ? Colors.white38 : const Color(0xFF94A3B8))),
             ],
           ],
         ),
@@ -2010,6 +2059,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
+    bool isDark = true,
   }) {
     return InkWell(
       onTap: onTap,
@@ -2018,16 +2068,22 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF7C3AED) : Colors.white10,
+          color: isSelected
+              ? const Color(0xFF7C3AED)
+              : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFF9F67FF) : Colors.transparent,
+            color: isSelected
+                ? const Color(0xFF9F67FF)
+                : (isDark ? Colors.transparent : const Color(0xFFE2E8F0)),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : const Color(0xFF475569)),
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             fontSize: 13,
           ),
@@ -2036,7 +2092,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
-  Widget _buildReviewsList() {
+  Widget _buildReviewsList([bool isDark = true]) {
     final sorted = _sortedReviews;
     if (sorted.isEmpty) {
       return Center(
@@ -2044,7 +2100,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           padding: const EdgeInsets.symmetric(vertical: 32),
           child: Text(
             'Пока нет рецензий. Будьте первым!',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+            style: TextStyle(
+                color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF94A3B8)),
           ),
         ),
       );
@@ -2055,9 +2112,11 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1B1B2F),
+            color: isDark ? const Color(0xFF1B1B2F) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE2E8F0),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2087,31 +2146,33 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                           children: [
                             Text(
                               rev.authorName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
-                                  color: Colors.white),
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A)),
                             ),
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.white10,
+                                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 rev.authorTitle,
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 10),
+                                style: TextStyle(
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                    fontSize: 10),
                               ),
                             ),
                           ],
                         ),
                         Text(
                           rev.date,
-                          style: const TextStyle(
-                              color: Colors.white38, fontSize: 11),
+                          style: TextStyle(
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                              fontSize: 11),
                         ),
                       ],
                     ),
@@ -2149,18 +2210,20 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               // Title
               Text(
                 rev.title,
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
-                    color: Colors.white),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
               ),
               const SizedBox(height: 8),
 
               // Body text
               Text(
                 rev.text,
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 13, height: 1.5),
+                style: TextStyle(
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+                    fontSize: 13,
+                    height: 1.5),
               ),
               const SizedBox(height: 14),
 
@@ -2187,7 +2250,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       decoration: BoxDecoration(
                         color: rev.isLiked
                             ? const Color(0xFF10B981).withValues(alpha: 0.2)
-                            : Colors.white10,
+                            : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: rev.isLiked
@@ -2204,7 +2267,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                             size: 14,
                             color: rev.isLiked
                                 ? const Color(0xFF10B981)
-                                : Colors.white70,
+                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -2212,7 +2275,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                             style: TextStyle(
                               color: rev.isLiked
                                   ? const Color(0xFF10B981)
-                                  : Colors.white70,
+                                  : (isDark ? Colors.white70 : const Color(0xFF64748B)),
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -2230,7 +2293,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
-  Widget _buildEpisodeCommentsView(String userDisplayName, {required bool isSeries}) {
+  Widget _buildEpisodeCommentsView(String userDisplayName,
+      {required bool isSeries, bool isDark = true}) {
     final episodeComments = isSeries
         ? _episodeComments.where((c) => c.episode == _activeEpisode).toList()
         : _episodeComments;
@@ -2240,10 +2304,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       children: [
         // Episode Picker Chips (Only shown for TV series, hidden for films!)
         if (isSeries) ...[
-          const Text(
+          Text(
             'Выберите серию для обсуждения:',
             style: TextStyle(
-                fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white70),
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark ? Colors.white70 : const Color(0xFF475569)),
           ),
           const SizedBox(height: 10),
           SingleChildScrollView(
@@ -2263,17 +2329,20 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       decoration: BoxDecoration(
                         color: isSel
                             ? const Color(0xFF7C3AED)
-                            : const Color(0xFF1F1F35),
+                            : (isDark ? const Color(0xFF1F1F35) : const Color(0xFFF1F5F9)),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color:
-                              isSel ? const Color(0xFF9F67FF) : Colors.white12,
+                          color: isSel
+                              ? const Color(0xFF9F67FF)
+                              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                         ),
                       ),
                       child: Text(
                         'Серия $ep',
                         style: TextStyle(
-                          color: isSel ? Colors.white : Colors.white70,
+                          color: isSel
+                              ? Colors.white
+                              : (isDark ? Colors.white70 : const Color(0xFF475569)),
                           fontWeight:
                               isSel ? FontWeight.w800 : FontWeight.w600,
                           fontSize: 12,
@@ -2287,14 +2356,16 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           ),
           const SizedBox(height: 20),
         ] else ...[
-          const Row(
+          Row(
             children: [
-              Icon(Icons.movie_filter_rounded, size: 18, color: Color(0xFF9F67FF)),
-              SizedBox(width: 8),
+              const Icon(Icons.movie_filter_rounded, size: 18, color: Color(0xFF9F67FF)),
+              const SizedBox(width: 8),
               Text(
                 'Обсуждение ярких моментов и таймкоды фильма',
                 style: TextStyle(
-                    fontWeight: FontWeight.w800, fontSize: 14, color: Colors.white),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
               ),
             ],
           ),
@@ -2305,9 +2376,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
+            color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2332,10 +2404,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                     isSeries
                         ? 'Оставить комментарий к серии $_activeEpisode:'
                         : 'Оставить комментарий к фильму:',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
-                        color: Colors.white),
+                        color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   ),
                   const Spacer(),
                   // Prominent Timecode input
@@ -2344,25 +2416,31 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                     height: 34,
                     child: TextField(
                       controller: _timecodeCtrl,
-                      style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
                         isDense: true,
                         hintText: '⏱ 12:40',
-                        hintStyle: const TextStyle(
-                            fontSize: 11, color: Colors.white38),
+                        hintStyle: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
                         prefixIcon: const Icon(Icons.timer_rounded,
                             size: 15, color: Color(0xFF9F67FF)),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 6),
                         filled: true,
-                        fillColor: const Color(0xFF121220),
+                        fillColor: isDark ? const Color(0xFF121220) : Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 0.8),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Colors.white24, width: 0.8),
+                          borderSide: BorderSide(
+                              color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                              width: 0.8),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -2378,7 +2456,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               // Quick Timecode Presets
               Row(
                 children: [
-                  const Text('Быстрый таймкод: ', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  Text('Быстрый таймкод: ',
+                      style: TextStyle(
+                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                          fontSize: 11)),
                   ...['05:30', '14:20', '35:10', '01:10:00'].map((tc) {
                     return Padding(
                       padding: const EdgeInsets.only(right: 6),
@@ -2407,18 +2488,27 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               TextField(
                 controller: _newCommentCtrl,
                 maxLines: 2,
-                style: const TextStyle(fontSize: 13, color: Colors.white),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 decoration: InputDecoration(
                   hintText: isSeries
                       ? 'Поделитесь впечатлением о серии...'
                       : 'Поделитесь впечатлением о моменте фильма...',
-                  hintStyle:
-                      const TextStyle(fontSize: 12, color: Colors.white38),
+                  hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
                   filled: true,
-                  fillColor: const Color(0xFF121220),
+                  fillColor: isDark ? const Color(0xFF121220) : Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.transparent : const Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                        color: isDark ? Colors.transparent : const Color(0xFFE2E8F0)),
                   ),
                 ),
               ),
@@ -2476,7 +2566,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               isSeries
                   ? 'К этой серии ещё нет комментариев. Будьте первыми!'
                   : 'К этому фильму ещё нет комментариев. Будьте первыми!',
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
+              style: TextStyle(
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                  fontSize: 13),
             ),
           )
         else
@@ -2486,10 +2578,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1B1B2F),
+                  color: isDark ? const Color(0xFF1B1B2F) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2516,10 +2610,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                             children: [
                               Text(
                                 com.authorName,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
-                                    color: Colors.white),
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
                               ),
                               if (com.timecode != null) ...[
                                 const SizedBox(width: 8),
@@ -2566,16 +2660,18 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                               const Spacer(),
                               Text(
                                 com.date,
-                                style: const TextStyle(
-                                    color: Colors.white38, fontSize: 11),
+                                style: TextStyle(
+                                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                    fontSize: 11),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
                           Text(
                             com.text,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 13),
+                            style: TextStyle(
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                fontSize: 13),
                           ),
                         ],
                       ),
@@ -2628,6 +2724,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   }
 
   void _showAddReviewDialog(String userDisplayName) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     double ratingVal = 9.0;
     final titleCtrl = TextEditingController();
     final textCtrl = TextEditingController();
@@ -2638,16 +2735,24 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         return StatefulBuilder(
           builder: (context, setDlgState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E34),
+              backgroundColor: isDark ? const Color(0xFF1E1E34) : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
-                side: const BorderSide(color: Colors.white12),
+                side: BorderSide(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
               ),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.rate_review_rounded, color: Color(0xFF9F67FF)),
-                  SizedBox(width: 10),
-                  Text('Написать рецензию'),
+                  const Icon(Icons.rate_review_rounded, color: Color(0xFF9F67FF)),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Написать рецензию',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
               content: SizedBox(
@@ -2661,9 +2766,11 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Ваша оценка:',
+                          Text('Ваша оценка:',
                               style: TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 13)),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A))),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
@@ -2724,44 +2831,74 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       const SizedBox(height: 18),
 
                       // Title
-                      const Text('Заголовок рецензии:',
+                      Text('Заголовок рецензии:',
                           style: TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 13)),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A))),
                       const SizedBox(height: 6),
                       TextField(
                         controller: titleCtrl,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 13,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Коротко о главном...',
-                          hintStyle: const TextStyle(
-                              fontSize: 12, color: Colors.white38),
+                          hintStyle: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
                           filled: true,
-                          fillColor: const Color(0xFF141424),
+                          fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
 
                       // Text
-                      const Text('Текст вашей рецензии:',
+                      Text('Текст вашей рецензии:',
                           style: TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 13)),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A))),
                       const SizedBox(height: 6),
                       TextField(
                         controller: textCtrl,
                         maxLines: 4,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 13,
+                        ),
                         decoration: InputDecoration(
                           hintText:
                               'Поделитесь подробными впечатлениями от сюжета, актерской игры и визуала...',
-                          hintStyle: const TextStyle(
-                              fontSize: 12, color: Colors.white38),
+                          hintStyle: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
                           filled: true,
-                          fillColor: const Color(0xFF141424),
+                          fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
                           ),
                         ),
                       ),
@@ -2772,7 +2909,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Отмена'),
+                  child: Text('Отмена',
+                      style: TextStyle(
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B))),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(

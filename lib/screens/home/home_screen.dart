@@ -752,16 +752,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // 2. Cinematic Hero Banner (Dynamic Carousel with Auto-Rotation & Trailer Playback)
   Widget _buildCinematicHeroBanner(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       height: 380,
       decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F0F1A) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.65),
-            blurRadius: 32,
-            offset: const Offset(0, 14),
+            color: Colors.black.withValues(alpha: isDark ? 0.65 : 0.08),
+            blurRadius: isDark ? 32 : 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -776,7 +781,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
             itemBuilder: (context, idx) {
               final slide = heroSlides[idx % heroSlides.length];
-              return _buildHeroSlide(context, slide);
+              return _buildHeroSlide(context, slide, isDark);
             },
           ),
 
@@ -798,11 +803,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.55)
+                        : Colors.white.withValues(alpha: 0.85),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24, width: 0.8),
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : const Color(0xFFD1D5DB),
+                      width: 0.8,
+                    ),
                   ),
-                  child: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 24),
+                  child: Icon(
+                    Icons.chevron_left_rounded,
+                    color: isDark ? Colors.white : const Color(0xFF1F2937),
+                    size: 24,
+                  ),
                 ),
               ),
             ),
@@ -826,11 +840,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.55)
+                        : Colors.white.withValues(alpha: 0.85),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24, width: 0.8),
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : const Color(0xFFD1D5DB),
+                      width: 0.8,
+                    ),
                   ),
-                  child: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 24),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white : const Color(0xFF1F2937),
+                    size: 24,
+                  ),
                 ),
               ),
             ),
@@ -864,7 +887,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     width: isActive ? 30 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: isActive ? const Color(0xFF9F67FF) : Colors.white24,
+                      color: isActive
+                          ? const Color(0xFF7C3AED)
+                          : (isDark ? Colors.white24 : Colors.black26),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -877,7 +902,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildHeroSlide(BuildContext context, CatalogItem slide) {
+  Widget _buildHeroSlide(BuildContext context, CatalogItem slide, bool isDark) {
     final isSaved = slide.kinopoiskId != null && _savedHeroKpIds.contains(slide.kinopoiskId);
 
     return Stack(
@@ -889,9 +914,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           fit: BoxFit.cover,
           alignment: Alignment.centerRight,
           errorBuilder: (_, __, ___) => Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF261042), Color(0xFF14203B), Color(0xFF0F172A)],
+                colors: isDark
+                    ? const [Color(0xFF261042), Color(0xFF14203B), Color(0xFF0F172A)]
+                    : const [Color(0xFFEDE9FE), Color(0xFFE0E7FF), Color(0xFFF1F5F9)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -899,34 +926,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
 
-        // Dark gradients
+        // Gradient Left overlay: in Dark it is deep dark, in Light it is pristine white glass!
         Positioned.fill(
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [
-                  Color(0xFF0F0F1A),
-                  Color(0xF00F0F1A),
-                  Color(0x880F0F1A),
-                  Color(0x330F0F1A),
-                ],
-                stops: [0.0, 0.45, 0.75, 1.0],
+                colors: isDark
+                    ? const [
+                        Color(0xFF0F0F1A),
+                        Color(0xF00F0F1A),
+                        Color(0x880F0F1A),
+                        Color(0x330F0F1A),
+                      ]
+                    : const [
+                        Color(0xFFFFFFFF),
+                        Color(0xF5FFFFFF),
+                        Color(0xCCFFFFFF),
+                        Color(0x22FFFFFF),
+                      ],
+                stops: const [0.0, 0.45, 0.75, 1.0],
               ),
             ),
           ),
         ),
+        // Gradient Bottom overlay
         Positioned.fill(
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [
-                  const Color(0xFF0F0F1A).withValues(alpha: 0.95),
-                  Colors.transparent,
-                ],
+                colors: isDark
+                    ? [
+                        const Color(0xFF0F0F1A).withValues(alpha: 0.95),
+                        Colors.transparent,
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.95),
+                        Colors.transparent,
+                      ],
                 stops: const [0.0, 0.4],
               ),
             ),
@@ -957,7 +997,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Text(
                                 slide.typeLabel!,
                                 style: const TextStyle(
-                                  color: Color(0xFF38BDF8),
+                                  color: Color(0xFF0284C7),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   fontStyle: FontStyle.italic,
@@ -969,14 +1009,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF7C3AED).withValues(alpha: 0.25),
+                                color: const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.25 : 0.12),
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(color: const Color(0xFF7C3AED), width: 0.8),
                               ),
                               child: const Text(
                                 '★ В ТРЕНДЕ',
                                 style: TextStyle(
-                                  color: Color(0xFFC084FC),
+                                  color: Color(0xFF7C3AED),
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 0.8,
@@ -990,10 +1030,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // Title
                         Text(
                           slide.title.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                            color: isDark ? Colors.white : const Color(0xFF111827),
                             letterSpacing: 1.1,
                             height: 1.1,
                           ),
@@ -1004,9 +1044,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(height: 4),
                           Text(
                             '«${slide.slogan}»',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12.5,
-                              color: Colors.white60,
+                              color: isDark ? Colors.white60 : const Color(0xFF6B7280),
                               fontStyle: FontStyle.italic,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1020,7 +1060,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 6,
-                          children: slide.genres.take(4).map((g) => _buildHeroGenreChip(g)).toList(),
+                          children: slide.genres.take(4).map((g) => _buildHeroGenreChip(g, isDark)).toList(),
                         ),
                         const SizedBox(height: 12),
 
@@ -1038,24 +1078,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const Text('•', style: TextStyle(color: Colors.white38)),
+                            Text('•', style: TextStyle(color: isDark ? Colors.white38 : const Color(0xFFD1D5DB))),
                             Text(
                               '${slide.year}',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12.5, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            const Text('•', style: TextStyle(color: Colors.white38)),
+                            Text('•', style: TextStyle(color: isDark ? Colors.white38 : const Color(0xFFD1D5DB))),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.white12,
+                                color: isDark ? Colors.white12 : const Color(0xFFF3F4F6),
                                 borderRadius: BorderRadius.circular(4),
+                                border: isDark ? null : Border.all(color: const Color(0xFFE5E7EB)),
                               ),
                               child: Text(
                                 slide.effectiveMpa,
-                                style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                            const Text('•', style: TextStyle(color: Colors.white38)),
+                            Text('•', style: TextStyle(color: isDark ? Colors.white38 : const Color(0xFFD1D5DB))),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -1063,12 +1112,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 const SizedBox(width: 3),
                                 Text(
                                   '${slide.rating.toStringAsFixed(1)} (КП)',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : const Color(0xFF111827),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),
                             if (slide.ratingImdb != null) ...[
-                              const Text('•', style: TextStyle(color: Colors.white38)),
+                              Text('•', style: TextStyle(color: isDark ? Colors.white38 : const Color(0xFFD1D5DB))),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -1076,7 +1129,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   const SizedBox(width: 3),
                                   Text(
                                     '${slide.ratingImdb!.toStringAsFixed(1)} (IMDb)',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : const Color(0xFF111827),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1090,8 +1147,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           slide.description,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : const Color(0xFF374151),
                             fontSize: 12.5,
                             height: 1.45,
                           ),
@@ -1107,16 +1164,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             // 1. Solo Watch
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
+                                backgroundColor: const Color(0xFF7C3AED),
+                                foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                                elevation: 6,
+                                elevation: 4,
                               ),
-                              icon: const Icon(Icons.play_arrow_rounded, size: 20, color: Colors.black),
+                              icon: const Icon(Icons.play_arrow_rounded, size: 20, color: Colors.white),
                               label: const Text(
                                 'Смотреть онлайн',
-                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Colors.black),
+                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Colors.white),
                               ),
                               onPressed: () => _startSlideSoloWatch(slide),
                             ),
@@ -1124,11 +1181,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             // 2. Co-watch Party
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF7C3AED),
+                                backgroundColor: isDark ? const Color(0xFF6D28D9) : const Color(0xFF8B5CF6),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                                elevation: 4,
+                                elevation: 3,
                               ),
                               icon: const Icon(Icons.groups_rounded, size: 17),
                               label: const Text(
@@ -1141,16 +1198,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             // 3. Play Trailer Button
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                                foregroundColor: const Color(0xFFFFCA28),
-                                side: const BorderSide(color: Color(0xFFFFCA28), width: 1.2),
+                                backgroundColor: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.2 : 0.12),
+                                foregroundColor: const Color(0xFFD97706),
+                                side: BorderSide(color: isDark ? const Color(0xFFFFCA28) : const Color(0xFFF59E0B), width: 1.2),
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
-                              icon: const Icon(Icons.movie_filter_rounded, size: 17, color: Color(0xFFFFCA28)),
+                              icon: const Icon(Icons.movie_filter_rounded, size: 17, color: Color(0xFFD97706)),
                               label: const Text(
                                 'Трейлер ▶',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFFFCA28)),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
                               ),
                               onPressed: () => _openTrailerModal(context, slide),
                             ),
@@ -1158,8 +1215,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             // 4. Bookmark
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: isSaved ? const Color(0xFF10B981) : Colors.white12,
-                                foregroundColor: Colors.white,
+                                backgroundColor: isSaved
+                                    ? const Color(0xFF10B981)
+                                    : (isDark ? Colors.white12 : const Color(0xFFF3F4F6)),
+                                foregroundColor: isSaved ? Colors.white : (isDark ? Colors.white : const Color(0xFF1F2937)),
+                                side: BorderSide(
+                                  color: isSaved
+                                      ? Colors.transparent
+                                      : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
+                                ),
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                 elevation: 0,
@@ -1167,11 +1231,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               icon: Icon(
                                 isSaved ? Icons.bookmark_added_rounded : Icons.bookmark_add_rounded,
                                 size: 17,
-                                color: Colors.white,
+                                color: isSaved ? Colors.white : (isDark ? Colors.white : const Color(0xFF1F2937)),
                               ),
                               label: Text(
                                 isSaved ? 'В коллекции' : 'В коллекцию',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSaved ? Colors.white : (isDark ? Colors.white : const Color(0xFF1F2937)),
+                                ),
                               ),
                               onPressed: () => _toggleSlideCollection(slide),
                             ),
@@ -1179,14 +1247,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             // 5. Details
                             OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.white24),
+                                side: BorderSide(
+                                  color: isDark ? Colors.white24 : const Color(0xFFD1D5DB),
+                                ),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
-                              icon: const Icon(Icons.info_outline_rounded, size: 16, color: Colors.white70),
-                              label: const Text(
+                              icon: Icon(
+                                Icons.info_outline_rounded,
+                                size: 16,
+                                color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+                              ),
+                              label: Text(
                                 'О фильме',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+                                ),
                               ),
                               onPressed: () => context.push(
                                 '/movie/${slide.kinopoiskId ?? slide.title}',
@@ -1341,18 +1419,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildHeroGenreChip(String label) {
+  Widget _buildHeroGenreChip(String label, [bool isDark = true]) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.5),
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.5)
+            : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white24, width: 0.8),
+        border: Border.all(
+          color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+          width: 0.8,
+        ),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: isDark ? Colors.white : const Color(0xFF334155),
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),

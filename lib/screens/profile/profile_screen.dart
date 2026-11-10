@@ -480,11 +480,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                        color: const Color(0xFF16162A),
+                                        color: isDark ? const Color(0xFF16162A) : Colors.white,
                                         width: 4),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.5),
+                                        color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15),
                                         blurRadius: 10,
                                       ),
                                     ],
@@ -580,10 +580,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     children: [
                                       Text(
                                         effectiveDisplayName,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 22,
                                           fontWeight: FontWeight.w900,
-                                          color: Colors.white,
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                                         ),
                                       ),
 
@@ -685,10 +685,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                             );
                                           },
                                           borderRadius: BorderRadius.circular(4),
-                                          child: const Padding(
-                                            padding: EdgeInsets.all(4),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(4),
                                             child: Icon(Icons.copy_rounded,
-                                                size: 14, color: Colors.white60),
+                                                size: 14,
+                                                color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                                           ),
                                         ),
                                       ),
@@ -863,9 +864,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(40),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF16162A),
+                    color: isDark ? const Color(0xFF16162A) : Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                    boxShadow: [
+                      if (!isDark)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                    ],
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -879,15 +890,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: const Icon(Icons.lock_rounded, size: 48, color: Color(0xFFF59E0B)),
                       ),
                       const SizedBox(height: 18),
-                      const Text(
+                      Text(
                         'Этот профиль является приватным',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Пользователь @$effectiveUsername ограничил доступ к своему профилю. Коллекция фильмов, статистика и список друзей скрыты.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white60, fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -1011,6 +1030,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required bool isViewingSelf,
     required List<String> myFriends,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1019,24 +1039,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF16162A),
+              color: isDark ? const Color(0xFF16162A) : Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+              ],
             ),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _friendSearchCtrl,
+                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: 'Добавить друга по @юзернейму (например, alex_cinema, daria_movie)...',
                       prefixIcon: const Icon(Icons.person_search_rounded, size: 20),
                       filled: true,
-                      fillColor: const Color(0xFF121222),
+                      fillColor: isDark ? const Color(0xFF121222) : const Color(0xFFF1F5F9),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
                       ),
                     ),
                     onSubmitted: (val) => _handleAddFriend(val.trim()),
@@ -1065,14 +1100,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               isViewingSelf
                   ? 'Список друзей (${friends.length})'
                   : 'Друзья пользователя (${friends.length})',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
             ),
             const Spacer(),
             Text(
               isViewingSelf
                   ? 'Приглашайте друзей в комнаты совместного просмотра'
                   : 'Нажмите на карточку, чтобы открыть профиль',
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(
+                color: isDark ? Colors.white38 : const Color(0xFF64748B),
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -1087,25 +1129,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E34),
+                      color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFEDE9FE),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white12),
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : const Color(0xFFDDD6FE),
+                      ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.group_outlined,
                       size: 46,
-                      color: Color(0xFF9F67FF),
+                      color: isDark ? const Color(0xFF9F67FF) : const Color(0xFF7C3AED),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'У вас пока нет друзей в CineTrack',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Добавляйте кинолюбителей по юзернейму для совместного просмотра в комнатах!',
-                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Wrap(
@@ -1149,12 +1200,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               final avatar = match?.avatarUrl;
 
               return Card(
-                color: const Color(0xFF16162A),
+                color: isDark ? const Color(0xFF16162A) : Colors.white,
                 margin: const EdgeInsets.only(bottom: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
-                  side: const BorderSide(color: Colors.white10),
+                  side: BorderSide(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  ),
                 ),
+                elevation: isDark ? 0 : 1,
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: () {
@@ -1189,7 +1243,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF10B981),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xFF16162A), width: 1.5),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0xFF16162A) : Colors.white,
+                                    width: 1.5,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1204,14 +1261,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 children: [
                                   Text(
                                     name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700, fontSize: 14),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     '@$friendHandle',
-                                    style: const TextStyle(
-                                        color: Colors.white54, fontSize: 12),
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1219,7 +1281,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               Text(
                                 title,
                                 style: const TextStyle(
-                                    color: Color(0xFFD8B4FE), fontSize: 11),
+                                    color: Color(0xFF7C3AED), fontSize: 11, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -1338,6 +1400,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     int? badgeCount,
   }) {
     final isSelected = _activeTab == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () => setState(() => _activeTab = index),
       borderRadius: BorderRadius.circular(10),
@@ -1347,12 +1410,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF7C3AED)
-              : const Color(0xFF1E1E34),
+              : (isDark ? const Color(0xFF1E1E34) : Colors.white),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFF9F67FF) : Colors.white12,
+            color: isSelected
+                ? const Color(0xFF9F67FF)
+                : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
             width: isSelected ? 1.5 : 1,
           ),
+          boxShadow: [
+            if (!isSelected && !isDark)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1360,13 +1433,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Icon(
               icon,
               size: 18,
-              color: isSelected ? Colors.white : Colors.white70,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.white70 : const Color(0xFF475569)),
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.white70 : const Color(0xFF475569)),
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 fontSize: 13,
               ),
@@ -1411,15 +1488,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return item.status == _statusFilter;
     }).toList();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'Фильтр:',
               style: TextStyle(
-                color: Colors.white54,
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
               ),
@@ -1428,18 +1507,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Wrap(
               spacing: 8,
               children: [
-                _buildStatusChip('all', 'Все (${allItems.length})'),
+                _buildStatusChip('all', 'Все (${allItems.length})', isDark),
                 _buildStatusChip(
                   'want_to_watch',
                   'Хочу посмотреть (${allItems.where((e) => e.status == 'want_to_watch').length})',
+                  isDark,
                 ),
                 _buildStatusChip(
                   'watching',
                   'Смотрю (${allItems.where((e) => e.status == 'watching').length})',
+                  isDark,
                 ),
                 _buildStatusChip(
                   'watched',
                   'Просмотрено (${allItems.where((e) => e.status == 'watched').length})',
+                  isDark,
                 ),
               ],
             ),
@@ -1466,14 +1548,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E34),
+                      color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFEDE9FE),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white12),
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : const Color(0xFFDDD6FE),
+                      ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.bookmark_border_rounded,
                       size: 48,
-                      color: Color(0xFF9F67FF),
+                      color: isDark ? const Color(0xFF9F67FF) : const Color(0xFF7C3AED),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -1481,15 +1565,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     _statusFilter == 'all'
                         ? 'В вашей коллекции пока пусто'
                         : 'Нет фильмов с выбранным статусом',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Ищите фильмы и сериалы в каталоге и нажимайте «+ В коллекцию»',
-                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
@@ -1523,11 +1611,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildStatusChip(String statusKey, String label) {
+  Widget _buildStatusChip(String statusKey, String label, bool isDark) {
     final isSelected = _statusFilter == statusKey;
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
+      labelStyle: TextStyle(
+        color: isSelected
+            ? (isDark ? Colors.white : const Color(0xFF7C3AED))
+            : (isDark ? Colors.white70 : const Color(0xFF475569)),
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        fontSize: 12,
+      ),
+      backgroundColor: isDark ? const Color(0xFF1E1E34) : Colors.white,
+      selectedColor: isDark
+          ? const Color(0xFF7C3AED).withValues(alpha: 0.3)
+          : const Color(0xFFEDE9FE),
+      side: BorderSide(
+        color: isSelected
+            ? const Color(0xFF7C3AED)
+            : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+      ),
       onSelected: (_) {
         setState(() => _statusFilter = statusKey);
       },
@@ -1624,12 +1728,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E34),
+        color: isDark ? const Color(0xFF1E1E34) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
       ),
       child: Row(
         children: [
@@ -1649,17 +1764,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
                 ),
                 Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                  ),
                 ),
               ],
             ),
@@ -1670,6 +1788,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildPieCard(StatsData stats) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final watched = stats.byStatus['watched'] ?? 0;
     final watching = stats.byStatus['watching'] ?? 0;
     final want = stats.byStatus['want_to_watch'] ?? 0;
@@ -1678,24 +1797,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E34),
+        color: isDark ? const Color(0xFF1E1E34) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Распределение по статусам',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 16),
           if (total == 0)
-            const SizedBox(
+            SizedBox(
               height: 140,
               child: Center(
                 child: Text('Добавьте фильмы, чтобы увидеть график',
-                    style: TextStyle(color: Colors.white38, fontSize: 12)),
+                    style: TextStyle(
+                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                        fontSize: 12)),
               ),
             )
           else ...[
@@ -1732,16 +1867,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            _buildLegend('Просмотрено ($watched)', const Color(0xFF10B981)),
-            _buildLegend('Смотрю ($watching)', const Color(0xFFF59E0B)),
-            _buildLegend('Хочу посмотреть ($want)', const Color(0xFF7C3AED)),
+            _buildLegend('Просмотрено ($watched)', const Color(0xFF10B981), isDark),
+            _buildLegend('Смотрю ($watching)', const Color(0xFFF59E0B), isDark),
+            _buildLegend('Хочу посмотреть ($want)', const Color(0xFF7C3AED), isDark),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildLegend(String label, Color color) {
+  Widget _buildLegend(String label, Color color, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -1753,26 +1888,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(width: 8),
           Text(label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              style: TextStyle(
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  fontSize: 12)),
         ],
       ),
     );
   }
 
   Widget _buildGenreCard(StatsData stats) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E34),
+        color: isDark ? const Color(0xFF1E1E34) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Любимый жанр & Предпочтения',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -1793,15 +1945,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Text(
                       stats.favoriteGenre ?? 'Ещё не определён',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Чаще всего встречается в вашей коллекции',
-                      style: TextStyle(fontSize: 11, color: Colors.white54),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white54 : const Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -1809,11 +1963,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: Colors.white12),
+          Divider(
+              height: 1,
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Чем больше фильмов вы отмечаете, тем точнее подбираются рекомендации для совместного просмотра с друзьями!',
-            style: TextStyle(fontSize: 12, color: Colors.white60, height: 1.3),
+            style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                height: 1.3),
           ),
         ],
       ),
@@ -1857,20 +2016,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDlgState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E1F22), // Discord-style dark
+              backgroundColor: isDark ? const Color(0xFF1E1F22) : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: Colors.white12),
+                side: BorderSide(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
               ),
               titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.badge_rounded, color: Color(0xFF9F67FF)),
-                  SizedBox(width: 10),
+                  const Icon(Icons.badge_rounded, color: Color(0xFF9F67FF)),
+                  const SizedBox(width: 10),
                   Text(
                     'Настройки профиля',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
                 ],
               ),
@@ -1884,9 +2050,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       // DISCORD PROFILE LIVE CARD PREVIEW
                       Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2B2D31),
+                          color: isDark ? const Color(0xFF2B2D31) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          ),
+                          boxShadow: [
+                            if (!isDark)
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                          ],
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: Column(
@@ -1902,7 +2078,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     selectedBanner,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Container(
-                                      color: const Color(0xFF7C3AED),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: isDark
+                                              ? const [Color(0xFF2E1065), Color(0xFF1E1B4B)]
+                                              : const [Color(0xFFC084FC), Color(0xFF818CF8)],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1996,8 +2178,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         children: [
                                           Text(
                                             nameCtrl.text.isNotEmpty ? nameCtrl.text : currentName,
-                                            style: const TextStyle(
-                                                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                           ),
                                           Text(
                                             '@${usernameCtrl.text.isNotEmpty ? usernameCtrl.text : currentUsername}',
@@ -2033,18 +2217,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Отображаемое имя:',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                Text('Отображаемое имя:',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A))),
                                 const SizedBox(height: 6),
                                 TextField(
                                   controller: nameCtrl,
+                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
                                     hintText: 'Ваше имя...',
                                     filled: true,
-                                    fillColor: const Color(0xFF141424),
+                                    fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide.none,
+                                      borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
                                     ),
                                   ),
                                   onChanged: (_) => setDlgState(() {}),
@@ -2057,19 +2249,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Юзернейм (@username):',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                Text('Юзернейм (@username):',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A))),
                                 const SizedBox(height: 6),
                                 TextField(
                                   controller: usernameCtrl,
+                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
                                     hintText: 'уникальный @логин...',
                                     prefixText: '@',
                                     filled: true,
-                                    fillColor: const Color(0xFF141424),
+                                    fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide.none,
+                                      borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
                                     ),
                                   ),
                                   onChanged: (_) => setDlgState(() {}),
@@ -2084,8 +2284,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       // 2. Achievements & Title Selector
                       Row(
                         children: [
-                          const Text('Титул профиля (Достижения):',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          Text('Титул профиля (Достижения):',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A))),
                           const Spacer(),
                           Text(
                             'Разблокировано: ${availableUnlocked.length} из ${UserAchievementsCatalog.list.length}',
@@ -2098,9 +2301,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Container(
                         constraints: const BoxConstraints(maxHeight: 210),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF141424),
+                          color: isDark ? const Color(0xFF141424) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          ),
                         ),
                         child: ListView(
                           shrinkWrap: true,
@@ -2116,9 +2321,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   children: [
                                     Text(
                                       extraTitle,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w700,
-                                        color: Colors.white,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -2135,9 +2340,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       const Text('✅', style: TextStyle(fontSize: 11)),
                                   ],
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   'Особый полученный титул',
-                                  style: TextStyle(fontSize: 11, color: Colors.white60),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                                 ),
                                 trailing: TextButton(
                                   onPressed: () {
@@ -2146,7 +2353,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   child: Text(selectedTitle == extraTitle ? 'Выбран' : 'Надеть'),
                                 ),
                               ),
-                              const Divider(height: 1, color: Colors.white10),
+                              Divider(
+                                  height: 1,
+                                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                             ],
                             for (final ach in UserAchievementsCatalog.list) ...[
                               ListTile(
@@ -2159,8 +2368,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.w700,
                                         color: (availableUnlocked.contains(ach.id) || availableUnlocked.contains(ach.title))
-                                            ? Colors.white
-                                            : Colors.white38,
+                                            ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                                            : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -2184,8 +2393,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: (availableUnlocked.contains(ach.id) || availableUnlocked.contains(ach.title))
-                                        ? Colors.white60
-                                        : Colors.white24,
+                                        ? (isDark ? Colors.white60 : const Color(0xFF64748B))
+                                        : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
                                   ),
                                 ),
                                 trailing: (availableUnlocked.contains(ach.id) || availableUnlocked.contains(ach.title))
@@ -2195,9 +2404,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         },
                                         child: Text(selectedTitle == ach.title ? 'Выбран' : 'Надеть'),
                                       )
-                                    : const Text('Закрыто', style: TextStyle(fontSize: 11, color: Colors.white24)),
+                                    : Text('Закрыто',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? Colors.white24 : const Color(0xFF94A3B8))),
                               ),
-                              const Divider(height: 1, color: Colors.white10),
+                              Divider(
+                                  height: 1,
+                                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                             ],
                           ],
                         ),
@@ -2208,9 +2422,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF141424),
+                          color: isDark ? const Color(0xFF141424) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -2224,15 +2440,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Приватный профиль',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   ),
                                   Text(
                                     selectedPrivate
                                         ? 'Коллекция и статистика скрыты (видны только друзьям)'
                                         : 'Профиль открыт: все пользователи видят вашу коллекцию',
-                                    style: const TextStyle(fontSize: 11, color: Colors.white54),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.white54 : const Color(0xFF64748B)),
                                   ),
                                 ],
                               ),
@@ -2260,12 +2481,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           return Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF202038),
+                              color: isDark ? const Color(0xFF202038) : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: hasPassword
                                     ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                                    : Colors.white12,
+                                    : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                               ),
                             ),
                             child: Row(
@@ -2285,12 +2506,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     children: [
                                       Row(
                                         children: [
-                                          const Text(
+                                          Text(
                                             'Пароль учетной записи',
                                             style: TextStyle(
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 13,
-                                                color: Colors.white),
+                                                color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                           ),
                                           const SizedBox(width: 8),
                                           Container(
@@ -2300,14 +2521,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               color: hasPassword
                                                   ? const Color(0xFF10B981)
                                                       .withValues(alpha: 0.15)
-                                                  : Colors.white10,
+                                                  : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                                               borderRadius:
                                                   BorderRadius.circular(5),
                                               border: Border.all(
                                                 color: hasPassword
                                                     ? const Color(0xFF10B981)
                                                         .withValues(alpha: 0.5)
-                                                    : Colors.white24,
+                                                    : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
                                               ),
                                             ),
                                             child: Text(
@@ -2319,7 +2540,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                 fontWeight: FontWeight.bold,
                                                 color: hasPassword
                                                     ? const Color(0xFF34D399)
-                                                    : Colors.white60,
+                                                    : (isDark ? Colors.white60 : const Color(0xFF64748B)),
                                               ),
                                             ),
                                           ),
@@ -2330,8 +2551,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         hasPassword
                                             ? 'Пароль активен. Вы можете войти по логину (@$currentUsername) или email.'
                                             : 'Задайте пароль для входа по email или логину без Google',
-                                        style: const TextStyle(
-                                            fontSize: 11, color: Colors.white60),
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                                       ),
                                     ],
                                   ),
@@ -2369,23 +2591,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                          color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.1 : 0.06),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Завершение сеанса',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white : const Color(0xFF991B1B)),
                                   ),
                                   Text(
                                     'Выйти из учетной записи на этом устройстве',
-                                    style: TextStyle(fontSize: 11, color: Colors.white60),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.white60 : const Color(0xFFDC2626)),
                                   ),
                                 ],
                               ),
@@ -2403,9 +2630,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (c) => AlertDialog(
-                                    backgroundColor: const Color(0xFF1E1E34),
-                                    title: const Text('Выход из аккаунта'),
-                                    content: const Text('Вы действительно хотите выйти из своего аккаунта?'),
+                                    backgroundColor: isDark ? const Color(0xFF1E1E34) : Colors.white,
+                                    title: Text(
+                                      'Выход из аккаунта',
+                                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    ),
+                                    content: Text(
+                                      'Вы действительно хотите выйти из своего аккаунта?',
+                                      style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                    ),
                                     actions: [
                                       TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Отмена')),
                                       ElevatedButton(

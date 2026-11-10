@@ -43,12 +43,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     final titleCtrl = TextEditingController(text: targetUser.customTitle ?? '');
     final currentUnlocked = List<String>.from(targetUser.unlockedTitles);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E34),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: isDark ? const Color(0xFF1E1E34) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+          ),
           title: Row(
             children: [
               const Icon(Icons.military_tech_rounded, color: Color(0xFFD8B4FE), size: 24),
@@ -56,7 +61,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
               Expanded(
                 child: Text(
                   'Титулы и плюшки: ${targetUser.displayName}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
               ),
             ],
@@ -70,21 +79,36 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 children: [
                   Text(
                     'Пользователь: @${targetUser.handle} (${targetUser.email})',
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Активный отображаемый титул:',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: titleCtrl,
+                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     decoration: InputDecoration(
                       hintText: 'Введите любой титул (например: Кинокритик 👑, VIP 💎)...',
                       filled: true,
-                      fillColor: const Color(0xFF141424),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
+                      ),
                       suffixIcon: titleCtrl.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear_rounded, size: 18),
@@ -98,9 +122,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                     onChanged: (_) => setDlgState(() {}),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'Быстрый выбор из каталога достижений CineTrack:',
-                    style: TextStyle(color: Colors.white60, fontSize: 11),
+                    style: TextStyle(
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      fontSize: 11,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -229,12 +256,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     int freezeDays = 7;
     final reasonCtrl = TextEditingController(text: 'Нарушение правил сообщества CineTrack');
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E34),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: isDark ? const Color(0xFF1E1E34) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+          ),
           title: Row(
             children: [
               Icon(
@@ -242,7 +274,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 color: isFreeze ? const Color(0xFF38BDF8) : const Color(0xFFEF4444),
               ),
               const SizedBox(width: 10),
-              Text(isFreeze ? 'Заморозка аккаунта' : 'Блокировка аккаунта'),
+              Text(
+                isFreeze ? 'Заморозка аккаунта' : 'Блокировка аккаунта',
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           content: SizedBox(
@@ -253,15 +291,27 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
               children: [
                 Text(
                   'Пользователь: ${targetUser.displayName} (@${targetUser.handle})',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   targetUser.email,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: TextStyle(
+                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Тип ограничения:', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                Text(
+                  'Тип ограничения:',
+                  style: TextStyle(
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -304,7 +354,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 ),
                 if (isFreeze) ...[
                   const SizedBox(height: 14),
-                  const Text('Срок заморозки:', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                  Text(
+                    'Срок заморозки:',
+                    style: TextStyle(
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 8,
@@ -333,16 +389,31 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   ),
                 ],
                 const SizedBox(height: 16),
-                const Text('Причина ограничения:', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                Text(
+                  'Причина ограничения:',
+                  style: TextStyle(
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: reasonCtrl,
                   maxLines: 2,
+                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     hintText: 'Укажите причину (спам, оскорбления, запрещенный контент)...',
-                    fillColor: const Color(0xFF141424),
+                    hintStyle: TextStyle(color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                    fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
                     filled: true,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: isDark ? Colors.transparent : const Color(0xFFCBD5E1)),
+                    ),
                   ),
                 ),
               ],
@@ -393,9 +464,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
   @override
   Widget build(BuildContext context) {
     final isAdmin = ref.watch(isAdminProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
       body: Column(
         children: [
           const AppHeader(activeRoute: '/admin'),
@@ -404,6 +476,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 SliverAppBar(
                   pinned: true,
+                  backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.white,
+                  elevation: isDark ? 0 : 1,
                   title: Row(
                     children: [
                       Container(
@@ -416,16 +490,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                             color: Color(0xFFF59E0B), size: 22),
                       ),
                       const SizedBox(width: 10),
-                      const Text(
+                      Text(
                         'Панель управления (Админ-центр)',
                         style: TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 18),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                       ),
                     ],
                   ),
                   actions: [
                     IconButton(
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: Icon(Icons.refresh_rounded, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       tooltip: 'Синхронизировать пользователей и комнаты с базой данных Supabase',
                       onPressed: () {
                         ref.read(adminUsersProvider.notifier).refresh();
@@ -443,8 +520,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                     controller: _tabController,
                     indicatorColor: const Color(0xFF7C3AED),
                     indicatorWeight: 3,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.white60,
+                    labelColor: isDark ? Colors.white : const Color(0xFF7C3AED),
+                    unselectedLabelColor: isDark ? Colors.white60 : const Color(0xFF64748B),
                     tabs: const [
                       Tab(
                         icon: Icon(Icons.people_alt_rounded, size: 20),
@@ -459,12 +536,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 ),
               ],
               body: !isAdmin
-                  ? _buildAccessDeniedPlaceholder()
+                  ? _buildAccessDeniedPlaceholder(isDark)
                   : TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildUsersTab(),
-                        _buildRoomsTab(),
+                        _buildUsersTab(isDark),
+                        _buildRoomsTab(isDark),
                       ],
                     ),
             ),
@@ -474,15 +551,25 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     );
   }
 
-  Widget _buildAccessDeniedPlaceholder() {
+  Widget _buildAccessDeniedPlaceholder(bool isDark) {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 480),
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: const Color(0xFF16162A),
+          color: isDark ? const Color(0xFF16162A) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white12),
+          border: Border.all(
+            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          ),
+          boxShadow: [
+            if (!isDark)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -497,16 +584,24 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   size: 42, color: Color(0xFFEF4444)),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Требуются права Администратора',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Для входа в панель управления ваш аккаунт должен иметь роль «admin». '
               'Вы можете мгновенно активировать права, введя мастер-ключ.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+              style: TextStyle(
+                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -526,7 +621,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
   }
 
   // TAB 1: USERS & PERMISSIONS
-  Widget _buildUsersTab() {
+  Widget _buildUsersTab(bool isDark) {
     final profiles = ref.watch(adminUsersProvider);
     final currentUser = ref.watch(currentUserProvider);
     final userProfileAsync = ref.watch(userProfileProvider);
@@ -568,10 +663,22 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
               Expanded(
                 child: TextField(
                   controller: _searchUserCtrl,
+                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     isDense: true,
                     hintText: 'Поиск пользователя по email, юзернейму, имени или титулу...',
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    hintStyle: TextStyle(color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                    prefixIcon: Icon(Icons.search_rounded, size: 20, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF16162A) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                    ),
                     suffixIcon: _searchUserCtrl.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded, size: 18),
@@ -591,9 +698,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E34),
+                  color: isDark ? const Color(0xFF1E1E34) : Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  ),
+                  boxShadow: [
+                    if (!isDark)
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                  ],
                 ),
                 child: Row(
                   children: [
@@ -601,7 +718,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                     const SizedBox(width: 8),
                     Text(
                       'Всего участников: ${profiles.length}',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
                     ),
                   ],
                 ),
@@ -613,15 +734,15 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
           // Users table / list
           Expanded(
             child: filtered.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text('Пользователи не найдены',
-                        style: TextStyle(color: Colors.white54)),
+                        style: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF64748B))),
                   )
                 : ListView.builder(
                     itemCount: filtered.length,
                     itemBuilder: (context, i) {
                       final user = filtered[i];
-                      return _buildUserCard(user, currentActor, currentUser);
+                      return _buildUserCard(user, currentActor, currentUser, isDark);
                     },
                   ),
           ),
@@ -634,6 +755,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     UserProfile user,
     UserProfile currentActor,
     User? currentUser,
+    bool isDark,
   ) {
     final isSelf = user.id == currentUser?.id ||
         (user.email.isNotEmpty &&
@@ -649,36 +771,44 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
 
     switch (user.role) {
       case 'creator':
-        badgeBg = const Color(0xFFF59E0B).withValues(alpha: 0.25);
-        badgeText = const Color(0xFFFBBF24);
+        badgeBg = isDark
+            ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
+            : const Color(0xFFFEF3C7);
+        badgeText = isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
         badgeBorder = const Color(0xFFF59E0B).withValues(alpha: 0.6);
         break;
       case 'developer':
       case 'coder':
-        badgeBg = const Color(0xFF06B6D4).withValues(alpha: 0.25);
-        badgeText = const Color(0xFF22D3EE);
+        badgeBg = isDark
+            ? const Color(0xFF06B6D4).withValues(alpha: 0.25)
+            : const Color(0xFFCFFAFE);
+        badgeText = isDark ? const Color(0xFF22D3EE) : const Color(0xFF0E7490);
         badgeBorder = const Color(0xFF06B6D4).withValues(alpha: 0.6);
         break;
       case 'admin':
-        badgeBg = const Color(0xFFEAB308).withValues(alpha: 0.25);
-        badgeText = const Color(0xFFFDE047);
+        badgeBg = isDark
+            ? const Color(0xFFEAB308).withValues(alpha: 0.25)
+            : const Color(0xFFFEF08A);
+        badgeText = isDark ? const Color(0xFFFDE047) : const Color(0xFFA16207);
         badgeBorder = const Color(0xFFEAB308).withValues(alpha: 0.6);
         break;
       case 'moderator':
-        badgeBg = const Color(0xFF6366F1).withValues(alpha: 0.25);
-        badgeText = const Color(0xFFA5B4FC);
+        badgeBg = isDark
+            ? const Color(0xFF6366F1).withValues(alpha: 0.25)
+            : const Color(0xFFE0E7FF);
+        badgeText = isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4338CA);
         badgeBorder = const Color(0xFF6366F1).withValues(alpha: 0.6);
         break;
       case 'user':
       default:
-        badgeBg = Colors.white10;
-        badgeText = Colors.white70;
-        badgeBorder = Colors.white24;
+        badgeBg = isDark ? Colors.white10 : const Color(0xFFF1F5F9);
+        badgeText = isDark ? Colors.white70 : const Color(0xFF64748B);
+        badgeBorder = isDark ? Colors.white24 : const Color(0xFFCBD5E1);
         break;
     }
 
     return Card(
-      color: const Color(0xFF16162A),
+      color: isDark ? const Color(0xFF16162A) : Colors.white,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
@@ -691,7 +821,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                       ? const Color(0xFF38BDF8).withValues(alpha: 0.6)
                       : (user.role == 'creator'
                           ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
-                          : Colors.white10))),
+                          : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))))),
           width: isSelf ? 1.5 : 1.0,
         ),
       ),
@@ -742,15 +872,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                         onTap: () => context.go('/user/${user.handle}'),
                         child: Text(
                           user.displayName,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A)),
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         '@${user.handle}',
-                        style: const TextStyle(
-                            color: Color(0xFFC084FC), fontSize: 12.5, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: isDark ? const Color(0xFFC084FC) : const Color(0xFF7C3AED),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(width: 8),
 
@@ -778,14 +912,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                            color: isDark
+                                ? const Color(0xFF7C3AED).withValues(alpha: 0.3)
+                                : const Color(0xFFEDE9FE),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF9F67FF)),
+                            border: Border.all(
+                                color: isDark ? const Color(0xFF9F67FF) : const Color(0xFF8B5CF6)),
                           ),
-                          child: const Text(
+                          child: Text(
                             'ВЫ',
                             style: TextStyle(
-                              color: Color(0xFFD8B4FE),
+                              color: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF6D28D9),
                               fontSize: 10,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0.5,
@@ -801,7 +938,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                     children: [
                       Text(
                         user.email,
-                        style: const TextStyle(color: Colors.white60, fontSize: 12),
+                        style: TextStyle(
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            fontSize: 12),
                       ),
                       const SizedBox(width: 10),
 
@@ -809,14 +948,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2E1065).withValues(alpha: 0.6),
+                          color: isDark
+                              ? const Color(0xFF2E1065).withValues(alpha: 0.6)
+                              : const Color(0xFFEDE9FE),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: const Color(0xFF9F67FF).withValues(alpha: 0.4)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF9F67FF).withValues(alpha: 0.4)
+                                  : const Color(0xFFDDD6FE)),
                         ),
                         child: Text(
                           user.effectiveTitle,
-                          style: const TextStyle(
-                              color: Color(0xFFE9D5FF), fontSize: 11, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                              color: isDark ? const Color(0xFFE9D5FF) : const Color(0xFF6D28D9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -835,7 +981,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                         ),
                         child: Text(
                           '🚫 Заблокирован бессрочно: ${user.blockReason ?? "Нарушение правил"}',
-                          style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     )
@@ -851,7 +1000,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                         ),
                         child: Text(
                           '❄️ Заморожен до ${user.blockUntil != null ? "${user.blockUntil!.day.toString().padLeft(2, '0')}.${user.blockUntil!.month.toString().padLeft(2, '0')}.${user.blockUntil!.year}" : "срока"}: ${user.blockReason ?? "Нарушение правил"}',
-                          style: const TextStyle(color: Color(0xFF7DD3FC), fontSize: 11, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                              color: isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -867,7 +1019,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   : 'Недостаточно прав для выдачи титулов этому рангу',
               child: IconButton(
                 icon: const Icon(Icons.card_giftcard_rounded, size: 20),
-                color: (canManage || isSelf) ? const Color(0xFFD8B4FE) : Colors.white24,
+                color: (canManage || isSelf)
+                    ? (isDark ? const Color(0xFFD8B4FE) : const Color(0xFF7C3AED))
+                    : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
                 onPressed: (canManage || isSelf)
                     ? () => _showManageTitlesDialog(user)
                     : null,
@@ -882,14 +1036,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E34),
+                    color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(user.fullRoleTitle, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                      Text(user.fullRoleTitle,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white70 : const Color(0xFF475569))),
                       const SizedBox(width: 4),
                       const Icon(Icons.shield_rounded, size: 14, color: Color(0xFF9F67FF)),
                     ],
@@ -902,16 +1059,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E34),
+                    color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(user.fullRoleTitle, style: const TextStyle(fontSize: 12, color: Colors.white38)),
+                      Text(user.fullRoleTitle,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8))),
                       const SizedBox(width: 4),
-                      const Icon(Icons.lock_rounded, size: 13, color: Colors.white38),
+                      Icon(Icons.lock_rounded,
+                          size: 13,
+                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
                     ],
                   ),
                 ),
@@ -920,7 +1082,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E34),
+                  color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFF9F67FF).withValues(alpha: 0.4)),
                 ),
@@ -929,14 +1091,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                       ? user.role
                       : currentActor.assignableRoles.first,
                   underline: const SizedBox(),
-                  dropdownColor: const Color(0xFF1E1E34),
+                  dropdownColor: isDark ? const Color(0xFF1E1E34) : Colors.white,
                   icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF9F67FF)),
                   items: currentActor.assignableRoles.map((r) {
-                    Color itemColor = Colors.white;
-                    if (r == 'creator') itemColor = const Color(0xFFFBBF24);
-                    if (r == 'developer') itemColor = const Color(0xFF22D3EE);
-                    if (r == 'admin') itemColor = const Color(0xFFFDE047);
-                    if (r == 'moderator') itemColor = const Color(0xFFA5B4FC);
+                    Color itemColor = isDark ? Colors.white : const Color(0xFF0F172A);
+                    if (r == 'creator') itemColor = isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
+                    if (r == 'developer') itemColor = isDark ? const Color(0xFF22D3EE) : const Color(0xFF0891B2);
+                    if (r == 'admin') itemColor = isDark ? const Color(0xFFFDE047) : const Color(0xFFCA8A04);
+                    if (r == 'moderator') itemColor = isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4338CA);
 
                     final dummy = UserProfile(
                       id: '',
@@ -983,13 +1145,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 message: 'Вы не можете заблокировать собственный аккаунт (защита от самобана)',
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white24,
-                    side: const BorderSide(color: Colors.white12),
+                    foregroundColor: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    side: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  icon: const Icon(Icons.block_rounded, size: 14, color: Colors.white24),
-                  label: const Text('Блокировка', style: TextStyle(fontSize: 11.5, color: Colors.white24)),
+                  icon: Icon(Icons.block_rounded,
+                      size: 14, color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                  label: Text('Блокировка',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white24 : const Color(0xFFCBD5E1))),
                   onPressed: null,
                 ),
               )
@@ -998,13 +1164,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                 message: 'Нельзя блокировать равных по рангу или вышестоящих участников',
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white24,
-                    side: const BorderSide(color: Colors.white12),
+                    foregroundColor: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    side: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  icon: const Icon(Icons.shield_outlined, size: 14, color: Colors.white24),
-                  label: const Text('Защищен', style: TextStyle(fontSize: 11.5, color: Colors.white24)),
+                  icon: Icon(Icons.shield_outlined,
+                      size: 14, color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                  label: Text('Защищен',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white24 : const Color(0xFFCBD5E1))),
                   onPressed: null,
                 ),
               )
@@ -1047,7 +1217,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
             Tooltip(
               message: 'Открыть профиль @${user.handle}',
               child: IconButton(
-                icon: const Icon(Icons.open_in_new_rounded, size: 18, color: Colors.white70),
+                icon: Icon(Icons.open_in_new_rounded,
+                    size: 18, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                 onPressed: () => context.go('/user/${user.handle}'),
               ),
             ),
@@ -1058,13 +1229,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
   }
 
   // TAB 2: ROOMS MODERATION
-  Widget _buildRoomsTab() {
+  Widget _buildRoomsTab(bool isDark) {
     final allRooms = ref.watch(roomsProvider);
 
     if (allRooms.isEmpty) {
-      return const Center(
+      return Center(
         child: Text('На платформе пока нет созданных комнат',
-            style: TextStyle(color: Colors.white54)),
+            style: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF64748B))),
       );
     }
 
@@ -1077,13 +1248,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
             children: [
               Text(
                 'Активные комнаты на сервере (${allRooms.length})',
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'Администратор может подключиться к любой комнате или удалить её',
-                style: TextStyle(color: Colors.white38, fontSize: 12),
+                style: TextStyle(
+                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    fontSize: 12),
               ),
             ],
           ),
@@ -1093,7 +1268,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
               itemCount: allRooms.length,
               itemBuilder: (context, i) {
                 final room = allRooms[i];
-                return _buildRoomModerationCard(room);
+                return _buildRoomModerationCard(room, isDark);
               },
             ),
           ),
@@ -1102,13 +1277,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     );
   }
 
-  Widget _buildRoomModerationCard(WatchRoom room) {
+  Widget _buildRoomModerationCard(WatchRoom room, bool isDark) {
     return Card(
-      color: const Color(0xFF16162A),
+      color: isDark ? const Color(0xFF16162A) : Colors.white,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Colors.white10),
+        side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -1132,8 +1307,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                     children: [
                       Text(
                         room.title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 14),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       ),
                       const SizedBox(width: 8),
                       Container(
@@ -1163,7 +1340,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   const SizedBox(height: 4),
                   Text(
                     'Создатель: ${room.ownerName} • Участников: ${room.participantCount} / ${room.maxParticipants == null || room.maxParticipants == 0 ? "∞" : room.maxParticipants.toString()}',
-                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        fontSize: 12),
                   ),
                 ],
               ),
