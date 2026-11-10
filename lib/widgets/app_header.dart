@@ -12,7 +12,6 @@ import '../providers/auth_provider.dart';
 import '../providers/kinopoisk_provider.dart';
 import '../providers/room_provider.dart';
 import '../providers/theme_provider.dart';
-import 'pwa_install_dialog.dart';
 
 class AppHeader extends ConsumerStatefulWidget implements PreferredSizeWidget {
   final String? activeRoute;
@@ -603,20 +602,6 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
           );
         }
 
-        Widget buildPwaButton() {
-          return Tooltip(
-            message: 'Установить CineTrack на рабочий стол 📲',
-            child: IconButton(
-              icon: const Icon(
-                Icons.install_mobile_rounded,
-                color: Color(0xFF9F67FF),
-                size: 20,
-              ),
-              onPressed: () => PwaInstallDialog.show(context),
-            ),
-          );
-        }
-
         Widget buildProfilePill() {
           return InkWell(
             onTap: () => context.go('/profile'),
@@ -717,8 +702,6 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                       buildSearchField(),
                       const SizedBox(width: 10),
                       buildThemeToggle(),
-                      const SizedBox(width: 6),
-                      buildPwaButton(),
                       const SizedBox(width: 8),
                       buildProfilePill(),
                     ],
@@ -735,8 +718,6 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                     buildSearchField(),
                     const SizedBox(width: 14),
                     buildThemeToggle(),
-                    const SizedBox(width: 6),
-                    buildPwaButton(),
                     const SizedBox(width: 8),
                     buildProfilePill(),
                   ],

@@ -352,419 +352,312 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1200),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 20, 32, 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF16162A) : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF7C3AED).withValues(alpha: 0.3)
-                            : const Color(0xFFE2E8F0),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.05),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Top: Panoramic Banner Cover
-                    Stack(
-                      children: [
-                        SizedBox(
-                          height: 190,
-                          width: double.infinity,
-                          child: Image.network(
-                            effectiveBanner,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF2E1065),
-                                    Color(0xFF1E1B4B),
-                                    Color(0xFF0F172A),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth < 700;
+                    final outerPadding = isMobile
+                        ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+                        : const EdgeInsets.fromLTRB(32, 20, 32, 16);
+                    final cardPadding = isMobile
+                        ? const EdgeInsets.fromLTRB(16, 0, 16, 18)
+                        : const EdgeInsets.fromLTRB(28, 0, 28, 22);
+                    final bannerHeight = isMobile ? 140.0 : 190.0;
 
-                        // Gradient vignette on banner
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.5),
+                    Widget buildAvatar(double radius, double offsetY) {
+                      return Transform.translate(
+                        offset: Offset(0, offsetY),
+                        child: Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: isDark
+                                        ? const Color(0xFF16162A)
+                                        : Colors.white,
+                                    width: 4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black
+                                        .withValues(alpha: isDark ? 0.5 : 0.15),
+                                    blurRadius: 10,
+                                  ),
                                 ],
                               ),
-                            ),
-                          ),
-                        ),
-
-                        // Edit Banner Button in Top-Right (only for self)
-                        if (isViewingSelf)
-                          Positioned(
-                            top: 14,
-                            right: 14,
-                            child: InkWell(
-                              onTap: () => _showEditProfileDialog(
-                                context,
-                                currentName: myDisplayName,
-                                currentUsername: myUsername,
-                                currentTitle: myTitle,
-                                currentBanner: myBanner,
-                                currentAvatar: myAvatar,
-                                isPrivate: myIsPrivate,
-                                unlockedTitles: myUnlockedTitles,
-                                mediaCount: mediaAsync.value?.length ?? 0,
-                                watchedCount: mediaAsync.value?.where((e) => e.status == 'watched').length ?? 0,
-                                friendsCount: myFriends.length,
+                              child: CircleAvatar(
+                                radius: radius,
+                                backgroundColor: const Color(0xFF7C3AED),
+                                backgroundImage: effectiveAvatar != null &&
+                                        effectiveAvatar.isNotEmpty
+                                    ? NetworkImage(effectiveAvatar)
+                                    : null,
+                                child: (effectiveAvatar == null ||
+                                        effectiveAvatar.isEmpty)
+                                    ? Text(
+                                        effectiveDisplayName.isNotEmpty
+                                            ? effectiveDisplayName[0]
+                                                .toUpperCase()
+                                            : 'U',
+                                        style: TextStyle(
+                                          fontSize: radius * 0.8,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : null,
                               ),
-                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            if (isViewingSelf)
+                              Positioned(
+                                bottom: 4,
+                                right: 4,
+                                child: InkWell(
+                                  onTap: () async {
+                                    final newAvatarBase64 =
+                                        await pickAndInteractiveCropImage(
+                                      context: context,
+                                      isAvatar: true,
+                                      targetWidth: 400,
+                                      targetHeight: 400,
+                                    );
+                                    if (newAvatarBase64 != null) {
+                                      ref
+                                          .read(profileCustomizationProvider
+                                              .notifier)
+                                          .updateProfile(
+                                              avatarUrl: newAvatarBase64);
+
+                                      final cur =
+                                          ref.read(currentUserProvider);
+                                      if (cur != null) {
+                                        try {
+                                          await supabase
+                                              .from('profiles')
+                                              .update({
+                                            'avatar_url': newAvatarBase64
+                                          }).eq('id', cur.id);
+                                        } catch (_) {}
+
+                                        ref
+                                            .read(adminUsersProvider.notifier)
+                                            .syncUserProfileData(
+                                              userId: cur.id,
+                                              avatarUrl: newAvatarBase64,
+                                            );
+                                        ref.invalidate(userProfileProvider);
+                                      }
+
+                                      if (context.mounted) {
+                                        TopNotification.showSuccess(context,
+                                            'Аватар успешно загружен и сохранен! ✨');
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF7C3AED),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                        Icons.photo_camera_rounded,
+                                        size: 14,
+                                        color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    Widget buildBadges() {
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (effectiveRole != 'user' &&
+                              effectiveRoleLabel != null) ...[
+                            Tooltip(
+                              message: effectiveRoleLabel,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
+                                    horizontal: 7, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.7),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.white30),
+                                  color: effectiveRole == 'creator'
+                                      ? const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.25)
+                                      : (effectiveRole == 'developer' ||
+                                              effectiveRole == 'coder'
+                                          ? const Color(0xFF06B6D4)
+                                              .withValues(alpha: 0.25)
+                                          : (effectiveRole == 'admin'
+                                              ? const Color(0xFFEAB308)
+                                                  .withValues(alpha: 0.25)
+                                              : (effectiveRole == 'moderator'
+                                                  ? const Color(0xFF6366F1)
+                                                      .withValues(alpha: 0.25)
+                                                  : Colors.white10))),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: effectiveRole == 'creator'
+                                        ? const Color(0xFFF59E0B)
+                                            .withValues(alpha: 0.7)
+                                        : (effectiveRole == 'developer' ||
+                                                effectiveRole == 'coder'
+                                            ? const Color(0xFF06B6D4)
+                                                .withValues(alpha: 0.7)
+                                            : (effectiveRole == 'admin'
+                                                ? const Color(0xFFEAB308)
+                                                    .withValues(alpha: 0.7)
+                                                : (effectiveRole == 'moderator'
+                                                    ? const Color(0xFF6366F1)
+                                                        .withValues(alpha: 0.7)
+                                                    : Colors.white24))),
+                                    width: 1,
+                                  ),
                                 ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.camera_alt_rounded,
-                                        size: 14, color: Colors.white),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Сменить баннер',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  ],
+                                child: Text(
+                                  _getRoleIcon(effectiveRole),
+                                  style: const TextStyle(
+                                      fontSize: 13, height: 1.1),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-
-                    // Bottom: Info Row with Avatar offset
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 0, 28, 22),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          // Avatar shifted upward over banner bottom
-                          Transform.translate(
-                            offset: const Offset(0, -32),
-                            child: Stack(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: isDark ? const Color(0xFF16162A) : Colors.white,
-                                        width: 4),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15),
-                                        blurRadius: 10,
-                                      ),
-                                    ],
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 42,
-                                    backgroundColor: const Color(0xFF7C3AED),
-                                    backgroundImage: effectiveAvatar != null &&
-                                            effectiveAvatar.isNotEmpty
-                                        ? NetworkImage(effectiveAvatar)
-                                        : null,
-                                    child: (effectiveAvatar == null || effectiveAvatar.isEmpty)
-                                        ? Text(
-                                            effectiveDisplayName.isNotEmpty
-                                                ? effectiveDisplayName[0].toUpperCase()
-                                                : 'U',
-                                            style: const TextStyle(
-                                              fontSize: 34,
-                                              fontWeight: FontWeight.w800,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                                if (isViewingSelf)
-                                  Positioned(
-                                    bottom: 4,
-                                    right: 4,
-                                    child: InkWell(
-                                      onTap: () async {
-                                        final newAvatarBase64 =
-                                            await pickAndInteractiveCropImage(
-                                          context: context,
-                                          isAvatar: true,
-                                          targetWidth: 400,
-                                          targetHeight: 400,
-                                        );
-                                        if (newAvatarBase64 != null) {
-                                          ref
-                                              .read(profileCustomizationProvider.notifier)
-                                              .updateProfile(avatarUrl: newAvatarBase64);
-
-                                          final cur = ref.read(currentUserProvider);
-                                          if (cur != null) {
-                                            try {
-                                              await supabase
-                                                  .from('profiles')
-                                                  .update({'avatar_url': newAvatarBase64})
-                                                  .eq('id', cur.id);
-                                            } catch (_) {}
-
-                                            ref.read(adminUsersProvider.notifier).syncUserProfileData(
-                                                  userId: cur.id,
-                                                  avatarUrl: newAvatarBase64,
-                                                );
-                                            ref.invalidate(userProfileProvider);
-                                          }
-
-                                          if (context.mounted) {
-                                            TopNotification.showSuccess(
-                                                context, 'Аватар успешно загружен и сохранен! ✨');
-                                          }
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFF7C3AED),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.photo_camera_rounded,
-                                            size: 14, color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 18),
-
-                          // Name, Username handle, Role Badge & Title
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Wrap(
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    spacing: 8,
-                                    runSpacing: 6,
-                                    children: [
-                                      Text(
-                                        effectiveDisplayName,
-                                        style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w900,
-                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-
-                                      // 1. System Staff Role Badge (Icon only with Tooltip)
-                                      if (effectiveRole != 'user' && effectiveRoleLabel != null)
-                                        Tooltip(
-                                          message: effectiveRoleLabel,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 7, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: effectiveRole == 'creator'
-                                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
-                                                  : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                      ? const Color(0xFF06B6D4).withValues(alpha: 0.25)
-                                                      : (effectiveRole == 'admin'
-                                                          ? const Color(0xFFEAB308).withValues(alpha: 0.25)
-                                                          : (effectiveRole == 'moderator'
-                                                              ? const Color(0xFF6366F1).withValues(alpha: 0.25)
-                                                              : Colors.white10))),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: effectiveRole == 'creator'
-                                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.7)
-                                                    : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                        ? const Color(0xFF06B6D4).withValues(alpha: 0.7)
-                                                        : (effectiveRole == 'admin'
-                                                            ? const Color(0xFFEAB308).withValues(alpha: 0.7)
-                                                            : (effectiveRole == 'moderator'
-                                                                ? const Color(0xFF6366F1).withValues(alpha: 0.7)
-                                                                : Colors.white24))),
-                                                width: 1,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              _getRoleIcon(effectiveRole),
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                height: 1.1,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-
-                                      // 2. Custom Title Badge (Icon only with Tooltip)
-                                      if (effectiveTitle.isNotEmpty)
-                                        Tooltip(
-                                          message: 'Титул: ',
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 7, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF7C3AED).withValues(alpha: 0.25),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: const Color(0xFF9F67FF).withValues(alpha: 0.5),
-                                                width: 0.9,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              _getTitleIcon(effectiveTitle),
-                                              style: const TextStyle(
-                                                color: Color(0xFFD8B4FE),
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                                height: 1.1,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-
-                                  // Handle, Copy Link Icon & Privacy Lock Icon
-                                  Row(
-                                    children: [
-                                      Text(
-                                        '@$effectiveUsername',
-                                        style: const TextStyle(
-                                          color: Color(0xFFC084FC),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Tooltip(
-                                        message: 'Скопировать ссылку на профиль',
-                                        child: InkWell(
-                                          onTap: () {
-                                            final link = kIsWeb
-                                                ? '${html.window.location.origin}/user/@$effectiveUsername'
-                                                : 'https://cinetrack.x1kwq.workers.dev/user/@$effectiveUsername';
-                                            Clipboard.setData(ClipboardData(text: link));
-                                            TopNotification.showSuccess(
-                                              context,
-                                              'Ссылка на профиль скопирована! 📋',
-                                            );
-                                          },
-                                          borderRadius: BorderRadius.circular(4),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(4),
-                                            child: Icon(Icons.copy_rounded,
-                                                size: 14,
-                                                color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Tooltip(
-                                        message: effectiveIsPrivate
-                                            ? 'Приватный профиль (закрыт)'
-                                            : 'Открытый профиль',
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: BoxDecoration(
-                                            color: effectiveIsPrivate
-                                                ? Colors.orange.withValues(alpha: 0.15)
-                                                : Colors.green.withValues(alpha: 0.15),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            effectiveIsPrivate
-                                                ? Icons.lock_rounded
-                                                : Icons.lock_open_rounded,
-                                            size: 13,
-                                            color: effectiveIsPrivate
-                                                ? Colors.orangeAccent
-                                                : const Color(0xFF10B981),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-
-                          // Profile Action Buttons
-                          if (isViewingSelf) ...[
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF7C3AED),
-                                foregroundColor: Colors.white,
+                            const SizedBox(width: 6),
+                          ],
+                          if (effectiveTitle.isNotEmpty)
+                            Tooltip(
+                              message: 'Титул: $effectiveTitle',
+                              child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                    horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF7C3AED)
+                                      .withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFF9F67FF)
+                                        .withValues(alpha: 0.5),
+                                    width: 0.9,
+                                  ),
+                                ),
+                                child: Text(
+                                  _getTitleIcon(effectiveTitle),
+                                  style: const TextStyle(
+                                    color: Color(0xFFD8B4FE),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.1,
+                                  ),
                                 ),
                               ),
-                              icon: const Icon(Icons.tune_rounded, size: 16),
-                              label: const Text('Настроить профиль',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12.5)),
-                              onPressed: () => _showEditProfileDialog(
-                                context,
-                                currentName: myDisplayName,
-                                currentUsername: myUsername,
-                                currentTitle: myTitle,
-                                currentBanner: myBanner,
-                                currentAvatar: myAvatar,
-                                isPrivate: myIsPrivate,
-                                unlockedTitles: myUnlockedTitles,
-                                mediaCount: mediaAsync.value?.length ?? 0,
-                                watchedCount: mediaAsync.value?.where((e) => e.status == 'watched').length ?? 0,
-                                friendsCount: myFriends.length,
+                            ),
+                        ],
+                      );
+                    }
+
+                    Widget buildHandleRow() {
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '@$effectiveUsername',
+                            style: const TextStyle(
+                              color: Color(0xFFC084FC),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Tooltip(
+                            message: 'Скопировать ссылку на профиль',
+                            child: InkWell(
+                              onTap: () {
+                                final link = kIsWeb
+                                    ? '${html.window.location.origin}/user/@$effectiveUsername'
+                                    : 'https://cinetrack.x1kwq.workers.dev/user/@$effectiveUsername';
+                                Clipboard.setData(
+                                    ClipboardData(text: link));
+                                TopNotification.showSuccess(
+                                  context,
+                                  'Ссылка на профиль скопирована! 📋',
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(Icons.copy_rounded,
+                                    size: 14,
+                                    color: isDark
+                                        ? Colors.white60
+                                        : const Color(0xFF64748B)),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                          ),
+                          const SizedBox(width: 8),
+                          Tooltip(
+                            message: effectiveIsPrivate
+                                ? 'Приватный профиль (закрыт)'
+                                : 'Открытый профиль',
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: effectiveIsPrivate
+                                    ? Colors.orange.withValues(alpha: 0.15)
+                                    : Colors.green.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                effectiveIsPrivate
+                                    ? Icons.lock_rounded
+                                    : Icons.lock_open_rounded,
+                                size: 13,
+                                color: effectiveIsPrivate
+                                    ? Colors.orangeAccent
+                                    : const Color(0xFF10B981),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
 
+                    Widget buildActions({bool fullWidth = false}) {
+                      if (isViewingSelf) {
+                        final btn = ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C3AED),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: const Icon(Icons.tune_rounded, size: 16),
+                          label: const Text('Настроить профиль',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 12.5)),
+                          onPressed: () => _showEditProfileDialog(
+                            context,
+                            currentName: myDisplayName,
+                            currentUsername: myUsername,
+                            currentTitle: myTitle,
+                            currentBanner: myBanner,
+                            currentAvatar: myAvatar,
+                            isPrivate: myIsPrivate,
+                            unlockedTitles: myUnlockedTitles,
+                            mediaCount: mediaAsync.value?.length ?? 0,
+                            watchedCount: mediaAsync.value
+                                    ?.where((e) => e.status == 'watched')
+                                    .length ??
+                                0,
+                            friendsCount: myFriends.length,
+                          ),
+                        );
 
-
-                            // Staff access: Admin Panel
-                            if (isAdmin) ...[
-                              const SizedBox(width: 8),
-                              ElevatedButton.icon(
+                        final adminBtn = isAdmin
+                            ? ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFF59E0B),
                                   foregroundColor: Colors.black,
@@ -782,77 +675,334 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         fontWeight: FontWeight.w800,
                                         fontSize: 12)),
                                 onPressed: () => context.go('/admin'),
-                              ),
+                              )
+                            : null;
+
+                        if (fullWidth) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              btn,
+                              if (adminBtn != null) ...[
+                                const SizedBox(height: 8),
+                                adminBtn,
+                              ],
                             ],
-                          ] else ...[
-                            // Viewing someone else
-                            if (isFriend)
-                              OutlinedButton.icon(
+                          );
+                        }
+
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            btn,
+                            if (adminBtn != null) ...[
+                              const SizedBox(width: 8),
+                              adminBtn,
+                            ],
+                          ],
+                        );
+                      } else {
+                        final friendBtn = isFriend
+                            ? OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: const Color(0xFF10B981),
-                                  side: const BorderSide(color: Color(0xFF10B981)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  side: const BorderSide(
+                                      color: Color(0xFF10B981)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
                                 ),
                                 icon: const Icon(Icons.check_rounded, size: 16),
                                 label: const Text('В друзьях'),
                                 onPressed: () {},
                               )
-                            else
-                              ElevatedButton.icon(
+                            : ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF7C3AED),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
                                 ),
-                                icon: const Icon(Icons.person_add_rounded, size: 16),
+                                icon: const Icon(Icons.person_add_rounded,
+                                    size: 16),
                                 label: const Text('Добавить в друзья'),
                                 onPressed: () {
                                   ref
-                                      .read(profileCustomizationProvider.notifier)
+                                      .read(profileCustomizationProvider
+                                          .notifier)
                                       .addFriend(otherProfile!.handle);
                                   TopNotification.showSuccess(
                                     context,
                                     'Пользователь @${otherProfile.handle} добавлен в друзья! 🤝',
                                   );
                                 },
-                              ),
-                            const SizedBox(width: 8),
+                              );
 
-                            // Copy Link to other user's profile
+                        if (fullWidth) {
+                          return SizedBox(
+                              width: double.infinity, child: friendBtn);
+                        }
+
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            friendBtn,
+                            const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.share_rounded, size: 18, color: Colors.white70),
+                              icon: const Icon(Icons.share_rounded,
+                                  size: 18, color: Colors.white70),
                               tooltip: 'Скопировать ссылку на профиль',
                               onPressed: () {
                                 final link = kIsWeb
                                     ? '${html.window.location.origin}/user/@$effectiveUsername'
                                     : 'https://cinetrack.x1kwq.workers.dev/user/@$effectiveUsername';
-                                Clipboard.setData(ClipboardData(text: link));
+                                Clipboard.setData(
+                                    ClipboardData(text: link));
                                 TopNotification.showSuccess(
                                   context,
                                   'Ссылка на профиль скопирована! 📋',
                                 );
                               },
                             ),
-
-                            // If staff viewing user, show shortcut to admin panel
                             if (isAdmin) ...[
                               const SizedBox(width: 8),
                               IconButton(
-                                icon: const Icon(Icons.admin_panel_settings_rounded, size: 20, color: Color(0xFFF59E0B)),
-                                tooltip: 'Управление пользователем в Админ-панели',
+                                icon: const Icon(
+                                    Icons.admin_panel_settings_rounded,
+                                    size: 20,
+                                    color: Color(0xFFF59E0B)),
+                                tooltip:
+                                    'Управление пользователем в Админ-панели',
                                 onPressed: () => context.go('/admin'),
                               ),
                             ],
                           ],
-                        ],
+                        );
+                      }
+                    }
+
+                    return Padding(
+                      padding: outerPadding,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF16162A) : Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF7C3AED).withValues(alpha: 0.3)
+                                : const Color(0xFFE2E8F0),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black
+                                  .withValues(alpha: isDark ? 0.4 : 0.05),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Top: Panoramic Banner Cover
+                            Stack(
+                              children: [
+                                SizedBox(
+                                  height: bannerHeight,
+                                  width: double.infinity,
+                                  child: Image.network(
+                                    effectiveBanner,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Color(0xFF2E1065),
+                                            Color(0xFF1E1B4B),
+                                            Color(0xFF0F172A),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Gradient vignette on banner
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withValues(alpha: 0.5),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Edit Banner Button in Top-Right (only for self)
+                                if (isViewingSelf)
+                                  Positioned(
+                                    top: 14,
+                                    right: 14,
+                                    child: InkWell(
+                                      onTap: () => _showEditProfileDialog(
+                                        context,
+                                        currentName: myDisplayName,
+                                        currentUsername: myUsername,
+                                        currentTitle: myTitle,
+                                        currentBanner: myBanner,
+                                        currentAvatar: myAvatar,
+                                        isPrivate: myIsPrivate,
+                                        unlockedTitles: myUnlockedTitles,
+                                        mediaCount: mediaAsync.value?.length ?? 0,
+                                        watchedCount: mediaAsync.value
+                                                ?.where((e) =>
+                                                    e.status == 'watched')
+                                                .length ??
+                                            0,
+                                        friendsCount: myFriends.length,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.7),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border:
+                                              Border.all(color: Colors.white30),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.camera_alt_rounded,
+                                                size: 14, color: Colors.white),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Сменить баннер',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11.5,
+                                                  fontWeight:
+                                                      FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+
+                            // Bottom: Info Row with Avatar offset
+                            Padding(
+                              padding: cardPadding,
+                              child: isMobile
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        buildAvatar(38, -24),
+                                        Transform.translate(
+                                          offset: const Offset(0, -10),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Wrap(
+                                                crossAxisAlignment:
+                                                    WrapCrossAlignment.center,
+                                                spacing: 8,
+                                                runSpacing: 4,
+                                                children: [
+                                                  Text(
+                                                    effectiveDisplayName,
+                                                    style: TextStyle(
+                                                      fontSize: 22,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                  buildBadges(),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              buildHandleRow(),
+                                              const SizedBox(height: 16),
+                                              buildActions(fullWidth: true),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        buildAvatar(42, -32),
+                                        const SizedBox(width: 18),
+                                        Expanded(
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.only(top: 8),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Wrap(
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
+                                                  spacing: 8,
+                                                  runSpacing: 6,
+                                                  children: [
+                                                    Text(
+                                                      effectiveDisplayName,
+                                                      style: TextStyle(
+                                                        fontSize: 22,
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                        color: isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF0F172A),
+                                                      ),
+                                                    ),
+                                                    buildBadges(),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                buildHandleRow(),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        buildActions(fullWidth: false),
+                                      ],
+                                    ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
           ),
-        ),
-      ),
 
       // If viewing other user's private profile: show private lock card
       if (!isViewingSelf && effectiveIsPrivate)

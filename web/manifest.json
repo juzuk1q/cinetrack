@@ -1,13 +1,14 @@
 {
-  "name": "CineTrack — Кино и Сериалы",
+  "name": "CineTrack",
   "short_name": "CineTrack",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#0F0F1A",
   "theme_color": "#7C3AED",
   "description": "CineTrack — трекер фильмов, сериалов и совместный просмотр",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "prefer_related_applications": false,
   "icons": [
     {
