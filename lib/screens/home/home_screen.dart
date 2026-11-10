@@ -599,17 +599,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _openTrailerModal(BuildContext context, CatalogItem item) {
     final kpId = item.kinopoiskId ?? 258687;
     final viewId = 'cinetrack-hero-trailer-$kpId-${DateTime.now().millisecondsSinceEpoch}';
-    final trailerUrl = 'https://api.atomics.ws/embed/trailer-kp/$kpId';
+    final trailerUrl = 'https://api.delivembd.ws/embed/trailer-kp/$kpId';
 
     final iframe = html.IFrameElement()
       ..src = trailerUrl
-      ..referrerPolicy = 'no-referrer'
-      ..setAttribute('referrerpolicy', 'no-referrer')
+      ..referrerPolicy = 'strict-origin-when-cross-origin'
+      ..setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
       ..style.border = 'none'
       ..style.width = '100%'
       ..style.height = '100%'
       ..style.backgroundColor = '#0A0A14'
-      ..allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+      ..allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture; web-share';
 
     ui_web.platformViewRegistry.registerViewFactory(
       viewId,

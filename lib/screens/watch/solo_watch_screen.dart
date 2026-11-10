@@ -81,10 +81,10 @@ class SoloWatchScreen extends ConsumerStatefulWidget {
 }
 
 class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
-  String _activeTab = 'backup'; // 'backup' (Kodik), 'alloha', 'rezka', 'collaps', 'trailer'
+  String _activeTab = 'collaps'; // 'collaps', 'videocdn', 'yohoho', 'trailer'
   late String _viewId;
   html.IFrameElement? _iframe;
-  bool _blockAds = true;
+  bool _blockAds = false;
 
   int _selectedSeason = 1;
   int _selectedEpisode = 1;
@@ -105,8 +105,8 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
         (widget.genres?.toLowerCase().contains('сериал') ?? false) ||
         (widget.genres?.toLowerCase().contains('аниме') ?? false);
 
-    // Default to 'backup' (Kodik) for series to avoid Collaps geo-lock!
-    _activeTab = isLikelySeries ? 'backup' : 'collaps';
+    // Default to 'collaps' as primary working balancer
+    _activeTab = 'collaps';
     _viewId = 'cinetrack-solo-player-${DateTime.now().microsecondsSinceEpoch}';
     _initIframe();
     _initComments();
@@ -286,16 +286,19 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   String _getCurrentUrl() {
     final kpId = widget.kinopoiskId ?? 258687;
 
-    if (_activeTab == 'collaps') {
-      return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId&season=$_selectedSeason&episode=$_selectedEpisode';
-    } else if (_activeTab == 'alloha') {
-      return 'https://embed.v-service.club/?kp=$kpId&season=$_selectedSeason&episode=$_selectedEpisode';
-    } else if (_activeTab == 'backup') {
-      return 'https://kodik.online/find-player?kinopoiskID=$kpId&season=$_selectedSeason&episode=$_selectedEpisode&hide_selectors=true';
-    } else if (_activeTab == 'rezka') {
-      return 'https://streamguard.cc/embed/kinopoisk/$kpId?season=$_selectedSeason&episode=$_selectedEpisode';
-    } else {
-      return 'https://api.atomics.ws/embed/trailer-kp/$kpId';
+    switch (_activeTab) {
+      case 'videocdn':
+      case 'rezka':
+        return 'https://api.delivembd.ws/embed/kp/$kpId?season=$_selectedSeason&episode=$_selectedEpisode';
+      case 'yohoho':
+      case 'alloha':
+        return 'https://4h0y.gitlab.io/#$kpId';
+      case 'trailer':
+        return 'https://api.delivembd.ws/embed/trailer-kp/$kpId';
+      case 'collaps':
+      case 'backup':
+      default:
+        return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId&season=$_selectedSeason&episode=$_selectedEpisode';
     }
   }
 
@@ -303,18 +306,19 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     final url = _getCurrentUrl();
     _iframe = html.IFrameElement()
       ..src = url
-      ..referrerPolicy = 'no-referrer'
-      ..setAttribute('referrerpolicy', 'no-referrer')
+      ..referrerPolicy = 'strict-origin-when-cross-origin'
+      ..setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
       ..style.border = 'none'
       ..style.width = '100%'
       ..style.height = '100%'
       ..style.backgroundColor = '#0A0A14'
-      ..allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+      ..allow =
+          'autoplay; fullscreen; encrypted-media; picture-in-picture; web-share; clipboard-write';
 
     if (_blockAds) {
       _iframe!.setAttribute(
         'sandbox',
-        'allow-scripts allow-same-origin allow-forms allow-presentation',
+        'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups-to-escape-sandbox',
       );
     }
 
@@ -332,7 +336,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       if (_blockAds) {
         _iframe!.setAttribute(
           'sandbox',
-          'allow-scripts allow-same-origin allow-forms allow-presentation',
+          'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups-to-escape-sandbox',
         );
       } else {
         _iframe!.removeAttribute('sandbox');
@@ -343,7 +347,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       context,
       _blockAds
           ? 'Анти-реклама включена: всплывающие окна заблокированы 🛡️'
-          : 'Анти-реклама отключена ⚠️',
+          : 'Анти-реклама отключена: полный доступ ко всем функциям плеера ⚠️',
       title: 'Защита плеера',
     );
   }
@@ -799,30 +803,23 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
         children: [
           // Player Sources
           _buildCompactTab(
-            label: 'Основной',
-            isActive: _activeTab == 'backup',
-            onTap: () => _switchTab('backup'),
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _buildCompactTab(
-            label: 'Резервный',
-            isActive: _activeTab == 'alloha',
-            onTap: () => _switchTab('alloha'),
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _buildCompactTab(
-            label: 'Резервный-2',
-            isActive: _activeTab == 'rezka',
-            onTap: () => _switchTab('rezka'),
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _buildCompactTab(
-            label: 'Резервный-3',
-            isActive: _activeTab == 'collaps',
+            label: 'Основной (Collaps)',
+            isActive: _activeTab == 'collaps' || _activeTab == 'backup',
             onTap: () => _switchTab('collaps'),
+            isDark: isDark,
+          ),
+          const SizedBox(width: 6),
+          _buildCompactTab(
+            label: 'Резервный (VideoCDN)',
+            isActive: _activeTab == 'videocdn' || _activeTab == 'rezka',
+            onTap: () => _switchTab('videocdn'),
+            isDark: isDark,
+          ),
+          const SizedBox(width: 6),
+          _buildCompactTab(
+            label: 'Мульти-плеер (Yohoho)',
+            isActive: _activeTab == 'yohoho' || _activeTab == 'alloha',
+            onTap: () => _switchTab('yohoho'),
             isDark: isDark,
           ),
           const SizedBox(width: 6),

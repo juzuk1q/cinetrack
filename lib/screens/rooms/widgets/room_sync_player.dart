@@ -93,10 +93,9 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
   bool get canControl => widget.isHost || widget.room.allowGuestControl;
 
   final List<String> _onlinePlayerNames = [
-    'Основной',
-    'Резервный',
-    'Резервный-2',
-    'Резервный-3',
+    'Основной (Collaps)',
+    'Резервный (VideoCDN)',
+    'Мульти-плеер (Yohoho)',
     'Трейлер ▶',
   ];
 
@@ -106,13 +105,11 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
       case 0:
         return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId';
       case 1:
-        return 'https://kodik.online/find-player?kinopoiskID=$kpId';
+        return 'https://api.delivembd.ws/embed/kp/$kpId';
       case 2:
-        return 'https://embed.v-service.club/?kp=$kpId';
+        return 'https://4h0y.gitlab.io/#$kpId';
       case 3:
-        return 'https://streamguard.cc/embed/kinopoisk/$kpId';
-      case 4:
-        return 'https://api.atomics.ws/embed/trailer-kp/$kpId';
+        return 'https://api.delivembd.ws/embed/trailer-kp/$kpId';
       default:
         return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId';
     }
@@ -192,14 +189,8 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
       _videoElement?.pause();
       final src = _determineIframeSrc();
       if (_iframeElement != null && src.isNotEmpty) {
-        final isCatalogOrKodik = _sourceType == 'catalog' || _sourceType == 'kodik';
-        if (isCatalogOrKodik) {
-          _iframeElement!.referrerPolicy = 'no-referrer';
-          _iframeElement!.setAttribute('referrerpolicy', 'no-referrer');
-        } else {
-          _iframeElement!.referrerPolicy = 'strict-origin-when-cross-origin';
-          _iframeElement!.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-        }
+        _iframeElement!.referrerPolicy = 'strict-origin-when-cross-origin';
+        _iframeElement!.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
         _iframeElement!.src = src;
       }
     } else if (_isVideoElementSource) {
@@ -296,7 +287,6 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
 
   void _initIframeElement() {
     final iframeSrc = _determineIframeSrc();
-    final isCatalogOrKodik = _sourceType == 'catalog' || _sourceType == 'kodik';
 
     _iframeElement = html.IFrameElement()
       ..src = iframeSrc
@@ -306,20 +296,12 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
       ..style.backgroundColor = '#0A0A14'
       ..setAttribute(
         'sandbox',
-        'allow-scripts allow-same-origin allow-forms allow-presentation',
+        'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation',
       )
       ..allow =
-          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
-
-    if (isCatalogOrKodik) {
-      _iframeElement!
-        ..referrerPolicy = 'no-referrer'
-        ..setAttribute('referrerpolicy', 'no-referrer');
-    } else {
-      _iframeElement!
-        ..referrerPolicy = 'strict-origin-when-cross-origin'
-        ..setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-    }
+          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen'
+      ..referrerPolicy = 'strict-origin-when-cross-origin'
+      ..setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
 
     ui_web.platformViewRegistry.registerViewFactory(
       _iframeViewId,
@@ -758,7 +740,7 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
                             size: 13, color: Color(0xFFA78BFA)),
                         SizedBox(width: 4),
                         Text(
-                          'Плеер Alloha',
+                          'Плеер VideoCDN',
                           style: TextStyle(
                             color: Color(0xFFA78BFA),
                             fontSize: 11,
@@ -789,7 +771,7 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
                             size: 13, color: Color(0xFF34D399)),
                         SizedBox(width: 4),
                         Text(
-                          'Плеер Kodik',
+                          'Плеер Yohoho',
                           style: TextStyle(
                             color: Color(0xFF34D399),
                             fontSize: 11,
