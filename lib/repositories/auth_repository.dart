@@ -228,8 +228,66 @@ class AuthRepository {
       debugPrint('Supabase cloud signIn attempt note: $e');
     }
 
-    // 3. Database Password Verification (via secure PostgreSQL bcrypt RPC)
+    // 3. Database Password Verification (via direct profiles table check or secure PostgreSQL RPC)
     if (authenticatedUser == null) {
+      try {
+        final query = supabase.from('profiles').select();
+        final Map<String, dynamic>? dbProfile = isEmail
+            ? await query.eq('email', targetEmail).maybeSingle()
+            : await query
+                .or('username.ilike.$cleanInput,display_name.ilike.$cleanInput')
+                .maybeSingle();
+
+        if (dbProfile != null) {
+          final dbPwd = dbProfile['password_hash'] as String?;
+          final isBlocked = dbProfile['is_blocked'] as bool? ?? false;
+          if (isBlocked) {
+            throw 'Ваш аккаунт заблокирован администрацией.';
+          }
+
+          if (dbPwd != null && dbPwd.isNotEmpty && dbPwd == password) {
+            final uid = dbProfile['id'] as String;
+            final uEmail = (dbProfile['email'] as String? ?? targetEmail).trim();
+            final uUsername =
+                (dbProfile['username'] as String? ?? targetUsername).trim();
+            final uDisplayName =
+                dbProfile['display_name'] as String? ?? displayName ?? uUsername;
+            final uRole = dbProfile['role'] as String? ?? role;
+            final isFrozen = dbProfile['is_frozen'] as bool? ?? false;
+
+            final user = User(
+              id: uid,
+              appMetadata: const {'provider': 'cinetrack'},
+              userMetadata: {
+                'display_name': uDisplayName,
+                'role': uRole,
+                'username': uUsername,
+                'has_password': true,
+                'is_frozen': isFrozen,
+              },
+              aud: 'authenticated',
+              createdAt: DateTime.now().toIso8601String(),
+              email: uEmail.contains('@') ? uEmail : '$uUsername@cinetrack.local',
+            );
+
+            _persistSession(user, uUsername, uRole);
+            if (kIsWeb) {
+              html.window.localStorage['cinetrack_has_password'] = 'true';
+              html.window.localStorage['cinetrack_pwd_${uEmail.toLowerCase()}'] =
+                  password;
+              html.window.localStorage['cinetrack_pwd_${uUsername.toLowerCase()}'] =
+                  password;
+            }
+            _authStreamController
+                .add(const AuthState(AuthChangeEvent.signedIn, null));
+            return user;
+          }
+        }
+      } catch (e) {
+        if (e is String) rethrow;
+        debugPrint('Direct profiles password check note: $e');
+      }
+
       try {
         final res = await supabase.rpc('verify_user_password', params: {
           'login_or_email': isEmail ? targetEmail : targetUsername,
@@ -265,6 +323,13 @@ class AuthRepository {
           );
 
           _persistSession(user, uUsername, uRole);
+          if (kIsWeb) {
+            html.window.localStorage['cinetrack_has_password'] = 'true';
+            html.window.localStorage['cinetrack_pwd_${uEmail.toLowerCase()}'] =
+                password;
+            html.window.localStorage['cinetrack_pwd_${uUsername.toLowerCase()}'] =
+                password;
+          }
           _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
           return user;
         }
@@ -314,6 +379,9 @@ class AuthRepository {
 
     if (authenticatedUser != null) {
       _persistSession(authenticatedUser, targetUsername, role);
+      if (kIsWeb) {
+        html.window.localStorage['cinetrack_has_password'] = 'true';
+      }
       _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
       return authenticatedUser;
     }

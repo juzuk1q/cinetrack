@@ -36,86 +36,10 @@ class RoomRepository {
         for (final item in list) {
           _rooms.add(WatchRoom.fromJson(item as Map<String, dynamic>));
         }
-        if (_rooms.isNotEmpty) return;
       }
-    } catch (_) {
-      // fallback to demo rooms
-    }
-
-    // Default demo rooms if nothing saved
-    _rooms.addAll([
-      WatchRoom(
-        id: 'room-1',
-        title: 'Космический вечер: смотрим шедевр Нолана',
-        movieTitle: 'Интерстеллар',
-        movieType: 'movie',
-        moviePoster:
-            'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=600&auto=format&fit=crop&q=80',
-        movieYear: 2014,
-        status: 'watching',
-        scheduledAt: DateTime.now().subtract(const Duration(minutes: 45)),
-        ownerName: 'Алексей (Кинокритик)',
-        participantCount: 5,
-        messages: [
-          RoomMessage(
-            id: 'm1',
-            userName: 'Алексей',
-            text: 'Всем привет! Подключайтесь, сцена на водяной планете просто пушка!',
-            createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
-          ),
-          RoomMessage(
-            id: 'm2',
-            userName: 'Мария',
-            text: 'Саундтрек Ханса Циммера до мурашек каждый раз 🎹',
-            createdAt: DateTime.now().subtract(const Duration(minutes: 20)),
-          ),
-        ],
-      ),
-      WatchRoom(
-        id: 'room-2',
-        title: 'Марафон сериала «Чернобыль» (1-3 серии)',
-        movieTitle: 'Чернобыль',
-        movieType: 'series',
-        moviePoster:
-            'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
-        movieYear: 2019,
-        status: 'watching',
-        scheduledAt: DateTime.now().subtract(const Duration(minutes: 10)),
-        ownerName: 'Елена',
-        participantCount: 3,
-        messages: [
-          RoomMessage(
-            id: 'm4',
-            userName: 'Елена',
-            text: 'Начинаем сеанс! Присоединяйтесь ☕',
-            createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-          ),
-        ],
-      ),
-      WatchRoom(
-        id: 'room-3',
-        title: 'Аниме-пятница с Хаяо Миядзаки ✨',
-        movieTitle: 'Унесённые призраками',
-        movieType: 'anime',
-        moviePoster:
-            'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
-        movieYear: 2001,
-        status: 'watching',
-        scheduledAt: DateTime.now().subtract(const Duration(minutes: 2)),
-        ownerName: 'Артём',
-        participantCount: 4,
-        messages: [
-          RoomMessage(
-            id: 'm5',
-            userName: 'Артём',
-            text: 'Смотрим в оригинальной озвучке, подключайтесь!',
-            createdAt: DateTime.now().subtract(const Duration(minutes: 1)),
-          ),
-        ],
-      ),
-    ]);
-    _saveRooms();
+    } catch (_) {}
   }
+
 
   void _saveRooms() {
     try {
@@ -191,6 +115,7 @@ class RoomRepository {
     bool? allowGuestControl,
     String? password,
     int? maxParticipants,
+    List<String>? allowedControllers,
   }) {
     final index = _rooms.indexWhere((r) => r.id == roomId);
     if (index != -1) {
@@ -201,6 +126,7 @@ class RoomRepository {
         allowGuestControl: allowGuestControl,
         password: password,
         maxParticipants: maxParticipants,
+        allowedControllers: allowedControllers,
       );
       _saveRooms();
     }
@@ -294,7 +220,7 @@ class RoomRepository {
     }
   }
 
-  void addMessage(String roomId, String userName, String text) {
+  void addMessage(String roomId, String userName, String text, [String? senderId]) {
     final index = _rooms.indexWhere((r) => r.id == roomId);
     if (index != -1) {
       final room = _rooms[index];
@@ -409,6 +335,7 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
     bool? allowGuestControl,
     String? password,
     int? maxParticipants,
+    List<String>? allowedControllers,
   }) {
     _repo.updateRoomSettings(
       roomId,
@@ -418,6 +345,7 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
       allowGuestControl: allowGuestControl,
       password: password,
       maxParticipants: maxParticipants,
+      allowedControllers: allowedControllers,
     );
     state = _repo.getRooms();
   }
@@ -467,8 +395,8 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
     state = _repo.getRooms();
   }
 
-  void addMessage(String roomId, String userName, String text) {
-    _repo.addMessage(roomId, userName, text);
+  void addMessage(String roomId, String userName, String text, [String? senderId]) {
+    _repo.addMessage(roomId, userName, text, senderId);
     state = _repo.getRooms();
   }
 

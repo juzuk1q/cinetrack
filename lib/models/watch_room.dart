@@ -23,6 +23,7 @@ class WatchRoom {
   final String? password;
   final int? maxParticipants;
   final List<Map<String, String>> participants;
+  final List<String> allowedControllers;
 
   const WatchRoom({
     required this.id,
@@ -47,6 +48,7 @@ class WatchRoom {
     this.password,
     this.maxParticipants,
     this.participants = const [],
+    this.allowedControllers = const [],
   });
 
   WatchRoom copyWith({
@@ -72,6 +74,7 @@ class WatchRoom {
     String? password,
     int? maxParticipants,
     List<Map<String, String>>? participants,
+    List<String>? allowedControllers,
   }) {
     return WatchRoom(
       id: id ?? this.id,
@@ -96,6 +99,7 @@ class WatchRoom {
       password: password ?? this.password,
       maxParticipants: maxParticipants ?? this.maxParticipants,
       participants: participants ?? this.participants,
+      allowedControllers: allowedControllers ?? this.allowedControllers,
     );
   }
 
@@ -123,6 +127,7 @@ class WatchRoom {
       'password': password,
       'max_participants': maxParticipants,
       'participants': participants,
+      'allowed_controllers': allowedControllers,
     };
   }
 
@@ -136,6 +141,9 @@ class WatchRoom {
         }
       }
     }
+
+    final rawControllers = json['allowed_controllers'] as List<dynamic>?;
+    final List<String> controllers = rawControllers != null ? rawControllers.map((e) => e.toString()).toList() : [];
 
     return WatchRoom(
       id: json['id'] as String,
@@ -165,6 +173,7 @@ class WatchRoom {
       password: json['password'] as String?,
       maxParticipants: json['max_participants'] as int?,
       participants: parts,
+      allowedControllers: controllers,
     );
   }
 }

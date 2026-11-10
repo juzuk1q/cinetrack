@@ -129,6 +129,7 @@ class UserProfile {
   final bool isFrozen;
   final String? blockReason;
   final DateTime? blockUntil;
+  final bool hasPassword;
 
   // Role hierarchy getters
   bool get isCreator => role == 'creator';
@@ -280,6 +281,7 @@ class UserProfile {
     this.isFrozen = false,
     this.blockReason,
     this.blockUntil,
+    this.hasPassword = false,
   });
 
   String get handle {
@@ -307,6 +309,7 @@ class UserProfile {
     bool? isFrozen,
     String? blockReason,
     DateTime? blockUntil,
+    bool? hasPassword,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -325,6 +328,7 @@ class UserProfile {
       isFrozen: isFrozen ?? this.isFrozen,
       blockReason: blockReason ?? this.blockReason,
       blockUntil: blockUntil ?? this.blockUntil,
+      hasPassword: hasPassword ?? this.hasPassword,
     );
   }
 
@@ -367,6 +371,9 @@ class UserProfile {
       blockUntil: json['block_until'] != null
           ? DateTime.tryParse(json['block_until'].toString())
           : null,
+      hasPassword: json['has_password'] as bool? ??
+          (json['password_hash'] != null &&
+              json['password_hash'].toString().isNotEmpty),
     );
   }
 
@@ -388,6 +395,7 @@ class UserProfile {
       'is_frozen': isFrozen,
       'block_reason': blockReason,
       'block_until': blockUntil?.toIso8601String(),
+      'has_password': hasPassword,
     };
   }
 }

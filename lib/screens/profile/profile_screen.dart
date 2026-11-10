@@ -2514,7 +2514,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Builder(
                         builder: (context) {
                           final currentUser = ref.read(currentUserProvider);
-                          final hasPassword = (kIsWeb &&
+                          final prof = ref.read(userProfileProvider).valueOrNull;
+                          final hasPassword = (prof?.hasPassword == true) ||
+                              (kIsWeb &&
                                   html.window.localStorage['cinetrack_has_password'] ==
                                       'true') ||
                               (currentUser?.appMetadata['provider'] == 'email') ||

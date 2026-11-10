@@ -12,6 +12,7 @@ import '../providers/auth_provider.dart';
 import '../providers/kinopoisk_provider.dart';
 import '../providers/room_provider.dart';
 import '../providers/theme_provider.dart';
+import 'pwa_install_dialog.dart';
 
 class AppHeader extends ConsumerStatefulWidget implements PreferredSizeWidget {
   final String? activeRoute;
@@ -612,6 +613,20 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
               onPressed: () {
                 ref.read(themeModeProvider.notifier).toggleTheme();
               },
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // PWA Install / Mobile Web App shortcut 📲
+          Tooltip(
+            message: 'Установить CineTrack на рабочий стол 📲',
+            child: IconButton(
+              icon: const Icon(
+                Icons.install_mobile_rounded,
+                color: Color(0xFF9F67FF),
+                size: 20,
+              ),
+              onPressed: () => PwaInstallDialog.show(context),
             ),
           ),
           const SizedBox(width: 8),

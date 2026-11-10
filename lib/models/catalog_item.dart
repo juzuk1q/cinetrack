@@ -46,12 +46,14 @@ class CatalogItem {
 
   String get effectiveMpa {
     final g = genres.map((e) => e.toLowerCase()).join(' ');
-    if (g.contains('ужасы') || g.contains('криминал') || g.contains('триллер')) {
-      return 'R (18+)';
-    } else if (g.contains('боевик') || g.contains('фантастика') || g.contains('драма')) {
-      return 'PG-13 (16+)';
-    } else if (g.contains('мульт') || g.contains('семейн') || g.contains('детск')) {
+    if (g.contains('мульт') || g.contains('семейн') || g.contains('детск') || g.contains('анимац') || type == 'cartoon') {
       return 'PG (6+)';
+    } else if (g.contains('ужасы') || g.contains('слэшер')) {
+      return 'R (18+)';
+    } else if (g.contains('криминал') || g.contains('триллер') || g.contains('боевик')) {
+      return 'PG-13 (16+)';
+    } else if (g.contains('фантастика') || g.contains('драма') || g.contains('комедия')) {
+      return 'PG-13 (12+)';
     }
     return 'PG-13 (12+)';
   }

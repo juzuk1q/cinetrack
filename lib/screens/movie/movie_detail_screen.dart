@@ -932,26 +932,52 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   Map<String, dynamic> _getContentAdvisory(CatalogItem item) {
     final lowerGenres = item.genres.map((g) => g.toLowerCase()).toSet();
     final lowerDesc = item.description.toLowerCase();
-    final isGory = lowerGenres.contains('ужасы') ||
-        lowerGenres.contains('криминал') ||
-        lowerGenres.contains('боевик') ||
-        lowerDesc.contains('плоть') ||
-        lowerDesc.contains('убий') ||
-        lowerDesc.contains('кров') ||
-        lowerDesc.contains('смерт') ||
-        item.title.contains('Гуль') ||
-        item.title.contains('Тетрадь смерти');
+    final isKidOrFamily = item.type == 'cartoon' ||
+        lowerGenres.contains('мультфильм') ||
+        lowerGenres.contains('семейный') ||
+        lowerGenres.contains('детский') ||
+        item.title.toLowerCase().contains('райя') ||
+        item.title.toLowerCase().contains('зверополис') ||
+        item.title.toLowerCase().contains('коко');
 
-    if (isGory) {
+    if (isKidOrFamily) {
+      return {
+        'badge': '6+ 🟢 Для любой аудитории',
+        'desc': 'Подходит для семейного и детского просмотра, без жестокости',
+        'isWarning': false,
+      };
+    }
+
+    final isExtremeGore = lowerGenres.contains('ужасы') ||
+        lowerGenres.contains('слэшер') ||
+        lowerDesc.contains('расчленен') ||
+        lowerDesc.contains('пытки') ||
+        item.title.contains('Пила') ||
+        item.title.contains('Токийский гуль');
+
+    if (isExtremeGore) {
       return {
         'badge': '18+ ⚠️ Сцены насилия & кровь',
         'desc': 'Присутствуют напряжённые сцены, жестокость и кровь',
         'isWarning': true,
       };
     }
+
+    final isTeenAdvisory = lowerGenres.contains('криминал') ||
+        lowerGenres.contains('триллер') ||
+        lowerGenres.contains('боевик');
+
+    if (isTeenAdvisory) {
+      return {
+        'badge': '16+ ⚠️ Возрастные ограничения',
+        'desc': 'Присутствуют динамичные сцены экшена и напряжения',
+        'isWarning': false,
+      };
+    }
+
     return {
       'badge': '12+ 🟢 Без жестоких сцен',
-      'desc': 'Подходит для семейного просмотра, без сцен крови и насилия',
+      'desc': 'Подходит для широкого просмотра, без сцен крови и насилия',
       'isWarning': false,
     };
   }
@@ -1405,7 +1431,31 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           runSpacing: 10,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            // Primary White Pill Button: [ ▶ Watch ]
+            // 1. Button: [ 🎬 Трейлер ▶ ]
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+                backgroundColor: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFFF1F5F9),
+                side: BorderSide(
+                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    width: 1.2),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              icon: const Icon(Icons.play_circle_outline_rounded,
+                  size: 18, color: Color(0xFFF59E0B)),
+              label: const Text(
+                'Трейлер ▶',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+              onPressed: () => _openTrailerModal(item),
+            ),
+
+            // 2. Button: [ ▶ Смотреть онлайн (1) ]
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: isDark ? Colors.white : const Color(0xFF7C3AED),
@@ -1427,30 +1477,6 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 ),
               ),
               onPressed: _startSoloWatch,
-            ),
-
-            // Secondary Button: [ 🎬 Трейлер ▶ ] (Opens trailer inline modal, without navigating away)
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
-                backgroundColor: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : const Color(0xFFF1F5F9),
-                side: BorderSide(
-                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                    width: 1.2),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              icon: const Icon(Icons.play_circle_outline_rounded,
-                  size: 18, color: Color(0xFFF59E0B)),
-              label: const Text(
-                'Трейлер ▶',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              ),
-              onPressed: () => _openTrailerModal(item),
             ),
 
             // Secondary Button: [ 🍿 Совместный просмотр ]
@@ -1958,90 +1984,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   }
 
   void _initSocialData() {
-    _reviews = [
-      _MovieReview(
-        id: 'rev-1',
-        authorName: 'Алексей Киноманов',
-        authorTitle: 'Кинокритик 👑',
-        rating: 9.2,
-        type: 'positive',
-        title: 'Шедевр современной анимации с глубоким посылом',
-        text:
-            'Визуальная часть поражает воображение — детализация воды, шерсти и света сделаны на высочайшем уровне. Но главное здесь — это искренний посыл о доверии в расколотом мире.',
-        date: 'Вчера, 18:40',
-        createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-        likes: 24,
-      ),
-      _MovieReview(
-        id: 'rev-2',
-        authorName: 'Мария Сериаломан',
-        authorTitle: 'Зритель CineTrack 🍿',
-        rating: 8.5,
-        type: 'positive',
-        title: 'Дракон Сису украла всё внимание!',
-        text:
-            'Прекрасный семейный просмотр. Юмор отличный, динамика держит до самого конца. Очень рекомендую смотреть именно в оригинале или дубляже.',
-        date: '3 дня назад',
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-        likes: 15,
-      ),
-      _MovieReview(
-        id: 'rev-3',
-        authorName: 'Дмитрий В.',
-        authorTitle: 'Ночной зритель 🌙',
-        rating: 7.0,
-        type: 'neutral',
-        title: 'Красиво, но сюжет достаточно предсказуемый',
-        text:
-            'Отличный приключенческий фильм на вечер. Графика 10 из 10, музыка превосходная, хотя сюжетные повороты угадываются с первых минут.',
-        date: 'Неделю назад',
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        likes: 7,
-      ),
-    ];
-
-    _episodeComments = [
-      _EpisodeComment(
-        id: 'com-1',
-        episode: 1,
-        authorName: 'Vladislav_Pro',
-        text:
-            'Начало просто легендарное! Музыкальное сопровождение нагнетает атмосферу на максимум.',
-        timecode: '08:45',
-        date: 'Вчера',
-        likes: 9,
-      ),
-      _EpisodeComment(
-        id: 'com-2',
-        episode: 1,
-        authorName: 'AnimeFan99',
-        text:
-            'Кто заметил отсылку к старым фильмам на этом таймкоде? Гениально сделано!',
-        timecode: '21:10',
-        date: '2 дня назад',
-        likes: 14,
-      ),
-      _EpisodeComment(
-        id: 'com-3',
-        episode: 2,
-        authorName: 'Daria_K',
-        text:
-            'Вторая серия ещё мощнее! Не ожидал такого поворота сюжета в конце.',
-        timecode: '42:15',
-        date: '3 дня назад',
-        likes: 11,
-      ),
-      _EpisodeComment(
-        id: 'com-4',
-        episode: 3,
-        authorName: 'CinemaMaster',
-        text:
-            'Операторская работа в этой боевой сцене просто запредельная.',
-        timecode: '15:20',
-        date: '5 дней назад',
-        likes: 8,
-      ),
-    ];
+    _reviews = [];
+    _episodeComments = [];
   }
 
   Widget _buildSocialSection(CatalogItem item, String userDisplayName, [bool isDark = true]) {
@@ -3163,7 +3107,7 @@ class _MovieReview {
   final String text;
   final String date;
   final DateTime createdAt;
-  int likes;
+  int likes = 0;
   bool isLiked = false;
 
   _MovieReview({
@@ -3176,7 +3120,6 @@ class _MovieReview {
     required this.text,
     required this.date,
     DateTime? createdAt,
-    this.likes = 0,
   }) : createdAt = createdAt ?? DateTime.now();
 }
 
@@ -3187,7 +3130,7 @@ class _EpisodeComment {
   final String text;
   final String? timecode;
   final String date;
-  int likes;
+  int likes = 0;
   bool isLiked = false;
 
   _EpisodeComment({
@@ -3197,6 +3140,5 @@ class _EpisodeComment {
     required this.text,
     this.timecode,
     required this.date,
-    this.likes = 0,
   });
 }

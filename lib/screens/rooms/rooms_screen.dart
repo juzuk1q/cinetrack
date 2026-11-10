@@ -383,9 +383,48 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                       ),
                     ),
                     if (rooms.isEmpty)
-                      const SliverFillRemaining(
+                      SliverFillRemaining(
+                        hasScrollBody: false,
                         child: Center(
-                          child: Text('Комнат пока нет. Создайте первую!'),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.groups_rounded, size: 54, color: Color(0xFF9F67FF)),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Пока нет активных комнат',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Создайте комнату для совместного просмотра, выберите фильм и пригласите друзей!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 13, color: Colors.white60),
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF7C3AED),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  icon: const Icon(Icons.add_rounded, size: 20),
+                                  label: const Text('Создать комнату 🍿', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  onPressed: _showCreateRoomDialog,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       )
                     else

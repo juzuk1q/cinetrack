@@ -280,37 +280,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   }
 
   void _initComments() {
-    _comments.addAll([
-      SoloWatchComment(
-        id: 'c1',
-        authorName: 'Артем Киноманов',
-        authorTitle: 'Создатель 👑',
-        authorAvatar:
-            'https://avatars.mds.yandex.net/get-kinopoisk-image/1601250/20399d86-a579-4a00-b6e5-4a69ec40fe50/orig',
-        text:
-            'Шедевральная сцена на 00:43:15! Музыка Ханса Циммера до мурашек, просто разрыв шаблона 🎬',
-        timeAgo: '2 часа назад',
-        likes: 14,
-      ),
-      SoloWatchComment(
-        id: 'c2',
-        authorName: 'Дарья MovieLover',
-        authorTitle: 'Кинокритик 💬',
-        text:
-            'На таймкоде 01:28:40 обратите внимание на детали на заднем плане! Пересматриваю уже в третий раз.',
-        timeAgo: '4 часа назад',
-        likes: 9,
-      ),
-      SoloWatchComment(
-        id: 'c3',
-        authorName: 'Макс_Stream',
-        authorTitle: 'Новичок стримов 🍿',
-        text:
-            'Звук и качество 4K в этом плеере просто топовые. Особенно кульминация с 02:14:00!',
-        timeAgo: 'вчера',
-        likes: 5,
-      ),
-    ]);
+    _comments.clear();
   }
 
   String _getCurrentUrl() {
@@ -448,19 +418,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     );
   }
 
-  void _insertTimestampHelper(String timestamp) {
-    final cur = _commentCtrl.text;
-    final selection = _commentCtrl.selection;
-    if (selection.isValid && selection.start >= 0) {
-      final newText = cur.replaceRange(
-          selection.start, selection.end, ' $timestamp ');
-      _commentCtrl.text = newText;
-      _commentCtrl.selection = TextSelection.collapsed(
-          offset: selection.start + timestamp.length + 2);
-    } else {
-      _commentCtrl.text = cur.isEmpty ? timestamp : '$cur $timestamp';
-    }
-  }
+
 
   List<FranchiseStep> _getFranchiseTimeline() {
     final curTitle = widget.title.toLowerCase();
@@ -1910,7 +1868,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText:
-                        'Напишите рецензию или укажите таймкод (например 01:23:45)...',
+                        'Оставьте комментарий к серии или фильму (можно указывать таймкод в тексте, например 12:34)...',
                     hintStyle: TextStyle(
                       fontSize: 12.5,
                       color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
@@ -1920,35 +1878,12 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    // Quick timestamp buttons
-                    ActionChip(
-                      avatar: const Icon(Icons.timer_outlined,
-                          size: 14, color: Color(0xFF9F67FF)),
-                      label: Text('Таймкод 00:15:30',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? Colors.white : const Color(0xFF374151),
-                          )),
-                      backgroundColor: isDark ? const Color(0xFF282845) : const Color(0xFFE5E7EB),
-                      side: BorderSide(
-                        color: isDark ? Colors.white12 : const Color(0xFFD1D5DB),
+                    Text(
+                      '💡 Чтобы добавить таймкод, просто напишите его в тексте: 12:45 или 01:20:10',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
                       ),
-                      onPressed: () => _insertTimestampHelper('00:15:30'),
-                    ),
-                    const SizedBox(width: 8),
-                    ActionChip(
-                      avatar: const Icon(Icons.timer_outlined,
-                          size: 14, color: Color(0xFF9F67FF)),
-                      label: Text('Таймкод 01:05:00',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? Colors.white : const Color(0xFF374151),
-                          )),
-                      backgroundColor: isDark ? const Color(0xFF282845) : const Color(0xFFE5E7EB),
-                      side: BorderSide(
-                        color: isDark ? Colors.white12 : const Color(0xFFD1D5DB),
-                      ),
-                      onPressed: () => _insertTimestampHelper('01:05:00'),
                     ),
                     const Spacer(),
 
@@ -1974,6 +1909,21 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           ),
           const SizedBox(height: 20),
 
+          if (_comments.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Text(
+                  'Пока нет комментариев к этому выпуску. Напишите первое впечатление или полезный таймкод!',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else
           // List of comments with interactive timestamp parsing
           ListView.separated(
             shrinkWrap: true,

@@ -235,7 +235,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
         ref
             .read(roomsProvider.notifier)
-            .addMessage(widget.roomId, senderName, msgText);
+            .addMessage(widget.roomId, senderName, msgText, senderId);
         _scrollToBottom();
 
         // Top toast notification for incoming chat message
@@ -519,8 +519,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   void _showRoomSettingsDialog(BuildContext context, WatchRoom room) {
     final titleCtrl = TextEditingController(text: room.title);
     final passwordCtrl = TextEditingController(text: room.password ?? '');
-    String currentStatus = room.status;
-    bool guestControl = room.allowGuestControl;
+    int controlMode = room.allowGuestControl ? 1 : (room.allowedControllers.isNotEmpty ? 2 : 0);
+    final selectedControllers = Set<String>.from(room.allowedControllers);
     int? maxParticipants = room.maxParticipants;
     double sliderVal = (maxParticipants ?? 50).toDouble();
     final limitTextCtrl = TextEditingController(
@@ -692,44 +692,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Status
-                      const Text(
-                        'Статус сеанса:',
-                        style: TextStyle(
-                          color: Color(0xFF9F67FF),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          ChoiceChip(
-                            avatar: const Text('🍿'),
-                            label: const Text('Идёт показ'),
-                            selected: currentStatus == 'watching',
-                            onSelected: (val) {
-                              if (val) {
-                                setDlgState(() => currentStatus = 'watching');
-                              }
-                            },
-                          ),
-                          ChoiceChip(
-                            avatar: const Text('⏸'),
-                            label: const Text('На паузе'),
-                            selected: currentStatus == 'paused',
-                            onSelected: (val) {
-                              if (val) {
-                                setDlgState(() => currentStatus = 'paused');
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Permissions
+                      // Permissions (Granular & customizable)
                       const Text(
                         'Права доступа к управлению плеером:',
                         style: TextStyle(
@@ -739,24 +702,23 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      RadioListTile<bool>(
-                        value: false,
-                        groupValue: guestControl,
-                        title:
-                            const Text('🔒 Только организатор (рекомендуется)'),
+                      RadioListTile<int>(
+                        value: 0,
+                        groupValue: controlMode,
+                        title: const Text('🔒 Только организатор (рекомендуется)'),
                         subtitle: const Text(
                           'Зрители смотрят синхронно, паузой и перемоткой управляете только вы',
                           style: TextStyle(fontSize: 11, color: Colors.white60),
                         ),
                         onChanged: (val) {
                           if (val != null) {
-                            setDlgState(() => guestControl = val);
+                            setDlgState(() => controlMode = val);
                           }
                         },
                       ),
-                      RadioListTile<bool>(
-                        value: true,
-                        groupValue: guestControl,
+                      RadioListTile<int>(
+                        value: 1,
+                        groupValue: controlMode,
                         title: const Text('👥 Все участники'),
                         subtitle: const Text(
                           'Любой зритель в комнате может ставить на паузу и перематывать видео',
@@ -764,10 +726,90 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         ),
                         onChanged: (val) {
                           if (val != null) {
-                            setDlgState(() => guestControl = val);
+                            setDlgState(() => controlMode = val);
                           }
                         },
                       ),
+                      RadioListTile<int>(
+                        value: 2,
+                        groupValue: controlMode,
+                        title: const Text('🎯 Точечная настройка участников'),
+                        subtitle: const Text(
+                          'Разрешить ставить на паузу и перематывать только выбранным зрителям',
+                          style: TextStyle(fontSize: 11, color: Colors.white60),
+                        ),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDlgState(() => controlMode = val);
+                          }
+                        },
+                      ),
+                      if (controlMode == 2) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16162A),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Кому разрешено управление:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFA5B4FC),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              if (room.participants.where((p) => p['id'] != _userId).isEmpty)
+                                const Text(
+                                  'Пока в комнате нет других зрителей. При их подключении вы сможете выдать им пульт.',
+                                  style: TextStyle(fontSize: 11, color: Colors.white54),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: room.participants
+                                      .where((p) => p['id'] != _userId)
+                                      .map((p) {
+                                    final pId = p['id'] ?? '';
+                                    final pName = p['name'] ?? 'Зритель';
+                                    final isAllowed = selectedControllers.contains(pId) ||
+                                        selectedControllers.contains(pName);
+                                    return FilterChip(
+                                      avatar: Icon(
+                                        isAllowed
+                                            ? Icons.sports_esports_rounded
+                                            : Icons.visibility_outlined,
+                                        size: 14,
+                                        color: isAllowed ? Colors.white : Colors.white60,
+                                      ),
+                                      label: Text(pName),
+                                      selected: isAllowed,
+                                      selectedColor: const Color(0xFF7C3AED),
+                                      onSelected: (selected) {
+                                        setDlgState(() {
+                                          if (selected) {
+                                            selectedControllers.add(pId);
+                                            if (pName.isNotEmpty) selectedControllers.add(pName);
+                                          } else {
+                                            selectedControllers.remove(pId);
+                                            selectedControllers.remove(pName);
+                                          }
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -786,9 +828,16 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                           title: newTitle.isNotEmpty ? newTitle : null,
                           password: newPass.isNotEmpty ? newPass : null,
                           maxParticipants: maxParticipants,
-                          status: currentStatus,
-                          allowGuestControl: guestControl,
+                          allowGuestControl: controlMode == 1,
+                          allowedControllers: controlMode == 2 ? selectedControllers.toList() : [],
                         );
+                    _roomChannel?.sendBroadcastMessage(
+                      event: 'permissions_update',
+                      payload: {
+                        'allowGuestControl': controlMode == 1,
+                        'allowedControllers': controlMode == 2 ? selectedControllers.toList() : [],
+                      },
+                    );
                     Navigator.of(ctx, rootNavigator: true).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -832,16 +881,21 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     if (text.isEmpty) return;
 
     final user = ref.read(currentUserProvider);
+    final customProf = ref.read(profileCustomizationProvider);
     final prof = ref.read(userProfileProvider).valueOrNull;
-    final userName = (prof != null && prof.username.isNotEmpty && prof.username != 'cinelover')
-        ? '@${prof.username.replaceAll('@', '')}'
-        : ((prof != null && prof.displayName.isNotEmpty && prof.displayName != 'Пользователь')
-            ? prof.displayName
-            : (user?.userMetadata?['username'] != null
-                ? '@${user!.userMetadata!['username']}'
-                : (user?.email?.split('@').first ?? 'Зритель')));
+    final userName = (customProf != null && customProf.username.isNotEmpty && customProf.username != 'cinelover')
+        ? '@${customProf.username.replaceAll('@', '')}'
+        : ((prof != null && prof.username.isNotEmpty && prof.username != 'cinelover')
+            ? '@${prof.username.replaceAll('@', '')}'
+            : ((customProf != null && customProf.displayName.isNotEmpty && customProf.displayName != 'Пользователь')
+                ? customProf.displayName
+                : ((prof != null && prof.displayName.isNotEmpty && prof.displayName != 'Пользователь')
+                    ? prof.displayName
+                    : (user?.userMetadata?['username'] != null
+                        ? '@${user!.userMetadata!['username']}'
+                        : (user?.email?.split('@').first ?? 'Зритель')))));
 
-    ref.read(roomsProvider.notifier).addMessage(room.id, userName, text);
+    ref.read(roomsProvider.notifier).addMessage(room.id, userName, text, _userId);
     _msgCtrl.clear();
     _scrollToBottom();
 
@@ -2500,7 +2554,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         : constraints.maxWidth,
                     icon: Icons.movie_creation_rounded,
                     color: const Color(0xFF9F67FF),
-                    badge: 'РЕКОМЕНДУЕМ',
+                    badge: null,
                     title: 'Каталог фильмов и сериалов',
                     desc:
                         'Тысячи фильмов, сериалов и аниме из базы Кинопоиска с выбором плееров Alloha и Collaps.',
@@ -2513,7 +2567,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         : constraints.maxWidth,
                     icon: Icons.smart_display_rounded,
                     color: const Color(0xFFEF4444),
-                    badge: 'КАК В RAVE',
+                    badge: null,
                     title: 'YouTube Видео',
                     desc:
                         'Внутренний каталог трендов, поиск любых роликов прямо на сайте и запуск по ссылке.',
@@ -2526,7 +2580,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         : constraints.maxWidth,
                     icon: Icons.play_circle_fill_rounded,
                     color: const Color(0xFF0077FF),
-                    badge: 'БЕЗ VPN В РФ',
+                    badge: null,
                     title: 'VK Видео (ВКонтакте)',
                     desc:
                         'Внутренний каталог топовых шоу (ЧБД, Большое шоу, Топлес, Смешарики) и роликов без VPN.',
@@ -2539,7 +2593,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         : constraints.maxWidth,
                     icon: Icons.link_rounded,
                     color: const Color(0xFF10B981),
-                    badge: 'СИНХРОНИЗАЦИЯ',
+                    badge: null,
                     title: 'Прямая ссылка (URL)',
                     desc:
                         'Ссылка на видеофайл из интернета (.mp4, .webm, .m3u8) с полной синхронизацией перемотки и паузы.',
@@ -2552,7 +2606,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         : constraints.maxWidth,
                     icon: Icons.folder_open_rounded,
                     color: const Color(0xFFF59E0B),
-                    badge: 'БЕЗ ИНТЕРНЕТА',
+                    badge: null,
                     title: 'Файл с вашего компьютера',
                     desc:
                         'Локальное видео (.mp4, .webm) прямо с вашего ПК. Мгновенный запуск без ожидания загрузки в сеть.',
@@ -2572,7 +2626,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     required double width,
     required IconData icon,
     required Color color,
-    required String badge,
+    String? badge,
     required String title,
     required String desc,
     required String btnText,
@@ -2599,23 +2653,25 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 ),
                 child: Icon(icon, color: color, size: 24),
               ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 9,
+              if (badge != null && badge.isNotEmpty) ...[
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 9,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 14),
@@ -2682,12 +2738,25 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final userHandle = (userProfile != null && userProfile.username.isNotEmpty && userProfile.username != 'cinelover')
         ? userProfile.username.replaceAll('@', '').toLowerCase()
         : (user?.userMetadata?['username'] as String? ?? (user?.email?.split('@').first.toLowerCase() ?? ''));
-    final isOwner = user != null &&
-        (room.ownerId == user.id ||
-            room.ownerName.replaceAll('@', '').toLowerCase() == userHandle ||
-            (userProfile != null && room.ownerName.toLowerCase() == userProfile.displayName.toLowerCase()) ||
-            room.ownerName.toLowerCase() == (user.email?.split('@').first.toLowerCase() ?? ''));
-    final isHost = isOwner || isAdmin;
+    final customProf = ref.watch(profileCustomizationProvider);
+    final myEffectiveUsername = (customProf != null && customProf.username.isNotEmpty && customProf.username != 'cinelover')
+        ? customProf.username.replaceAll('@', '').toLowerCase()
+        : userHandle;
+    final isOwner = (user != null &&
+            (room.ownerId == user.id ||
+                room.ownerId == _userId ||
+                room.ownerName.replaceAll('@', '').toLowerCase() == myEffectiveUsername ||
+                room.ownerName.replaceAll('@', '').toLowerCase() == userHandle ||
+                (userProfile != null && room.ownerName.toLowerCase() == userProfile.displayName.toLowerCase()) ||
+                room.ownerName.toLowerCase() == (user.email?.split('@').first.toLowerCase() ?? ''))) ||
+        room.ownerId == _userId;
+    final hasRemoteControl = isOwner ||
+        isAdmin ||
+        room.allowGuestControl ||
+        room.allowedControllers.contains(_userId) ||
+        (user?.id != null && room.allowedControllers.contains(user!.id)) ||
+        room.allowedControllers.contains(myEffectiveUsername);
+    final isHost = hasRemoteControl;
 
     // Check Password protection
     final hasPassword = room.password != null && room.password!.isNotEmpty;
@@ -3624,15 +3693,19 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
   Widget _buildMessageBubble(RoomMessage msg) {
     final user = ref.watch(currentUserProvider);
+    final customProf = ref.watch(profileCustomizationProvider);
     final userProfile = ref.watch(userProfileProvider).valueOrNull;
-    final myUsername = (userProfile != null && userProfile.username.isNotEmpty && userProfile.username != 'cinelover')
-        ? userProfile.username.replaceAll('@', '').toLowerCase()
-        : (user?.userMetadata?['username'] as String? ?? (user?.email?.split('@').first.toLowerCase() ?? ''));
-    final myDisplayName = userProfile?.displayName.toLowerCase() ?? '';
+    final myUsername = (customProf != null && customProf.username.isNotEmpty && customProf.username != 'cinelover')
+        ? customProf.username.replaceAll('@', '').toLowerCase()
+        : ((userProfile != null && userProfile.username.isNotEmpty && userProfile.username != 'cinelover')
+            ? userProfile.username.replaceAll('@', '').toLowerCase()
+            : (user?.userMetadata?['username'] as String? ?? (user?.email?.split('@').first.toLowerCase() ?? '')));
+    final myDisplayName = (customProf?.displayName.isNotEmpty == true ? customProf!.displayName : (userProfile?.displayName ?? '')).toLowerCase();
     final myEmailPrefix = user?.email?.split('@').first.toLowerCase() ?? '';
 
     final cleanMsgName = msg.userName.replaceAll('@', '').toLowerCase();
-    final isMe = cleanMsgName == myUsername ||
+    final isMe = (msg.senderId != null && msg.senderId == _userId) ||
+        cleanMsgName == myUsername ||
         (myDisplayName.isNotEmpty && cleanMsgName == myDisplayName) ||
         (myEmailPrefix.isNotEmpty && cleanMsgName == myEmailPrefix);
 
