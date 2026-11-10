@@ -429,28 +429,13 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentRoute = widget.activeRoute ?? '';
 
-    return Container(
-      height: 68,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF0F0F1A).withValues(alpha: 0.98)
-            : Colors.white.withValues(alpha: 0.98),
-        border: Border(
-            bottom: BorderSide(
-                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Logo & Brand
-          InkWell(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 960;
+        final horizontalPadding = isMobile ? 12.0 : 28.0;
+
+        Widget buildLogo() {
+          return InkWell(
             onTap: () => context.go('/home'),
             borderRadius: BorderRadius.circular(10),
             child: Row(
@@ -473,11 +458,11 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                   child: const Icon(Icons.movie_filter_rounded,
                       color: Colors.white, size: 20),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Text(
                   'CineTrack',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: isMobile ? 18 : 20,
                     fontWeight: FontWeight.w900,
                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                     letterSpacing: -0.5,
@@ -485,11 +470,12 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 28),
+          );
+        }
 
-          // Main Navigation Links
-          Row(
+        Widget buildNavLinks() {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               _buildNavLink(
                 label: 'Главная',
@@ -497,14 +483,14 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 onTap: () => context.go('/home'),
                 isDark: isDark,
               ),
-              const SizedBox(width: 18),
+              SizedBox(width: isMobile ? 12 : 18),
               _buildNavLink(
                 label: 'Фильмы',
                 isSelected: currentRoute == '/library',
                 onTap: () => context.go('/library'),
                 isDark: isDark,
               ),
-              const SizedBox(width: 18),
+              SizedBox(width: isMobile ? 12 : 18),
               _buildNavLink(
                 label: 'Комнаты 🍿',
                 badgeCount: liveRoomsCount > 0 ? liveRoomsCount : null,
@@ -512,7 +498,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 onTap: () => context.go('/rooms'),
                 isDark: isDark,
               ),
-              const SizedBox(width: 18),
+              SizedBox(width: isMobile ? 12 : 18),
               _buildNavLink(
                 label: 'Моя коллекция',
                 isSelected: currentRoute.startsWith('/profile'),
@@ -520,24 +506,14 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 isDark: isDark,
               ),
             ],
-          ),
-          const Spacer(),
+          );
+        }
 
-          // Random Movie Button 🎲
-          Tooltip(
-            message: 'Случайный фильм 🎲',
-            child: IconButton(
-              icon: const Text('🎲', style: TextStyle(fontSize: 18)),
-              onPressed: _openRandomMovie,
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Search Field with Live Dropdown Anchor (Enlarged)
-          CompositedTransformTarget(
+        Widget buildSearchField() {
+          return CompositedTransformTarget(
             link: _layerLink,
             child: SizedBox(
-              width: 400,
+              width: isMobile ? 220 : 400,
               height: 42,
               child: TextField(
                 controller: _searchCtrl,
@@ -592,11 +568,21 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 14),
+          );
+        }
 
-          // Light / Dark Theme Toggle Button
-          Tooltip(
+        Widget buildRandomBtn() {
+          return Tooltip(
+            message: 'Случайный фильм 🎲',
+            child: IconButton(
+              icon: const Text('🎲', style: TextStyle(fontSize: 18)),
+              onPressed: _openRandomMovie,
+            ),
+          );
+        }
+
+        Widget buildThemeToggle() {
+          return Tooltip(
             message: currentThemeMode == ThemeMode.dark
                 ? 'Включить светлую тему ☀️'
                 : 'Включить тёмную тему 🌙',
@@ -614,11 +600,11 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 ref.read(themeModeProvider.notifier).toggleTheme();
               },
             ),
-          ),
-          const SizedBox(width: 6),
+          );
+        }
 
-          // PWA Install / Mobile Web App shortcut 📲
-          Tooltip(
+        Widget buildPwaButton() {
+          return Tooltip(
             message: 'Установить CineTrack на рабочий стол 📲',
             child: IconButton(
               icon: const Icon(
@@ -628,11 +614,11 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
               ),
               onPressed: () => PwaInstallDialog.show(context),
             ),
-          ),
-          const SizedBox(width: 8),
+          );
+        }
 
-          // User Profile Pill (Avatar + Display Name)
-          InkWell(
+        Widget buildProfilePill() {
+          return InkWell(
             onTap: () => context.go('/profile'),
             borderRadius: BorderRadius.circular(30),
             child: Container(
@@ -694,9 +680,69 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                 ],
               ),
             ),
+          );
+        }
+
+        return Container(
+          height: 68,
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF0F0F1A).withValues(alpha: 0.98)
+                : Colors.white.withValues(alpha: 0.98),
+            border: Border(
+                bottom: BorderSide(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
+          child: isMobile
+              ? SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      buildLogo(),
+                      const SizedBox(width: 14),
+                      buildNavLinks(),
+                      const SizedBox(width: 14),
+                      buildRandomBtn(),
+                      const SizedBox(width: 6),
+                      buildSearchField(),
+                      const SizedBox(width: 10),
+                      buildThemeToggle(),
+                      const SizedBox(width: 6),
+                      buildPwaButton(),
+                      const SizedBox(width: 8),
+                      buildProfilePill(),
+                    ],
+                  ),
+                )
+              : Row(
+                  children: [
+                    buildLogo(),
+                    const SizedBox(width: 28),
+                    buildNavLinks(),
+                    const Spacer(),
+                    buildRandomBtn(),
+                    const SizedBox(width: 6),
+                    buildSearchField(),
+                    const SizedBox(width: 14),
+                    buildThemeToggle(),
+                    const SizedBox(width: 6),
+                    buildPwaButton(),
+                    const SizedBox(width: 8),
+                    buildProfilePill(),
+                  ],
+                ),
+        );
+      },
     );
   }
 

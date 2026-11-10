@@ -93,9 +93,9 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
   bool get canControl => widget.isHost || widget.room.allowGuestControl;
 
   final List<String> _onlinePlayerNames = [
-    'Основной (Collaps)',
-    'Резервный (VideoCDN)',
-    'Мульти-плеер (Yohoho)',
+    'Основной',
+    'Резерв 1',
+    'Резерв 2',
     'Трейлер ▶',
   ];
 
@@ -105,11 +105,11 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
       case 0:
         return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId';
       case 1:
-        return 'https://api.delivembd.ws/embed/kp/$kpId';
+        return 'https://kinobox.tv/embed/kp/$kpId';
       case 2:
         return 'https://4h0y.gitlab.io/#$kpId';
       case 3:
-        return 'https://api.delivembd.ws/embed/trailer-kp/$kpId';
+        return 'https://widgets.kinopoisk.ru/discovery/trailer/$kpId?no_top_panel=true';
       default:
         return 'https://player.shortener2.link/balancer-api/iframe?token=eyJhbGciOiJIUzI1NiJ9.eyJ3ZWJTaXRlIjoiMTkwIiwiaXNzIjoiYXBpLXdlYm1hc3RlciIsInN1YiI6IjI1OCIsImlhdCI6MTc1MzIwOTE0NiwianRpIjoiNjhmZGRhNjUtMmRhYi00ZDNlLWI1YzAtOGZiYjM4MjQyNzcwIiwic2NvcGUiOiJETEUifQ.aV02rM2AtHrgNsKzL9ft9jElwWv7VJsm0UAEbz57MN0&kp=$kpId';
     }

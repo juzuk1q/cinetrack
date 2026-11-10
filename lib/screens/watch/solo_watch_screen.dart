@@ -787,54 +787,103 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Row(
-        children: [
-          // Player Sources
-          _buildCompactTab(
-            label: 'Основной (Collaps)',
-            isActive: _activeTab == 'collaps' || _activeTab == 'backup',
-            onTap: () => _switchTab('collaps'),
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _buildCompactTab(
-            label: 'Резерв 1 (VideoCDN)',
-            isActive: _activeTab == 'videocdn',
-            onTap: () => _switchTab('videocdn'),
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _buildCompactTab(
-            label: 'Резерв 2 (Kinobox)',
-            isActive: _activeTab == 'kinobox',
-            onTap: () => _switchTab('kinobox'),
-            isDark: isDark,
-          ),
-          const SizedBox(width: 6),
-          _buildCompactTab(
-            label: 'Резерв 3 (Yohoho / Alloha)',
-            isActive: _activeTab == 'yohoho' || _activeTab == 'alloha',
-            onTap: () => _switchTab('yohoho'),
-            isDark: isDark,
-          ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Player Sources
+            _buildCompactTab(
+              label: 'Основной',
+              isActive: _activeTab == 'collaps' || _activeTab == 'backup',
+              onTap: () => _switchTab('collaps'),
+              isDark: isDark,
+            ),
+            const SizedBox(width: 6),
+            _buildCompactTab(
+              label: 'Резерв 1',
+              isActive: _activeTab == 'videocdn',
+              onTap: () => _switchTab('videocdn'),
+              isDark: isDark,
+            ),
+            const SizedBox(width: 6),
+            _buildCompactTab(
+              label: 'Резерв 2',
+              isActive: _activeTab == 'kinobox',
+              onTap: () => _switchTab('kinobox'),
+              isDark: isDark,
+            ),
+            const SizedBox(width: 6),
+            _buildCompactTab(
+              label: 'Резерв 3',
+              isActive: _activeTab == 'yohoho' || _activeTab == 'alloha',
+              onTap: () => _switchTab('yohoho'),
+              isDark: isDark,
+            ),
+            const SizedBox(width: 10),
 
-          const Spacer(),
+            // Anti-Ad Sandbox Toggle Pill
+            InkWell(
+              onTap: _toggleBlockAds,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _blockAds
+                      ? const Color(0xFF10B981)
+                          .withValues(alpha: isDark ? 0.2 : 0.12)
+                      : (isDark ? Colors.white10 : const Color(0xFFF3F4F6)),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _blockAds
+                        ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                        : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _blockAds ? Icons.shield_rounded : Icons.shield_outlined,
+                      size: 13,
+                      color: _blockAds
+                          ? const Color(0xFF10B981)
+                          : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _blockAds ? 'Анти-реклама: Вкл' : 'Анти-реклама: Выкл',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: _blockAds
+                            ? (isDark
+                                ? const Color(0xFF6EE7B7)
+                                : const Color(0xFF047857))
+                            : (isDark ? Colors.white54 : const Color(0xFF6B7280)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-          // Anti-Ad Sandbox Toggle Pill
-          InkWell(
-            onTap: _toggleBlockAds,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            const SizedBox(width: 8),
+
+            // Right Badge: Season & Episode Counter (or Movie Duration)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: _blockAds
-                    ? const Color(0xFF10B981)
-                        .withValues(alpha: isDark ? 0.2 : 0.12)
+                color: isSeries
+                    ? const Color(0xFF7C3AED)
+                        .withValues(alpha: isDark ? 0.25 : 0.12)
                     : (isDark ? Colors.white10 : const Color(0xFFF3F4F6)),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: _blockAds
-                      ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                  color: isSeries
+                      ? const Color(0xFF9F67FF).withValues(alpha: 0.5)
                       : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
                   width: 0.8,
                 ),
@@ -843,77 +892,32 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    _blockAds ? Icons.shield_rounded : Icons.shield_outlined,
+                    isSeries ? Icons.video_library_rounded : Icons.hd_rounded,
                     size: 13,
-                    color: _blockAds
-                        ? const Color(0xFF10B981)
-                        : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+                    color: isSeries
+                        ? const Color(0xFFC084FC)
+                        : const Color(0xFFFFCA28),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Text(
-                    _blockAds ? 'Анти-реклама: Вкл' : 'Анти-реклама: Выкл',
+                    isSeries
+                        ? 'Сезон $_selectedSeason • Серия $_selectedEpisode'
+                        : 'Full HD • 1080p Ultra',
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: _blockAds
+                      color: isSeries
                           ? (isDark
-                              ? const Color(0xFF6EE7B7)
-                              : const Color(0xFF047857))
-                          : (isDark ? Colors.white54 : const Color(0xFF6B7280)),
+                              ? const Color(0xFFE9D5FF)
+                              : const Color(0xFF7C3AED))
+                          : (isDark ? Colors.white : const Color(0xFF111827)),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Right Badge: Season & Episode Counter (or Movie Duration)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: isSeries
-                  ? const Color(0xFF7C3AED)
-                      .withValues(alpha: isDark ? 0.25 : 0.12)
-                  : (isDark ? Colors.white10 : const Color(0xFFF3F4F6)),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSeries
-                    ? const Color(0xFF9F67FF).withValues(alpha: 0.5)
-                    : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
-                width: 0.8,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isSeries ? Icons.video_library_rounded : Icons.hd_rounded,
-                  size: 13,
-                  color: isSeries
-                      ? const Color(0xFFC084FC)
-                      : const Color(0xFFFFCA28),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  isSeries
-                      ? 'Сезон $_selectedSeason • Серия $_selectedEpisode'
-                      : 'Full HD • 1080p Ultra',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isSeries
-                        ? (isDark
-                            ? const Color(0xFFE9D5FF)
-                            : const Color(0xFF7C3AED))
-                        : (isDark ? Colors.white : const Color(0xFF111827)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -935,7 +939,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '💡 Если видео не воспроизводится или пишет «недоступно в вашей стране» — переключите плеер на Резервный / Резервный-2.',
+              '💡 Если видео не воспроизводится или пишет «недоступно в вашей стране» — переключите плеер на Резерв 1 / Резерв 2.',
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
@@ -1819,20 +1823,28 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 6,
             children: [
-              const Icon(Icons.chat_bubble_outline_rounded,
-                  color: Color(0xFF9F67FF), size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Обсуждение & таймкоды (${_comments.length})',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  color: isDark ? Colors.white : const Color(0xFF111827),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.chat_bubble_outline_rounded,
+                      color: Color(0xFF9F67FF), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Обсуждение & таймкоды (${_comments.length})',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
               Text(
                 'Нажимайте на таймкоды для перехода',
                 style: TextStyle(

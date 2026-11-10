@@ -234,7 +234,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 children: [
                   const Icon(Icons.tune_rounded, color: Color(0xFF9F67FF)),
                   const SizedBox(width: 10),
-                  const Text('Фильтр каталога (Lordfilm)',
+                  const Text('Фильтр каталога',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   const Spacer(),
                   if (currentFilter.hasActiveFilters)

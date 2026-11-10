@@ -1469,18 +1469,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                     ),
                   ),
-                  if (badgeText != null) ...[
-                    const SizedBox(width: 8),
+                  if (badgeText != null)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -1496,7 +1498,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                     ),
-                  ],
                 ],
               ),
               const SizedBox(height: 2),

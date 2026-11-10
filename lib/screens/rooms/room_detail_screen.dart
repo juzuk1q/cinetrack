@@ -962,7 +962,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   icon: Icons.movie_creation_rounded,
                   color: const Color(0xFF9F67FF),
                   title: 'Каталог фильмов и сериалов',
-                  subtitle: 'Выбрать из LordFilm / Кинопоиск (Alloha & Collaps)',
+                  subtitle: 'Выбрать фильм или сериал из каталога (Alloha & Collaps)',
                   onTap: () {
                     Navigator.of(ctx, rootNavigator: true).pop();
                     _showCatalogSearchDialog(context, room);
@@ -2529,7 +2529,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Выбирайте фильмы из базы Кинопоиска/LordFilm, ищите ролики на YouTube и в VK Видео прямо на сайте, как в Rave!',
+                        'Выбирайте фильмы и сериалы из каталога, ищите ролики на YouTube и в VK Видео прямо на сайте!',
                         style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
@@ -3405,7 +3405,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                           const SizedBox(height: 6),
                           Text(
                             room.videoSourceType == 'catalog'
-                                ? 'Смотрите синхронно онлайн с друзьями. Переключение озвучек (Дубляж, HDRezka, LostFilm, AniLibria) доступно прямо внутри плеера Lordfilm.'
+                                ? 'Смотрите синхронно онлайн с друзьями. Переключение озвучек (Дубляж, HDRezka, LostFilm, AniLibria) доступно прямо внутри плеера.'
                                 : room.videoSourceType == 'vk'
                                     ? 'Воспроизведение через официальный плеер VK Видео. Полная доступность на территории РФ без ограничений.'
                                     : room.videoSourceType == 'youtube'
@@ -3455,7 +3455,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         bg = const Color(0xFF7C3AED).withValues(alpha: 0.2);
         border = const Color(0xFF7C3AED);
         text = const Color(0xFFC084FC);
-        label = 'LORDFILM / КИНО';
+        label = 'КАТАЛОГ / ОНЛАЙН';
         icon = Icons.movie_filter_rounded;
         break;
       case 'url':

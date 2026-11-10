@@ -319,66 +319,127 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                 constraints: const BoxConstraints(maxWidth: 1280),
                 child: CustomScrollView(
                   slivers: [
-                    SliverAppBar(
-                      automaticallyImplyLeading: false,
-                      pinned: true,
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      title: const Text('Комнаты совместного просмотра'),
-                      actions: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 28),
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7C3AED),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                            icon: const Icon(Icons.add_rounded, size: 18),
-                            label: const Text('Создать комнату'),
-                            onPressed: _showCreateRoomDialog,
-                          ),
-                        ),
-                      ],
-                    ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Смотрите кино и сериалы синхронно с друзьями на Lordfilm и Кинопоиске, обсуждайте моменты в живом чате!',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white70,
-                                  ),
-                            ),
-                            const SizedBox(height: 16),
-                            Wrap(
-                              spacing: 8,
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 640;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ChoiceChip(
-                                  label: const Text('Все комнаты'),
-                                  selected: _filter == 'all',
-                                  onSelected: (_) =>
-                                      setState(() => _filter = 'all'),
-                                ),
-                                ChoiceChip(
-                                  avatar: const Text('🍿'),
-                                  label: const Text('Смотрят прямо сейчас'),
-                                  selected: _filter == 'watching',
-                                  onSelected: (_) =>
-                                      setState(() => _filter = 'watching'),
-                                ),
-                                ChoiceChip(
-                                  avatar: const Text('⏳'),
-                                  label: const Text('Запланированные'),
-                                  selected: _filter == 'preparing',
-                                  onSelected: (_) =>
-                                      setState(() => _filter = 'preparing'),
+                                if (isMobile) ...[
+                                  const Text(
+                                    'Комнаты совместного просмотра',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Смотрите кино и сериалы синхронно с друзьями, обсуждайте моменты в живом чате!',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: Colors.white70,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF7C3AED),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      icon: const Icon(Icons.add_rounded, size: 20),
+                                      label: const Text(
+                                        'Создать комнату',
+                                        style: TextStyle(fontWeight: FontWeight.w700),
+                                      ),
+                                      onPressed: _showCreateRoomDialog,
+                                    ),
+                                  ),
+                                ] else ...[
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Комнаты совместного просмотра',
+                                              style: TextStyle(
+                                                fontSize: 26,
+                                                fontWeight: FontWeight.w800,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'Смотрите кино и сериалы синхронно с друзьями, обсуждайте моменты в живом чате!',
+                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                    color: Colors.white70,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF7C3AED),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20, vertical: 14),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                        icon: const Icon(Icons.add_rounded, size: 20),
+                                        label: const Text(
+                                          'Создать комнату',
+                                          style: TextStyle(fontWeight: FontWeight.w700),
+                                        ),
+                                        onPressed: _showCreateRoomDialog,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    ChoiceChip(
+                                      label: const Text('Все комнаты'),
+                                      selected: _filter == 'all',
+                                      onSelected: (_) =>
+                                          setState(() => _filter = 'all'),
+                                    ),
+                                    ChoiceChip(
+                                      avatar: const Text('🍿'),
+                                      label: const Text('Смотрят прямо сейчас'),
+                                      selected: _filter == 'watching',
+                                      onSelected: (_) =>
+                                          setState(() => _filter = 'watching'),
+                                    ),
+                                    ChoiceChip(
+                                      avatar: const Text('⏳'),
+                                      label: const Text('Запланированные'),
+                                      selected: _filter == 'preparing',
+                                      onSelected: (_) =>
+                                          setState(() => _filter = 'preparing'),
+                                    ),
+                                  ],
                                 ),
                               ],
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
                     ),
