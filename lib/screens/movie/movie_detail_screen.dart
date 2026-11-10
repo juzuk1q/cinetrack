@@ -700,7 +700,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               const AppHeader(activeRoute: '/library'),
               Expanded(
                 child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.of(context).size.width < 700 ? 12 : 28,
+                14,
+                MediaQuery.of(context).size.width < 700 ? 12 : 28,
+                28,
+              ),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1280),

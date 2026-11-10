@@ -390,7 +390,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1280),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(28, 20, 28, 12),
+                        padding: EdgeInsets.fromLTRB(
+                          MediaQuery.of(context).size.width < 700 ? 12 : 28,
+                          16,
+                          MediaQuery.of(context).size.width < 700 ? 12 : 28,
+                          12,
+                        ),
                         child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -808,12 +813,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 return false;
               },
               child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
+                padding: EdgeInsets.fromLTRB(
+                  w < 600 ? 12 : 28,
+                  8,
+                  w < 600 ? 12 : 28,
+                  28,
+                ),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
-                  childAspectRatio: 0.68,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 20,
+                  childAspectRatio: w < 600 ? 0.65 : 0.68,
+                  crossAxisSpacing: w < 600 ? 10 : 16,
+                  mainAxisSpacing: w < 600 ? 14 : 20,
                 ),
                 itemCount: items.length + (isLoadingMore || hasMore ? 1 : 0),
                 itemBuilder: (context, i) {

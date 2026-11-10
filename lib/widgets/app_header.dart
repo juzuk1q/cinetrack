@@ -35,6 +35,18 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
   Timer? _searchDebounce;
   List<CatalogItem> _remoteSearchResults = [];
   bool _isSearchingRemote = false;
+  bool _isMobileMenuOpen = false;
+
+  void _toggleMobileMenu({bool? open, bool focusSearch = false}) {
+    setState(() {
+      _isMobileMenuOpen = open ?? !_isMobileMenuOpen;
+    });
+    if (_isMobileMenuOpen && focusSearch) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) _searchFocus.requestFocus();
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -154,7 +166,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
     );
   }
 
-  Widget _buildSearchDropdown() {
+  List<CatalogItem> _getSearchResults() {
     final q = _searchQuery.toLowerCase();
     final localMatches = CuratedCatalog.items.where((item) {
       final matchTitle = item.title.toLowerCase().contains(q);
@@ -185,7 +197,11 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
       final key = it.kinopoiskId != null ? 'id_${it.kinopoiskId}' : 't_${it.title.toLowerCase()}';
       if (seen.add(key)) results.add(it);
     }
+    return results;
+  }
 
+  Widget _buildSearchDropdown() {
+    final results = _getSearchResults();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -435,7 +451,10 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
 
         Widget buildLogo() {
           return InkWell(
-            onTap: () => context.go('/home'),
+            onTap: () {
+              setState(() => _isMobileMenuOpen = false);
+              context.go('/home');
+            },
             borderRadius: BorderRadius.circular(10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -479,29 +498,41 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
               _buildNavLink(
                 label: 'Главная',
                 isSelected: currentRoute == '/home' || currentRoute == '/',
-                onTap: () => context.go('/home'),
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/home');
+                },
                 isDark: isDark,
               ),
-              SizedBox(width: isMobile ? 12 : 18),
+              const SizedBox(width: 18),
               _buildNavLink(
                 label: 'Фильмы',
                 isSelected: currentRoute == '/library',
-                onTap: () => context.go('/library'),
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/library');
+                },
                 isDark: isDark,
               ),
-              SizedBox(width: isMobile ? 12 : 18),
+              const SizedBox(width: 18),
               _buildNavLink(
                 label: 'Комнаты 🍿',
                 badgeCount: liveRoomsCount > 0 ? liveRoomsCount : null,
                 isSelected: currentRoute.startsWith('/rooms'),
-                onTap: () => context.go('/rooms'),
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/rooms');
+                },
                 isDark: isDark,
               ),
-              SizedBox(width: isMobile ? 12 : 18),
+              const SizedBox(width: 18),
               _buildNavLink(
                 label: 'Моя коллекция',
                 isSelected: currentRoute.startsWith('/profile'),
-                onTap: () => context.go('/profile'),
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/profile');
+                },
                 isDark: isDark,
               ),
             ],
@@ -669,15 +700,15 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
         }
 
         return Container(
-          height: 68,
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
           decoration: BoxDecoration(
             color: isDark
                 ? const Color(0xFF0F0F1A).withValues(alpha: 0.98)
                 : Colors.white.withValues(alpha: 0.98),
             border: Border(
-                bottom: BorderSide(
-                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0))),
+              bottom: BorderSide(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.05),
@@ -687,43 +718,592 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
             ],
           ),
           child: isMobile
-              ? SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Mobile Top Bar (Clean, fixed 64px, zero horizontal scrolling)
+                    SizedBox(
+                      height: 64,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: Row(
+                          children: [
+                            buildLogo(),
+                            const Spacer(),
+                            // Search toggle button
+                            IconButton(
+                              icon: Icon(
+                                Icons.search_rounded,
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                size: 21,
+                              ),
+                              tooltip: 'Поиск фильмов',
+                              onPressed: () => _toggleMobileMenu(open: !_isMobileMenuOpen, focusSearch: true),
+                            ),
+                            // Theme toggle button
+                            buildThemeToggle(),
+                            // Mobile user avatar
+                            InkWell(
+                              onTap: () {
+                                setState(() => _isMobileMenuOpen = false);
+                                context.go('/profile');
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: CircleAvatar(
+                                radius: 14,
+                                backgroundColor: isAdmin ? const Color(0xFFF59E0B) : const Color(0xFF7C3AED),
+                                backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                                    ? NetworkImage(avatarUrl)
+                                    : null,
+                                child: (avatarUrl == null || avatarUrl.isEmpty)
+                                    ? Text(
+                                        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 11,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Hamburger Menu Button (GameVault style)
+                            InkWell(
+                              onTap: () => _toggleMobileMenu(),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _isMobileMenuOpen
+                                        ? const Color(0xFF7C3AED)
+                                        : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  _isMobileMenuOpen ? Icons.close_rounded : Icons.menu_rounded,
+                                  color: _isMobileMenuOpen
+                                      ? const Color(0xFFC084FC)
+                                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Dropdown Mobile Menu (GameVault style)
+                    if (_isMobileMenuOpen)
+                      _buildMobileMenu(
+                        context: context,
+                        isDark: isDark,
+                        currentRoute: currentRoute,
+                        liveRoomsCount: liveRoomsCount,
+                        displayName: displayName,
+                        avatarUrl: avatarUrl,
+                        isAdmin: isAdmin,
+                      ),
+                  ],
+                )
+              : Container(
+                  height: 68,
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       buildLogo(),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 28),
                       buildNavLinks(),
-                      const SizedBox(width: 14),
+                      const Spacer(),
                       buildRandomBtn(),
                       const SizedBox(width: 6),
                       buildSearchField(),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 14),
                       buildThemeToggle(),
                       const SizedBox(width: 8),
                       buildProfilePill(),
                     ],
                   ),
-                )
-              : Row(
-                  children: [
-                    buildLogo(),
-                    const SizedBox(width: 28),
-                    buildNavLinks(),
-                    const Spacer(),
-                    buildRandomBtn(),
-                    const SizedBox(width: 6),
-                    buildSearchField(),
-                    const SizedBox(width: 14),
-                    buildThemeToggle(),
-                    const SizedBox(width: 8),
-                    buildProfilePill(),
-                  ],
                 ),
         );
       },
+    );
+  }
+
+  Widget _buildMobileMenu({
+    required BuildContext context,
+    required bool isDark,
+    required String currentRoute,
+    required int liveRoomsCount,
+    required String displayName,
+    required String? avatarUrl,
+    required bool isAdmin,
+  }) {
+    final results = _getSearchResults();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F0F1A) : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Mobile Search Input
+          Container(
+            height: 42,
+            margin: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+              controller: _searchCtrl,
+              focusNode: _searchFocus,
+              onChanged: _onSearchChanged,
+              onSubmitted: (val) {
+                setState(() => _isMobileMenuOpen = false);
+                _onSubmitted(val);
+              },
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: isDark
+                    ? const Color(0xFF1A1A2E)
+                    : const Color(0xFFF1F5F9),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                hintText: 'Поиск фильмов, сериалов...',
+                hintStyle: TextStyle(
+                  fontSize: 12.5,
+                  color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  size: 18,
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                ),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          size: 16,
+                          color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                        ),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 1.5),
+                ),
+              ),
+            ),
+          ),
+
+          // If searching: show live search results
+          if (_searchQuery.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              margin: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Text(
+                    'Найдено: ${results.length}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    ),
+                  ),
+                  if (_isSearchingRemote) ...[
+                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (results.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: Text(
+                    'Ничего не найдено по запросу «$_searchQuery»',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              )
+            else ...[
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: results.take(4).length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  ),
+                  itemBuilder: (context, i) {
+                    final movie = results[i];
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      dense: true,
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.network(
+                          CatalogItem.fixPosterUrl(movie.posterUrl, kpId: movie.kinopoiskId),
+                          width: 30,
+                          height: 42,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 30,
+                            height: 42,
+                            color: const Color(0xFF7C3AED),
+                            child: const Icon(Icons.movie_rounded, size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        movie.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${movie.year} • ${movie.displayTypeLabel}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '★ ${movie.rating.toStringAsFixed(1)}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ),
+                      onTap: () {
+                        setState(() => _isMobileMenuOpen = false);
+                        _onMovieSelected(movie);
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/library?q=${Uri.encodeComponent(_searchQuery)}');
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Смотреть все результаты в библиотеке →',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFC084FC),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ],
+
+          // 2-Column Grid of Navigation Buttons (Matching GameVault)
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.8,
+            children: [
+              _buildMobileNavCard(
+                label: 'Главная',
+                icon: Icons.home_rounded,
+                isSelected: currentRoute == '/home' || currentRoute == '/',
+                isDark: isDark,
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/home');
+                },
+              ),
+              _buildMobileNavCard(
+                label: 'Каталог',
+                icon: Icons.movie_filter_rounded,
+                isSelected: currentRoute == '/library',
+                isDark: isDark,
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/library');
+                },
+              ),
+              _buildMobileNavCard(
+                label: 'Комнаты 🍿',
+                icon: Icons.live_tv_rounded,
+                badgeCount: liveRoomsCount > 0 ? liveRoomsCount : null,
+                isSelected: currentRoute.startsWith('/rooms'),
+                isDark: isDark,
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/rooms');
+                },
+              ),
+              _buildMobileNavCard(
+                label: 'Коллекция',
+                icon: Icons.bookmark_rounded,
+                isSelected: currentRoute.startsWith('/profile'),
+                isDark: isDark,
+                onTap: () {
+                  setState(() => _isMobileMenuOpen = false);
+                  context.go('/profile');
+                },
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Random Movie (Spanning 2 columns, GameVault style)
+          InkWell(
+            onTap: () {
+              setState(() => _isMobileMenuOpen = false);
+              _openRandomMovie();
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF7C3AED).withValues(alpha: 0.25),
+                    const Color(0xFF9333EA).withValues(alpha: 0.15),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.5),
+                  width: 1,
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('🎲', style: TextStyle(fontSize: 16)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Случайный фильм',
+                    style: TextStyle(
+                      color: Color(0xFFC084FC),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // User Profile / Settings Footer Card
+          InkWell(
+            onTap: () {
+              setState(() => _isMobileMenuOpen = false);
+              context.go('/profile');
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF16162A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: isAdmin ? const Color(0xFFF59E0B) : const Color(0xFF7C3AED),
+                    backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                    child: (avatarUrl == null || avatarUrl.isEmpty)
+                        ? Text(
+                            displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          isAdmin ? 'Администратор ⭐' : 'Перейти в профиль →',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isAdmin ? const Color(0xFFF59E0B) : const Color(0xFF9F67FF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isAdmin)
+                    IconButton(
+                      icon: const Icon(Icons.admin_panel_settings_rounded, size: 20, color: Color(0xFFF59E0B)),
+                      tooltip: 'Админ-панель',
+                      onPressed: () {
+                        setState(() => _isMobileMenuOpen = false);
+                        context.go('/admin');
+                      },
+                    )
+                  else
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Colors.white38),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileNavCard({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required bool isDark,
+    required VoidCallback onTap,
+    int? badgeCount,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF7C3AED)
+              : (isDark ? const Color(0xFF16162A) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF9333EA)
+                : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? const Color(0xFF9F67FF) : const Color(0xFF7C3AED)),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 12.5,
+                ),
+              ),
+            ),
+            if (badgeCount != null && badgeCount > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

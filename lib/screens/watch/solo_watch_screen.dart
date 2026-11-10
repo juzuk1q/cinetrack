@@ -660,8 +660,11 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                             ),
                           ),
                           icon: const Icon(Icons.groups_rounded, size: 16),
-                          label: const Text('Смотреть с друзьями 🍿',
-                              style: TextStyle(
+                          label: Text(
+                              MediaQuery.of(context).size.width < 550
+                                  ? 'С друзьями 🍿'
+                                  : 'Смотреть с друзьями 🍿',
+                              style: const TextStyle(
                                   fontSize: 12, fontWeight: FontWeight.bold)),
                           onPressed: _createRoomAndInvite,
                         ),
@@ -673,7 +676,12 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                 // Player & Sidebar Area
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                    padding: EdgeInsets.fromLTRB(
+                      MediaQuery.of(context).size.width < 700 ? 10 : 20,
+                      12,
+                      MediaQuery.of(context).size.width < 700 ? 10 : 20,
+                      28,
+                    ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(

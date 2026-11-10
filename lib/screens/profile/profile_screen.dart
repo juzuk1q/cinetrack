@@ -146,6 +146,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
     final user = ref.watch(currentUserProvider);
     final isAdmin = ref.watch(isAdminProvider);
     final statsAsync = ref.watch(statsDataProvider);
@@ -1033,7 +1034,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(18),
+                        padding: EdgeInsets.all(isMobile ? 12 : 18),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                           shape: BoxShape.circle,
@@ -1073,7 +1074,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1200),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 24,
+                  vertical: 8,
+                ),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
@@ -1115,7 +1119,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1200),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 12 : 24,
+                  ),
                   child: mediaAsync.when(
                     data: (items) => _buildCollectionBody(context, items),
                     loading: () => const Center(
@@ -1136,7 +1142,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1200),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 12 : 24,
+                  ),
                   child: statsAsync.when(
                     data: (stats) => _buildStatsBody(context, stats),
                     loading: () => const Center(
@@ -1157,7 +1165,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1200),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 12 : 24,
+                  ),
                   child: _buildFriendsBody(
                     context,
                     isViewingSelf ? myFriends : (otherProfile?.friends ?? []),
@@ -1186,13 +1196,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required List<String> myFriends,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Add friend row (ONLY visible on your own profile)
         if (isViewingSelf) ...[
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: EdgeInsets.all(isMobile ? 12 : 18),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF16162A) : Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -1261,7 +1272,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
             ),
-            const Spacer(),
+            if (!isMobile) const Spacer(),
+            if (!isMobile)
             Text(
               isViewingSelf
                   ? 'Приглашайте друзей в комнаты совместного просмотра'
@@ -1453,8 +1465,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 borderRadius: BorderRadius.circular(8)),
                           ),
                           icon: const Icon(Icons.tv_rounded, size: 14),
-                          label: const Text('Пригласить в комнату',
-                              style: TextStyle(fontSize: 12)),
+                          label: Text(
+                              MediaQuery.of(context).size.width < 550
+                                  ? 'В комнату'
+                                  : 'Пригласить в комнату',
+                              style: const TextStyle(fontSize: 12)),
                           onPressed: () {
                             TopNotification.showSuccess(
                               context,
@@ -1591,12 +1606,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }) {
     final isSelected = _activeTab == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return InkWell(
       onTap: () => setState(() => _activeTab = index),
       borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 11 : 16,
+            vertical: isMobile ? 8 : 10),
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF7C3AED)
@@ -1679,6 +1697,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1715,7 +1734,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ],
             ),
-            const Spacer(),
+            if (!isMobile) const Spacer(),
+            if (!isMobile)
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
@@ -1852,7 +1872,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 2.2,
+              childAspectRatio: constraints.maxWidth < 450 ? 1.85 : 2.2,
               children: [
                 _buildKpiCard(
                   title: 'Всего в коллекции',
@@ -1919,8 +1939,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required Color color,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(isMobile ? 10 : 14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E34) : Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1979,13 +2000,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildPieCard(StatsData stats) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
     final watched = stats.byStatus['watched'] ?? 0;
     final watching = stats.byStatus['watching'] ?? 0;
     final want = stats.byStatus['want_to_watch'] ?? 0;
     final total = stats.totalCount;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isMobile ? 12 : 18),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E34) : Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -2088,8 +2110,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildGenreCard(StatsData stats) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isMobile ? 12 : 18),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E34) : Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -2207,6 +2230,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return StatefulBuilder(
           builder: (context, setDlgState) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
+            final isMobile = MediaQuery.of(context).size.width < 700;
             return AlertDialog(
               backgroundColor: isDark ? const Color(0xFF1E1F22) : Colors.white,
               shape: RoundedRectangleBorder(
@@ -2481,7 +2505,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
                                   color: isDark ? Colors.white : const Color(0xFF0F172A))),
-                          const Spacer(),
+                          if (!isMobile) const Spacer(),
+            if (!isMobile)
                           Text(
                             'Разблокировано: ${availableUnlocked.length} из ${UserAchievementsCatalog.list.length}',
                             style: const TextStyle(fontSize: 11, color: Color(0xFF9F67FF)),
@@ -2673,7 +2698,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               (currentUser?.userMetadata?['has_password'] == true);
 
                           return Container(
-                            padding: const EdgeInsets.all(14),
+                            padding: EdgeInsets.all(isMobile ? 10 : 14),
                             decoration: BoxDecoration(
                               color: isDark ? const Color(0xFF202038) : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(12),
@@ -2783,7 +2808,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                       // 5. DANGER ZONE: Sign Out Button (Styled in bright red)
                       Container(
-                        padding: const EdgeInsets.all(14),
+                        padding: EdgeInsets.all(isMobile ? 10 : 14),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.1 : 0.06),
                           borderRadius: BorderRadius.circular(12),

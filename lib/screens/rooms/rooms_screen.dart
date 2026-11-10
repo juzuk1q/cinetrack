@@ -490,14 +490,17 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                       )
                     else
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: MediaQuery.of(context).size.width < 640 ? 12 : 28,
+                          vertical: 8,
+                        ),
                         sliver: SliverGrid(
                           gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                              SliverGridDelegateWithMaxCrossAxisExtent(
                             maxCrossAxisExtent: 380,
                             childAspectRatio: 1.15,
-                            crossAxisSpacing: 18,
-                            mainAxisSpacing: 18,
+                            crossAxisSpacing: MediaQuery.of(context).size.width < 640 ? 12 : 18,
+                            mainAxisSpacing: MediaQuery.of(context).size.width < 640 ? 12 : 18,
                           ),
                           delegate: SliverChildBuilderDelegate(
                             (context, i) => _buildRoomCard(rooms[i]),

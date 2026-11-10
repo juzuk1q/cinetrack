@@ -682,6 +682,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final rooms = ref.watch(roomsProvider);
     final liveRooms = rooms.where((r) => r.status == 'watching').toList();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    final horizontalPadding = isMobile ? 12.0 : 32.0;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
@@ -693,7 +696,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
 
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(32, 16, 32, 36),
+            padding: EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 36),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // 1. Cinematic Hero Banner
@@ -753,9 +756,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // 2. Cinematic Hero Banner (Dynamic Carousel with Auto-Rotation & Trailer Playback)
   Widget _buildCinematicHeroBanner(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Container(
-      height: 380,
+      height: isMobile ? 430 : 380,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F0F1A) : Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -974,13 +978,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
 
         // Content
-        Padding(
-          padding: const EdgeInsets.fromLTRB(54, 32, 54, 36),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 880;
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 640;
+            final isWide = constraints.maxWidth > 880;
+            final horizontalPad = isMobile ? 16.0 : 54.0;
+            final verticalPad = isMobile ? 16.0 : 32.0;
+            final btnHorizPad = isMobile ? 12.0 : 18.0;
+            final btnVertPad = isMobile ? 9.0 : 13.0;
 
-              return Row(
+            return Padding(
+              padding: EdgeInsets.fromLTRB(horizontalPad, verticalPad, horizontalPad, isMobile ? 24 : 36),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Left Details Column
@@ -1031,7 +1040,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Text(
                           slide.title.toUpperCase(),
                           style: TextStyle(
-                            fontSize: 32,
+                            fontSize: isMobile ? 22 : 32,
                             fontWeight: FontWeight.w900,
                             color: isDark ? Colors.white : const Color(0xFF111827),
                             letterSpacing: 1.1,
@@ -1166,7 +1175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF7C3AED),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+                                padding: EdgeInsets.symmetric(horizontal: btnHorizPad, vertical: btnVertPad),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                 elevation: 4,
                               ),
@@ -1183,7 +1192,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? const Color(0xFF6D28D9) : const Color(0xFF8B5CF6),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                                padding: EdgeInsets.symmetric(horizontal: btnHorizPad, vertical: btnVertPad),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                 elevation: 3,
                               ),
@@ -1201,7 +1210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 backgroundColor: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.2 : 0.12),
                                 foregroundColor: const Color(0xFFD97706),
                                 side: BorderSide(color: isDark ? const Color(0xFFFFCA28) : const Color(0xFFF59E0B), width: 1.2),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                                padding: EdgeInsets.symmetric(horizontal: btnHorizPad, vertical: btnVertPad),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
                               icon: const Icon(Icons.movie_filter_rounded, size: 17, color: Color(0xFFD97706)),
@@ -1224,7 +1233,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ? Colors.transparent
                                       : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                                padding: EdgeInsets.symmetric(horizontal: btnHorizPad, vertical: btnVertPad),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                 elevation: 0,
                               ),
@@ -1250,7 +1259,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 side: BorderSide(
                                   color: isDark ? Colors.white24 : const Color(0xFFD1D5DB),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                padding: EdgeInsets.symmetric(horizontal: btnHorizPad, vertical: btnVertPad),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
                               icon: Icon(
@@ -1411,9 +1420,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ],
                 ],
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ],
     );
