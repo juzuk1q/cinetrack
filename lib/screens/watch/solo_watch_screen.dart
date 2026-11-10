@@ -88,10 +88,9 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
   int _selectedSeason = 1;
   int _selectedEpisode = 1;
+  int _viewingSeason = 1;
   List<SeriesSeason> _seasons = [];
   bool _isLoadingSeasons = false;
-  final TextEditingController _episodeSearchCtrl = TextEditingController();
-  String _episodeFilter = '';
 
   final TextEditingController _commentCtrl = TextEditingController();
   final List<SoloWatchComment> _comments = [];
@@ -118,7 +117,6 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   @override
   void dispose() {
     _commentCtrl.dispose();
-    _episodeSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -134,7 +132,10 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           _isLoadingSeasons = false;
           if (_seasons.isNotEmpty) {
             _selectedSeason = _seasons.first.number;
-            if (_seasons.first.episodes.isNotEmpty) {
+            final aired = _seasons.first.airedEpisodes;
+            if (aired.isNotEmpty) {
+              _selectedEpisode = aired.first.episodeNumber;
+            } else if (_seasons.first.episodes.isNotEmpty) {
               _selectedEpisode = _seasons.first.episodes.first.episodeNumber;
             }
           }
@@ -157,7 +158,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
         SeriesSeason(
           number: 1,
           episodes: List.generate(
-            24,
+            12,
             (index) => SeriesEpisode(
               seasonNumber: 1,
               episodeNumber: index + 1,
@@ -179,11 +180,21 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     );
   }
 
+  SeriesSeason? get _viewingSeasonData {
+    final eff = _effectiveSeasons;
+    if (eff.isEmpty) return null;
+    return eff.firstWhere(
+      (s) => s.number == _viewingSeason,
+      orElse: () => _currentSeasonData ?? eff.first,
+    );
+  }
+
   bool get _hasNextEpisode {
     final cur = _currentSeasonData;
     if (cur == null || cur.episodes.isEmpty) return false;
-    final curIdx = cur.episodes.indexWhere((e) => e.episodeNumber == _selectedEpisode);
-    if (curIdx >= 0 && curIdx < cur.episodes.length - 1) return true;
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+    if (curIdx >= 0 && curIdx < aired.length - 1) return true;
     final eff = _effectiveSeasons;
     final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
     return sIdx >= 0 && sIdx < eff.length - 1;
@@ -192,7 +203,8 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   bool get _hasPrevEpisode {
     final cur = _currentSeasonData;
     if (cur == null || cur.episodes.isEmpty) return false;
-    final curIdx = cur.episodes.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
     if (curIdx > 0) return true;
     final eff = _effectiveSeasons;
     final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
@@ -202,16 +214,18 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   void _nextEpisode() {
     final cur = _currentSeasonData;
     if (cur == null || cur.episodes.isEmpty) return;
-    final curIdx = cur.episodes.indexWhere((e) => e.episodeNumber == _selectedEpisode);
-    if (curIdx >= 0 && curIdx < cur.episodes.length - 1) {
-      _selectEpisode(_selectedSeason, cur.episodes[curIdx + 1].episodeNumber);
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+    if (curIdx >= 0 && curIdx < aired.length - 1) {
+      _selectEpisode(_selectedSeason, aired[curIdx + 1].episodeNumber);
     } else {
       final eff = _effectiveSeasons;
       final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
       if (sIdx >= 0 && sIdx < eff.length - 1) {
         final nextS = eff[sIdx + 1];
-        if (nextS.episodes.isNotEmpty) {
-          _selectEpisode(nextS.number, nextS.episodes.first.episodeNumber);
+        final nextAired = nextS.airedEpisodes.isNotEmpty ? nextS.airedEpisodes : nextS.episodes;
+        if (nextAired.isNotEmpty) {
+          _selectEpisode(nextS.number, nextAired.first.episodeNumber);
         }
       }
     }
@@ -220,16 +234,18 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   void _prevEpisode() {
     final cur = _currentSeasonData;
     if (cur == null || cur.episodes.isEmpty) return;
-    final curIdx = cur.episodes.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
     if (curIdx > 0) {
-      _selectEpisode(_selectedSeason, cur.episodes[curIdx - 1].episodeNumber);
+      _selectEpisode(_selectedSeason, aired[curIdx - 1].episodeNumber);
     } else {
       final eff = _effectiveSeasons;
       final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
       if (sIdx > 0) {
         final prevS = eff[sIdx - 1];
-        if (prevS.episodes.isNotEmpty) {
-          _selectEpisode(prevS.number, prevS.episodes.last.episodeNumber);
+        final prevAired = prevS.airedEpisodes.isNotEmpty ? prevS.airedEpisodes : prevS.episodes;
+        if (prevAired.isNotEmpty) {
+          _selectEpisode(prevS.number, prevAired.last.episodeNumber);
         }
       }
     }
@@ -237,6 +253,20 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
   void _selectEpisode(int seasonNum, int episodeNum) {
     if (_selectedSeason == seasonNum && _selectedEpisode == episodeNum) return;
+
+    // Check if target episode is available / aired
+    final eff = _effectiveSeasons;
+    final targetSeason = eff.firstWhere((s) => s.number == seasonNum, orElse: () => eff.first);
+    final targetEp = targetSeason.episodes.firstWhere((e) => e.episodeNumber == episodeNum, orElse: () => targetSeason.episodes.first);
+    if (!targetEp.isAired) {
+      TopNotification.showWarning(
+        context,
+        'Серия $episodeNum ещё не вышла! Дата премьеры: ${targetEp.formattedReleaseDate ?? targetEp.releaseDate ?? 'скоро'} ⏳',
+        title: 'Серия не доступна',
+      );
+      return;
+    }
+
     setState(() {
       _selectedSeason = seasonNum;
       _selectedEpisode = episodeNum;
@@ -290,11 +320,11 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       case 'videocdn':
       case 'rezka':
         return 'https://api.delivembd.ws/embed/kp/$kpId?season=$_selectedSeason&episode=$_selectedEpisode';
+      case 'kinobox':
+        return 'https://kinobox.tv/embed/kp/$kpId?season=$_selectedSeason&episode=$_selectedEpisode';
       case 'yohoho':
       case 'alloha':
         return 'https://4h0y.gitlab.io/#$kpId';
-      case 'trailer':
-        return 'https://api.delivembd.ws/embed/trailer-kp/$kpId';
       case 'collaps':
       case 'backup':
       default:
@@ -318,7 +348,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     if (_blockAds) {
       _iframe!.setAttribute(
         'sandbox',
-        'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups-to-escape-sandbox',
+        'allow-scripts allow-same-origin allow-forms allow-presentation',
       );
     }
 
@@ -336,7 +366,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       if (_blockAds) {
         _iframe!.setAttribute(
           'sandbox',
-          'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups-to-escape-sandbox',
+          'allow-scripts allow-same-origin allow-forms allow-presentation',
         );
       } else {
         _iframe!.removeAttribute('sandbox');
@@ -810,23 +840,23 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           ),
           const SizedBox(width: 6),
           _buildCompactTab(
-            label: 'Резервный (VideoCDN)',
-            isActive: _activeTab == 'videocdn' || _activeTab == 'rezka',
+            label: 'Резерв 1 (VideoCDN)',
+            isActive: _activeTab == 'videocdn',
             onTap: () => _switchTab('videocdn'),
             isDark: isDark,
           ),
           const SizedBox(width: 6),
           _buildCompactTab(
-            label: 'Мульти-плеер (Yohoho)',
-            isActive: _activeTab == 'yohoho' || _activeTab == 'alloha',
-            onTap: () => _switchTab('yohoho'),
+            label: 'Резерв 2 (Kinobox)',
+            isActive: _activeTab == 'kinobox',
+            onTap: () => _switchTab('kinobox'),
             isDark: isDark,
           ),
           const SizedBox(width: 6),
           _buildCompactTab(
-            label: 'Трейлер ▶',
-            isActive: _activeTab == 'trailer',
-            onTap: () => _switchTab('trailer'),
+            label: 'Резерв 3 (Yohoho / Alloha)',
+            isActive: _activeTab == 'yohoho' || _activeTab == 'alloha',
+            onTap: () => _switchTab('yohoho'),
             isDark: isDark,
           ),
 
@@ -1055,17 +1085,8 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
   Widget _buildEpisodesAndSeasonsSidebar(bool isDark) {
     final effectiveSeasons = _effectiveSeasons;
-    final curSeason = _currentSeasonData;
+    final curSeason = _viewingSeasonData ?? _currentSeasonData;
     final allEpisodes = curSeason?.episodes ?? [];
-
-    final filteredEpisodes = _episodeFilter.isEmpty
-        ? allEpisodes
-        : allEpisodes.where((e) {
-            final q = _episodeFilter.toLowerCase();
-            return e.episodeNumber.toString() == q ||
-                (e.nameRu?.toLowerCase().contains(q) ?? false) ||
-                (e.nameEn?.toLowerCase().contains(q) ?? false);
-          }).toList();
 
     final cardBg = isDark ? const Color(0xFF141424) : Colors.white;
     final borderColor = isDark ? Colors.white12 : const Color(0xFFE5E7EB);
@@ -1133,7 +1154,9 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${curSeason.episodes.length} сер.',
+                      curSeason.hasUpcoming
+                          ? '${curSeason.airedCount} из ${curSeason.totalCount} вышло'
+                          : '${curSeason.totalCount} сер.',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -1157,16 +1180,12 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (context, idx) {
                   final s = effectiveSeasons[idx];
-                  final isSelected = s.number == _selectedSeason;
+                  final isSelected = s.number == _viewingSeason;
                   return InkWell(
                     onTap: () {
                       setState(() {
-                        _selectedSeason = s.number;
-                        if (s.episodes.isNotEmpty) {
-                          _selectedEpisode = s.episodes.first.episodeNumber;
-                        }
+                        _viewingSeason = s.number;
                       });
-                      _iframe?.src = _getCurrentUrl();
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: AnimatedContainer(
@@ -1191,7 +1210,9 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          'Сезон ${s.number}',
+                          s.hasUpcoming
+                              ? 'Сезон ${s.number} (${s.airedCount}/${s.totalCount})'
+                              : 'Сезон ${s.number}',
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: isSelected
@@ -1213,66 +1234,6 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
             const SizedBox(height: 8),
           ],
 
-          // Search / Filter box
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Container(
-              height: 34,
-              decoration: BoxDecoration(
-                color:
-                    isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  Icon(Icons.search_rounded,
-                      size: 15,
-                      color:
-                          isDark ? Colors.white38 : const Color(0xFF9CA3AF)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: TextField(
-                      controller: _episodeSearchCtrl,
-                      onChanged: (val) =>
-                          setState(() => _episodeFilter = val.trim()),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: textColor,
-                      ),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        hintText: 'Поиск серии...',
-                        hintStyle: TextStyle(
-                          fontSize: 11,
-                          color:
-                              isDark ? Colors.white38 : const Color(0xFF9CA3AF),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (_episodeFilter.isNotEmpty)
-                    InkWell(
-                      onTap: () {
-                        _episodeSearchCtrl.clear();
-                        setState(() => _episodeFilter = '');
-                      },
-                      child: Icon(Icons.close_rounded,
-                          size: 14,
-                          color: isDark
-                              ? Colors.white38
-                              : const Color(0xFF9CA3AF)),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
           Divider(
             height: 1,
             color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
@@ -1280,7 +1241,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
           // Scrollable episodes list
           Expanded(
-            child: filteredEpisodes.isEmpty
+            child: allEpisodes.isEmpty
                 ? Center(
                     child: Text(
                       'Серии не найдены',
@@ -1293,131 +1254,171 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.all(10),
-                    itemCount: filteredEpisodes.length,
+                    itemCount: allEpisodes.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 5),
                     itemBuilder: (context, idx) {
-                      final ep = filteredEpisodes[idx];
+                      final ep = allEpisodes[idx];
                       final isPlaying = ep.episodeNumber == _selectedEpisode &&
                           ep.seasonNumber == _selectedSeason;
+                      final isAired = ep.isAired;
 
-                      return InkWell(
-                        onTap: () =>
-                            _selectEpisode(ep.seasonNumber, ep.episodeNumber),
-                        borderRadius: BorderRadius.circular(10),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isPlaying
-                                ? const Color(0xFF7C3AED).withValues(
-                                    alpha: isDark ? 0.22 : 0.12)
-                                : (isDark
-                                    ? const Color(0xFF1B1B30)
-                                    : const Color(0xFFF9FAFB)),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
+                      return Opacity(
+                        opacity: isAired ? 1.0 : 0.65,
+                        child: InkWell(
+                          onTap: () =>
+                              _selectEpisode(ep.seasonNumber, ep.episodeNumber),
+                          borderRadius: BorderRadius.circular(10),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
                               color: isPlaying
-                                  ? const Color(0xFF9F67FF)
+                                  ? const Color(0xFF7C3AED).withValues(
+                                      alpha: isDark ? 0.22 : 0.12)
                                   : (isDark
-                                      ? Colors.white.withValues(alpha: 0.06)
-                                      : const Color(0xFFE5E7EB)),
-                              width: isPlaying ? 1.5 : 0.8,
+                                      ? const Color(0xFF1B1B30)
+                                      : const Color(0xFFF9FAFB)),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isPlaying
+                                    ? const Color(0xFF9F67FF)
+                                    : (isDark
+                                        ? Colors.white.withValues(alpha: 0.06)
+                                        : const Color(0xFFE5E7EB)),
+                                width: isPlaying ? 1.5 : 0.8,
+                              ),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 26,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  color: isPlaying
-                                      ? const Color(0xFF7C3AED)
-                                      : (isDark
-                                          ? Colors.white10
-                                          : const Color(0xFFE5E7EB)),
-                                  shape: BoxShape.circle,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: BoxDecoration(
+                                    color: isPlaying
+                                        ? const Color(0xFF7C3AED)
+                                        : (isDark
+                                            ? Colors.white10
+                                            : const Color(0xFFE5E7EB)),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: isPlaying
+                                        ? const Icon(Icons.play_arrow_rounded,
+                                            size: 15, color: Colors.white)
+                                        : (!isAired
+                                            ? Icon(Icons.schedule_rounded,
+                                                size: 13,
+                                                color: isDark
+                                                    ? Colors.white38
+                                                    : const Color(0xFF9CA3AF))
+                                            : Text(
+                                                '${ep.episodeNumber}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isDark
+                                                      ? Colors.white70
+                                                      : const Color(0xFF374151),
+                                                ),
+                                              )),
+                                  ),
                                 ),
-                                child: Center(
-                                  child: isPlaying
-                                      ? const Icon(Icons.play_arrow_rounded,
-                                          size: 15, color: Colors.white)
-                                      : Text(
-                                          '${ep.episodeNumber}',
+                                const SizedBox(width: 8),
+
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        ep.displayTitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: isPlaying
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
+                                          color: isPlaying
+                                              ? const Color(0xFFC084FC)
+                                              : (!isAired
+                                                  ? (isDark ? Colors.white54 : const Color(0xFF6B7280))
+                                                  : textColor),
+                                        ),
+                                      ),
+                                      if (ep.releaseDate != null &&
+                                          ep.releaseDate!.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          ep.formattedReleaseDate ?? ep.releaseDate!,
                                           style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
+                                            fontSize: 9.5,
                                             color: isDark
-                                                ? Colors.white70
-                                                : const Color(0xFF374151),
+                                                ? Colors.white38
+                                                : const Color(0xFF9CA3AF),
                                           ),
                                         ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      ep.displayTitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: isPlaying
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                        color: isPlaying
-                                            ? const Color(0xFFC084FC)
-                                            : textColor,
-                                      ),
-                                    ),
-                                    if (ep.releaseDate != null &&
-                                        ep.releaseDate!.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        ep.releaseDate!,
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          color: isDark
-                                              ? Colors.white38
-                                              : const Color(0xFF9CA3AF),
-                                        ),
-                                      ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
 
-                              if (isPlaying)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF7C3AED),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'Играет',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
+                                if (isPlaying)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF7C3AED),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
+                                    child: const Text(
+                                      'Играет',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                else if (!isAired)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.lock_clock_rounded, size: 10, color: Color(0xFFF59E0B)),
+                                        SizedBox(width: 3),
+                                        Text(
+                                          'Скоро',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFFF59E0B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.play_circle_outline_rounded,
+                                    size: 15,
+                                    color: isDark
+                                        ? Colors.white24
+                                        : const Color(0xFF9CA3AF),
                                   ),
-                                )
-                              else
-                                Icon(
-                                  Icons.play_circle_outline_rounded,
-                                  size: 15,
-                                  color: isDark
-                                      ? Colors.white24
-                                      : const Color(0xFF9CA3AF),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       );

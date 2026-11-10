@@ -156,7 +156,13 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
         final raw = html.window.localStorage['cinetrack_custom_profile'];
         if (raw != null && raw.isNotEmpty) {
           final data = jsonDecode(raw) as Map<String, dynamic>;
-          state = UserProfile.fromJson(data);
+          final prof = UserProfile.fromJson(data);
+          // Purge legacy bugged dummy profile if present
+          if (prof.username == 'cinelover' || prof.displayName == 'Пользователь') {
+            html.window.localStorage.remove('cinetrack_custom_profile');
+          } else {
+            state = prof;
+          }
         }
       }
     } catch (_) {}
@@ -173,12 +179,11 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
     List<String>? unlockedTitles,
   }) {
     if (state == null) {
-      final defUsername = username ?? 'cinelover';
       state = UserProfile(
         id: 'user-local',
         email: 'user@cinetrack.local',
-        displayName: displayName ?? 'Пользователь',
-        username: defUsername,
+        displayName: displayName ?? '',
+        username: username ?? '',
         createdAt: DateTime.now(),
         customTitle: customTitle,
         bannerUrl: bannerUrl,
@@ -189,8 +194,8 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
       );
     } else {
       state = state!.copyWith(
-        displayName: displayName,
-        username: username,
+        displayName: (displayName != null && displayName.isNotEmpty) ? displayName : state!.displayName,
+        username: (username != null && username.isNotEmpty) ? username : state!.username,
         customTitle: customTitle,
         bannerUrl: bannerUrl,
         avatarUrl: avatarUrl,
@@ -203,14 +208,19 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
     _persist();
   }
 
-  void addFriend(String friendUsername) {
+  void addFriend(String friendUsername, {UserProfile? currentProfile}) {
     final clean = friendUsername.replaceAll('@', '').trim();
     if (clean.isEmpty) return;
-    final currentFriends = List<String>.from(state?.friends ?? []);
+
+    if (state == null && currentProfile != null) {
+      state = currentProfile;
+    }
+
+    final currentFriends = List<String>.from(state?.friends ?? currentProfile?.friends ?? []);
     if (!currentFriends.contains(clean)) {
       currentFriends.add(clean);
       // Unlock social achievement
-      final unlocked = List<String>.from(state?.unlockedTitles ?? ['welcome']);
+      final unlocked = List<String>.from(state?.unlockedTitles ?? currentProfile?.unlockedTitles ?? ['welcome']);
       if (!unlocked.contains('social')) {
         unlocked.add('social');
       }
@@ -336,8 +346,12 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
 
       if (custom != null) {
         effective = effective.copyWith(
-          displayName: custom.displayName.isNotEmpty ? custom.displayName : null,
-          username: custom.username.isNotEmpty ? custom.username : null,
+          displayName: (custom.displayName.isNotEmpty && custom.displayName != 'Пользователь')
+              ? custom.displayName
+              : effective.displayName,
+          username: (custom.username.isNotEmpty && custom.username != 'cinelover')
+              ? custom.username
+              : effective.username,
           customTitle: (effective.customTitle != null && effective.customTitle!.trim().isNotEmpty)
               ? effective.customTitle
               : custom.customTitle,

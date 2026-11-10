@@ -313,8 +313,15 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
   void _leaveOrExitRoom(BuildContext context, WatchRoom room) {
     final user = ref.read(currentUserProvider);
+    final profile = ref.read(userProfileProvider).valueOrNull;
+    final myUsername = (profile?.username.isNotEmpty == true && profile!.username != 'cinelover')
+        ? profile.username.replaceAll('@', '').toLowerCase()
+        : (user?.userMetadata?['username'] as String? ?? (user?.email?.split('@').first ?? '').toLowerCase());
     final isHost = room.ownerId == _userId ||
-        (user != null && room.ownerName.toLowerCase() == (user.email?.split('@').first ?? '').toLowerCase());
+        (user != null &&
+            (room.ownerName.replaceAll('@', '').toLowerCase() == myUsername ||
+             (profile != null && room.ownerName.toLowerCase() == profile.displayName.toLowerCase()) ||
+             room.ownerName.toLowerCase() == (user.email?.split('@').first ?? '').toLowerCase()));
 
     final int count = room.participantCount;
 
@@ -443,7 +450,14 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 onPressed: () {
                   Navigator.of(ctx, rootNavigator: true).pop();
                   final user = ref.read(currentUserProvider);
-                  final uName = user?.email?.split('@').first ?? 'Зритель';
+                  final prof = ref.read(userProfileProvider).valueOrNull;
+                  final uName = (prof != null && prof.username.isNotEmpty && prof.username != 'cinelover')
+                      ? '@${prof.username.replaceAll('@', '')}'
+                      : ((prof != null && prof.displayName.isNotEmpty && prof.displayName != 'Пользователь')
+                          ? prof.displayName
+                          : (user?.userMetadata?['username'] != null
+                              ? '@${user!.userMetadata!['username']}'
+                              : (user?.email?.split('@').first ?? 'Зритель')));
                   _roomChannel?.sendBroadcastMessage(
                     event: 'player_sync',
                     payload: {
@@ -818,7 +832,14 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     if (text.isEmpty) return;
 
     final user = ref.read(currentUserProvider);
-    final userName = user?.email?.split('@').first ?? 'Зритель';
+    final prof = ref.read(userProfileProvider).valueOrNull;
+    final userName = (prof != null && prof.username.isNotEmpty && prof.username != 'cinelover')
+        ? '@${prof.username.replaceAll('@', '')}'
+        : ((prof != null && prof.displayName.isNotEmpty && prof.displayName != 'Пользователь')
+            ? prof.displayName
+            : (user?.userMetadata?['username'] != null
+                ? '@${user!.userMetadata!['username']}'
+                : (user?.email?.split('@').first ?? 'Зритель')));
 
     ref.read(roomsProvider.notifier).addMessage(room.id, userName, text);
     _msgCtrl.clear();
@@ -2380,9 +2401,15 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
           width: 460,
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E34),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1E34)
+                : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white12
+                  : const Color(0xFFE2E8F0),
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2650,12 +2677,16 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     }
 
     final user = ref.watch(currentUserProvider);
+    final userProfile = ref.watch(userProfileProvider).valueOrNull;
     final isAdmin = ref.watch(isAdminProvider);
-    final userEmailPrefix = user?.email?.split('@').first.toLowerCase() ?? '';
+    final userHandle = (userProfile != null && userProfile.username.isNotEmpty && userProfile.username != 'cinelover')
+        ? userProfile.username.replaceAll('@', '').toLowerCase()
+        : (user?.userMetadata?['username'] as String? ?? (user?.email?.split('@').first.toLowerCase() ?? ''));
     final isOwner = user != null &&
         (room.ownerId == user.id ||
-            (userEmailPrefix.isNotEmpty &&
-                room.ownerName.toLowerCase() == userEmailPrefix));
+            room.ownerName.replaceAll('@', '').toLowerCase() == userHandle ||
+            (userProfile != null && room.ownerName.toLowerCase() == userProfile.displayName.toLowerCase()) ||
+            room.ownerName.toLowerCase() == (user.email?.split('@').first.toLowerCase() ?? ''));
     final isHost = isOwner || isAdmin;
 
     // Check Password protection
@@ -3593,8 +3624,17 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
   Widget _buildMessageBubble(RoomMessage msg) {
     final user = ref.watch(currentUserProvider);
-    final myName = user?.email?.split('@').first ?? 'Зритель';
-    final isMe = msg.userName == myName;
+    final userProfile = ref.watch(userProfileProvider).valueOrNull;
+    final myUsername = (userProfile != null && userProfile.username.isNotEmpty && userProfile.username != 'cinelover')
+        ? userProfile.username.replaceAll('@', '').toLowerCase()
+        : (user?.userMetadata?['username'] as String? ?? (user?.email?.split('@').first.toLowerCase() ?? ''));
+    final myDisplayName = userProfile?.displayName.toLowerCase() ?? '';
+    final myEmailPrefix = user?.email?.split('@').first.toLowerCase() ?? '';
+
+    final cleanMsgName = msg.userName.replaceAll('@', '').toLowerCase();
+    final isMe = cleanMsgName == myUsername ||
+        (myDisplayName.isNotEmpty && cleanMsgName == myDisplayName) ||
+        (myEmailPrefix.isNotEmpty && cleanMsgName == myEmailPrefix);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

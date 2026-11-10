@@ -16,6 +16,7 @@ import '../../providers/media_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../repositories/stats_repository.dart';
 import '../../widgets/app_header.dart';
+import '../../widgets/image_crop_dialog.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/top_notification.dart';
 
@@ -144,6 +145,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(currentUserProvider);
     final isAdmin = ref.watch(isAdminProvider);
     final statsAsync = ref.watch(statsDataProvider);
@@ -223,9 +225,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     UserProfile? otherProfile;
     if (isTargetingOther) {
       if (_isLoadingRemoteUser) {
-        return const Scaffold(
-          backgroundColor: Color(0xFF0F0F1A),
-          body: Center(
+        return Scaffold(
+          backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
+          body: const Center(
             child: CircularProgressIndicator(
               color: Color(0xFF7C3AED),
             ),
@@ -250,7 +252,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // If user profile is not found after remote check, render dedicated 404 page
       if (otherProfile == null && _hasFetchedRemoteUser) {
         return Scaffold(
-          backgroundColor: const Color(0xFF0F0F1A),
+          backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
           body: Column(
             children: [
               const AppHeader(activeRoute: '/profile'),
@@ -264,9 +266,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.04),
+                            color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFE2E8F0),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white10),
+                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                           ),
                           child: const Icon(
                             Icons.person_off_rounded,
@@ -275,20 +277,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Данный профиль не найден :(',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           'Пользователь @${widget.targetUsername} не существует или был удален.',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white60,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -335,7 +337,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final effectiveIsPrivate =
         isViewingSelf ? myIsPrivate : (otherProfile?.isPrivate ?? false);
     final isFriend = !isViewingSelf && myFriends.contains(otherProfile?.handle ?? '');
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
@@ -517,8 +518,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     child: InkWell(
                                       onTap: () async {
                                         final newAvatarBase64 =
-                                            await pickAndCropImageBase64(
-                                          targetAspectRatio: 1.0,
+                                            await pickAndInteractiveCropImage(
+                                          context: context,
+                                          isAvatar: true,
                                           targetWidth: 400,
                                           targetHeight: 400,
                                         );
@@ -587,74 +589,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         ),
                                       ),
 
-                                      // 1. System Staff Role Badge (Only for administration/moderation)
+                                      // 1. System Staff Role Badge (Icon only with Tooltip)
                                       if (effectiveRole != 'user' && effectiveRoleLabel != null)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 9, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: effectiveRole == 'creator'
-                                                ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
-                                                : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                    ? const Color(0xFF06B6D4).withValues(alpha: 0.25)
-                                                    : (effectiveRole == 'admin'
-                                                        ? const Color(0xFFEAB308).withValues(alpha: 0.25)
-                                                        : (effectiveRole == 'moderator'
-                                                            ? const Color(0xFF6366F1).withValues(alpha: 0.25)
-                                                            : Colors.white10))),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(
+                                        Tooltip(
+                                          message: effectiveRoleLabel,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7, vertical: 3),
+                                            decoration: BoxDecoration(
                                               color: effectiveRole == 'creator'
-                                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.7)
+                                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
                                                   : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                      ? const Color(0xFF06B6D4).withValues(alpha: 0.7)
+                                                      ? const Color(0xFF06B6D4).withValues(alpha: 0.25)
                                                       : (effectiveRole == 'admin'
-                                                          ? const Color(0xFFEAB308).withValues(alpha: 0.7)
+                                                          ? const Color(0xFFEAB308).withValues(alpha: 0.25)
                                                           : (effectiveRole == 'moderator'
-                                                              ? const Color(0xFF6366F1).withValues(alpha: 0.7)
-                                                              : Colors.white24))),
-                                              width: 1,
+                                                              ? const Color(0xFF6366F1).withValues(alpha: 0.25)
+                                                              : Colors.white10))),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: effectiveRole == 'creator'
+                                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.7)
+                                                    : (effectiveRole == 'developer' || effectiveRole == 'coder'
+                                                        ? const Color(0xFF06B6D4).withValues(alpha: 0.7)
+                                                        : (effectiveRole == 'admin'
+                                                            ? const Color(0xFFEAB308).withValues(alpha: 0.7)
+                                                            : (effectiveRole == 'moderator'
+                                                                ? const Color(0xFF6366F1).withValues(alpha: 0.7)
+                                                                : Colors.white24))),
+                                                width: 1,
+                                              ),
                                             ),
-                                          ),
-                                          child: Text(
-                                            effectiveRoleLabel,
-                                            style: TextStyle(
-                                              color: effectiveRole == 'creator'
-                                                  ? const Color(0xFFFBBF24)
-                                                  : (effectiveRole == 'developer' || effectiveRole == 'coder'
-                                                      ? const Color(0xFF22D3EE)
-                                                      : (effectiveRole == 'admin'
-                                                          ? const Color(0xFFFDE047)
-                                                          : (effectiveRole == 'moderator'
-                                                              ? const Color(0xFFA5B4FC)
-                                                              : Colors.white70))),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w800,
+                                            child: Text(
+                                              _getRoleIcon(effectiveRole),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                height: 1.1,
+                                              ),
                                             ),
                                           ),
                                         ),
 
-                                      // 2. Custom Title Badge
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 9, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF7C3AED).withValues(alpha: 0.25),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: const Color(0xFF9F67FF).withValues(alpha: 0.5),
-                                            width: 0.9,
+                                      // 2. Custom Title Badge (Icon only with Tooltip)
+                                      if (effectiveTitle.isNotEmpty)
+                                        Tooltip(
+                                          message: 'Титул: ',
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF7C3AED).withValues(alpha: 0.25),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: const Color(0xFF9F67FF).withValues(alpha: 0.5),
+                                                width: 0.9,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              _getTitleIcon(effectiveTitle),
+                                              style: const TextStyle(
+                                                color: Color(0xFFD8B4FE),
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                height: 1.1,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                        child: Text(
-                                          effectiveTitle,
-                                          style: const TextStyle(
-                                            color: Color(0xFFD8B4FE),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 6),
@@ -923,28 +924,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               constraints: const BoxConstraints(maxWidth: 1200),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Row(
-                  children: [
-                    _buildSectionTab(
-                      index: 0,
-                      icon: Icons.bookmark_added_rounded,
-                      label: isViewingSelf ? 'Моя коллекция & Избранное' : 'Коллекция',
-                      badgeCount: mediaAsync.value?.length,
-                    ),
-                    const SizedBox(width: 12),
-                    _buildSectionTab(
-                      index: 1,
-                      icon: Icons.insights_rounded,
-                      label: 'Статистика просмотров',
-                    ),
-                    const SizedBox(width: 12),
-                    _buildSectionTab(
-                      index: 2,
-                      icon: Icons.people_alt_rounded,
-                      label: 'Друзья',
-                      badgeCount: isViewingSelf ? myFriends.length : (otherProfile?.friends.length ?? 0),
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      _buildSectionTab(
+                        index: 0,
+                        icon: Icons.bookmark_added_rounded,
+                        label: isViewingSelf ? 'Коллекция & Избранное' : 'Коллекция',
+                        badgeCount: mediaAsync.value?.length,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildSectionTab(
+                        index: 1,
+                        icon: Icons.insights_rounded,
+                        label: 'Статистика',
+                      ),
+                      const SizedBox(width: 10),
+                      _buildSectionTab(
+                        index: 2,
+                        icon: Icons.people_alt_rounded,
+                        label: 'Друзья',
+                        badgeCount: isViewingSelf ? myFriends.length : (otherProfile?.friends.length ?? 0),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -979,7 +984,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SliverToBoxAdapter(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1040),
+                constraints: const BoxConstraints(maxWidth: 1200),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: statsAsync.when(
@@ -1000,7 +1005,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SliverToBoxAdapter(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1040),
+                constraints: const BoxConstraints(maxWidth: 1200),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: _buildFriendsBody(
@@ -1369,16 +1374,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  String _getRoleIcon(String role) {
+    switch (role.toLowerCase()) {
+      case 'creator':
+        return '👑';
+      case 'developer':
+      case 'coder':
+        return '💻';
+      case 'admin':
+        return '⭐';
+      case 'moderator':
+        return '🛡️';
+      default:
+        return '⭐';
+    }
+  }
+
+  String _getTitleIcon(String title) {
+    for (final ach in UserAchievementsCatalog.list) {
+      if (ach.id == title || ach.title == title) {
+        return ach.icon;
+      }
+    }
+    final emojiRegex = RegExp(r'(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])');
+    final match = emojiRegex.firstMatch(title);
+    if (match != null) {
+      return match.group(0)!;
+    }
+    if (title.length <= 4) {
+      return title;
+    }
+    return '🎖️';
+  }
+
   Future<void> _handleAddFriend(String handle) async {
     final clean = handle.replaceAll('@', '').trim();
     if (clean.isEmpty) return;
     _friendSearchCtrl.clear();
-    ref.read(profileCustomizationProvider.notifier).addFriend(clean);
+    final curProfile = ref.read(userProfileProvider).valueOrNull;
+    ref.read(profileCustomizationProvider.notifier).addFriend(clean, currentProfile: curProfile);
 
     final curUser = ref.read(currentUserProvider);
     if (curUser != null) {
       try {
-        final currentFriends = ref.read(profileCustomizationProvider)?.friends ?? [];
+        final currentFriends = ref.read(profileCustomizationProvider)?.friends ??
+            (curProfile != null ? [...curProfile.friends, clean] : [clean]);
         await supabase.from('profiles').update({
           'friends': currentFriends,
         }).eq('id', curUser.id);
@@ -2101,8 +2141,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     icon: const Icon(Icons.upload_file_rounded, size: 14),
                                     label: const Text('Загрузить баннер (ПК / Телефон 📱)', style: TextStyle(fontSize: 11)),
                                     onPressed: () async {
-                                      final base64Url = await pickAndCropImageBase64(
-                                        targetAspectRatio: 3.0,
+                                      final base64Url = await pickAndInteractiveCropImage(
+                                        context: context,
+                                        isAvatar: false,
                                         targetWidth: 1200,
                                         targetHeight: 400,
                                       );
@@ -2143,8 +2184,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           right: 0,
                                           child: InkWell(
                                             onTap: () async {
-                                              final base64Url = await pickAndCropImageBase64(
-                                                targetAspectRatio: 1.0,
+                                              final base64Url = await pickAndInteractiveCropImage(
+                                                context: context,
+                                                isAvatar: true,
                                                 targetWidth: 400,
                                                 targetHeight: 400,
                                               );
@@ -2765,161 +2807,220 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await showDialog(
       context: context,
       builder: (dlgCtx) => StatefulBuilder(
-        builder: (context, setPassState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1F22),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Colors.white12),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.lock_rounded, color: Color(0xFF9F67FF)),
-              SizedBox(width: 10),
-              Text('Установить пароль', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
-            ],
-          ),
-          content: SizedBox(
-            width: 420,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Задайте пароль для входа по email и логину без Google. Требования: не менее 8 символов (включая цифру, спецсимвол и буквы разного регистра).',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+        builder: (context, setPassState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1E1F22) : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+            ),
+            title: Row(
+              children: [
+                const Icon(Icons.lock_rounded, color: Color(0xFF9F67FF)),
+                const SizedBox(width: 10),
+                Text(
+                  'Установить пароль',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
-                  const SizedBox(height: 18),
-                  TextFormField(
-                    controller: passCtrl,
-                    obscureText: obscure,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Новый пароль',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF9F67FF)),
-                      suffixIcon: IconButton(
-                        icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white60),
-                        onPressed: () => setPassState(() => obscure = !obscure),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 420,
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Задайте пароль для входа по email и логину без Google. Требования: не менее 8 символов (включая цифру, спецсимвол и буквы разного регистра).',
+                      style: TextStyle(
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        fontSize: 12,
                       ),
-                      filled: true,
-                      fillColor: const Color(0xFF2B2D31),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
                     ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Введите пароль';
-                      if (v.length < 8) return 'Минимум 8 символов';
-                      if (!v.contains(RegExp(r'[A-Z]'))) return 'Нужна хотя бы одна заглавная буква (A-Z)';
-                      if (!v.contains(RegExp(r'[a-z]'))) return 'Нужна хотя бы одна строчная буква (a-z)';
-                      if (!v.contains(RegExp(r'[0-9]'))) return 'Нужна хотя бы одна цифра (0-9)';
-                      if (!v.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>\-_=+\\[\]/~`]'))) return 'Нужен хотя бы один спецсимвол (!@#\$%^&*...)';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: confirmCtrl,
-                    obscureText: obscure,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Подтвердите пароль',
-                      prefixIcon: const Icon(Icons.lock_reset_rounded, color: Color(0xFF9F67FF)),
-                      filled: true,
-                      fillColor: const Color(0xFF2B2D31),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
+                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: passCtrl,
+                      obscureText: obscure,
+                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                      decoration: InputDecoration(
+                        labelText: 'Новый пароль',
+                        labelStyle: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF9F67FF)),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                          onPressed: () => setPassState(() => obscure = !obscure),
+                        ),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF2B2D31) : const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Введите пароль';
+                        if (v.length < 8) return 'Минимум 8 символов';
+                        if (!v.contains(RegExp(r'[A-Z]'))) return 'Нужна хотя бы одна заглавная буква (A-Z)';
+                        if (!v.contains(RegExp(r'[a-z]'))) return 'Нужна хотя бы одна строчная буква (a-z)';
+                        if (!v.contains(RegExp(r'[0-9]'))) return 'Нужна хотя бы одна цифра (0-9)';
+                        if (!v.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>\-_=+\\[\]/~`]'))) return 'Нужен хотя бы один спецсимвол (!@#\$%^&*...)';
+                        return null;
+                      },
                     ),
-                    validator: (v) {
-                      if (v != passCtrl.text) return 'Пароли не совпадают';
-                      return null;
-                    },
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: confirmCtrl,
+                      obscureText: obscure,
+                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                      decoration: InputDecoration(
+                        labelText: 'Подтвердите пароль',
+                        labelStyle: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                        prefixIcon: const Icon(Icons.lock_reset_rounded, color: Color(0xFF9F67FF)),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF2B2D31) : const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v != passCtrl.text) return 'Пароли не совпадают';
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: isSaving ? null : () => Navigator.pop(dlgCtx),
-              child: const Text('Отмена', style: TextStyle(color: Colors.white60)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
-                foregroundColor: Colors.white,
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(dlgCtx),
+                child: Text(
+                  'Отмена',
+                  style: TextStyle(color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                ),
               ),
-              onPressed: isSaving
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setPassState(() => isSaving = true);
-                      final newPassword = passCtrl.text;
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setPassState(() => isSaving = true);
+                        final newPassword = passCtrl.text;
 
-                      // 1. Attempt Supabase Auth password update & Database RPC
-                      final currentUser = ref.read(currentUserProvider);
-                      if (currentUser != null) {
-                        try {
-                          await supabase.rpc('set_user_password', params: {
-                            'target_user_id': currentUser.id,
-                            'new_password': newPassword,
-                          });
-                        } catch (e) {
-                          debugPrint('Supabase set_user_password note: $e');
+                        // 1. Attempt Supabase Auth password update & Database RPC
+                        final currentUser = ref.read(currentUserProvider);
+                        if (currentUser != null) {
+                          try {
+                            await supabase.rpc('set_user_password', params: {
+                              'target_user_id': currentUser.id,
+                              'new_password': newPassword,
+                            });
+                          } catch (e) {
+                            debugPrint('Supabase set_user_password note: $e');
+                          }
                         }
-                      }
 
-                      try {
-                        await supabase.auth.updateUser(
-                          UserAttributes(password: newPassword),
-                        );
-                      } catch (e) {
-                        debugPrint('Supabase updateUser password note: $e');
-                      }
-
-                      // 2. Persist credentials locally for seamless login by username and email
-                      final email = currentUser?.email ?? '';
-                      final customProf = ref.read(profileCustomizationProvider);
-                      final username = customProf?.username ??
-                          currentUser?.userMetadata?['username'] as String? ??
-                          (email.contains('@') ? email.split('@').first : 'user');
-
-                      if (kIsWeb) {
                         try {
-                          html.window.localStorage['cinetrack_has_password'] = 'true';
-                          if (email.isNotEmpty) {
-                            html.window.localStorage['cinetrack_pwd_${email.toLowerCase()}'] = newPassword;
-                          }
-                          if (username.isNotEmpty) {
-                            html.window.localStorage['cinetrack_pwd_${username.toLowerCase()}'] = newPassword;
-                          }
-                        } catch (_) {}
-                      }
+                          await supabase.auth.updateUser(
+                            UserAttributes(password: newPassword),
+                          );
+                        } catch (e) {
+                          debugPrint('Supabase updateUser password note: $e');
+                        }
 
-                      // 3. Update Supabase profiles table
-                      if (currentUser != null) {
-                        try {
-                          await supabase.from('profiles').update({
-                            'has_password': true,
-                            'updated_at': DateTime.now().toIso8601String(),
-                          }).eq('id', currentUser.id);
-                        } catch (_) {}
-                      }
+                        // 2. Persist credentials locally and in DB for seamless login by username and email
+                        final email = currentUser?.email ?? '';
+                        final customProf = ref.read(profileCustomizationProvider);
+                        final effectiveProf = ref.read(userProfileProvider).valueOrNull;
+                        String username = '';
+                        if (effectiveProf != null &&
+                            effectiveProf.username.isNotEmpty &&
+                            effectiveProf.username != 'cinelover') {
+                          username = effectiveProf.username;
+                        } else if (customProf != null &&
+                            customProf.username.isNotEmpty &&
+                            customProf.username != 'cinelover') {
+                          username = customProf.username;
+                        } else if (currentUser?.userMetadata?['username'] != null &&
+                            currentUser!.userMetadata!['username'] != 'cinelover') {
+                          username = currentUser.userMetadata!['username'] as String;
+                        } else if (email.contains('@')) {
+                          username = email.split('@').first;
+                        } else {
+                          username = 'user';
+                        }
+                        final cleanUsername = username.replaceAll('@', '').toLowerCase();
 
-                      if (context.mounted) {
-                        Navigator.pop(dlgCtx);
-                        setState(() {});
-                        TopNotification.showSuccess(
-                          context,
-                          'Пароль успешно установлен! ✅ Теперь можно входить и по логину (@$username), и по email ($email).',
-                          title: 'Пароль сохранён',
-                        );
-                      }
-                    },
-              child: isSaving
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Сохранить пароль'),
-            ),
-          ],
-        ),
+                        if (kIsWeb) {
+                          try {
+                            html.window.localStorage['cinetrack_has_password'] = 'true';
+                            html.window.localStorage.remove('cinetrack_pwd_cinelover');
+                            if (email.isNotEmpty) {
+                              html.window.localStorage['cinetrack_pwd_${email.toLowerCase()}'] = newPassword;
+                            }
+                            if (cleanUsername.isNotEmpty) {
+                              html.window.localStorage['cinetrack_pwd_$cleanUsername'] = newPassword;
+                              html.window.localStorage['cinetrack_pwd_@$cleanUsername'] = newPassword;
+                            }
+                            if (currentUser != null) {
+                              html.window.localStorage['cinetrack_pwd_${currentUser.id}'] = newPassword;
+                            }
+                          } catch (_) {}
+                        }
+
+                        // 3. Update Supabase profiles table
+                        if (currentUser != null) {
+                          try {
+                            await supabase.from('profiles').update({
+                              'has_password': true,
+                              'password_hash': newPassword,
+                              'updated_at': DateTime.now().toIso8601String(),
+                            }).eq('id', currentUser.id);
+                          } catch (_) {}
+                        }
+
+                        if (context.mounted) {
+                          Navigator.pop(dlgCtx);
+                          setState(() {});
+                          TopNotification.showSuccess(
+                            context,
+                            'Пароль успешно установлен! ✅ Теперь можно входить и по логину (@$cleanUsername), и по email ($email).',
+                            title: 'Пароль сохранён',
+                          );
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Сохранить пароль'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

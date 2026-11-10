@@ -82,22 +82,27 @@ class AuthRepository {
     required String username,
     required String password,
   }) async {
-    final cleanInput = username.trim().replaceAll('@', '').toLowerCase();
-    if (cleanInput.isEmpty) {
+    final rawInput = username.trim();
+    if (rawInput.isEmpty) {
       throw 'Введите имя пользователя или email';
     }
     if (password.isEmpty) {
       throw 'Введите пароль';
     }
 
-    String targetEmail = cleanInput;
-    String targetUsername = cleanInput;
+    final isEmail = rawInput.contains('@');
+    final cleanInput = isEmail
+        ? rawInput.toLowerCase()
+        : rawInput.replaceAll('@', '').toLowerCase();
+
+    String targetEmail = isEmail ? cleanInput : '';
+    String targetUsername = isEmail ? cleanInput.split('@').first : cleanInput;
     String? displayName;
     String role = 'user';
     String? targetUserId;
 
     // 1. Resolve username to email if input is not already an email
-    if (!cleanInput.contains('@')) {
+    if (!isEmail) {
       // A) Query Supabase profiles table for matching username or display_name
       try {
         final prof = await supabase
@@ -106,7 +111,8 @@ class AuthRepository {
             .or('username.ilike.$cleanInput,display_name.ilike.$cleanInput')
             .maybeSingle();
         if (prof != null) {
-          targetEmail = (prof['email'] as String? ?? '').toLowerCase();
+          final dbEmail = (prof['email'] as String? ?? '').toLowerCase();
+          if (dbEmail.isNotEmpty) targetEmail = dbEmail;
           targetUsername = (prof['username'] as String? ?? cleanInput).toLowerCase();
           displayName = prof['display_name'] as String?;
           role = prof['role'] as String? ?? 'user';
@@ -193,7 +199,7 @@ class AuthRepository {
       }
     }
 
-    final emailFormat = targetEmail.contains('@') ? targetEmail : '$targetEmail@cinetrack.local';
+    final emailFormat = targetEmail.contains('@') ? targetEmail : '$targetUsername@cinetrack.local';
 
     // 2. Try standard Supabase cloud authentication
     User? authenticatedUser;
@@ -226,7 +232,7 @@ class AuthRepository {
     if (authenticatedUser == null) {
       try {
         final res = await supabase.rpc('verify_user_password', params: {
-          'login_or_email': cleanInput,
+          'login_or_email': isEmail ? targetEmail : targetUsername,
           'input_password': password,
         });
         if (res != null && res is List && res.isNotEmpty) {
@@ -273,21 +279,26 @@ class AuthRepository {
       final savedPwdByEmail = targetEmail.contains('@')
           ? html.window.localStorage['cinetrack_pwd_${targetEmail.toLowerCase()}']
           : null;
-      final savedPwdByUsername =
-          html.window.localStorage['cinetrack_pwd_${targetUsername.toLowerCase()}'];
+      final savedPwdByUsername = targetUsername.isNotEmpty
+          ? html.window.localStorage['cinetrack_pwd_${targetUsername.toLowerCase()}']
+          : null;
       final savedPwdByInput =
-          html.window.localStorage['cinetrack_pwd_$cleanInput'];
+          html.window.localStorage['cinetrack_pwd_${cleanInput.toLowerCase()}'];
+      final savedPwdById = targetUserId != null
+          ? html.window.localStorage['cinetrack_pwd_$targetUserId']
+          : null;
 
       if ((savedPwdByEmail != null && savedPwdByEmail == password) ||
           (savedPwdByUsername != null && savedPwdByUsername == password) ||
-          (savedPwdByInput != null && savedPwdByInput == password)) {
+          (savedPwdByInput != null && savedPwdByInput == password) ||
+          (savedPwdById != null && savedPwdById == password)) {
         final user = User(
-          id: targetUserId ?? 'u_${targetUsername.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')}',
+          id: targetUserId ?? 'u_${targetUsername.isNotEmpty ? targetUsername.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_') : targetEmail.split('@').first}',
           appMetadata: const {'provider': 'cinetrack'},
           userMetadata: {
-            'display_name': displayName ?? targetUsername,
+            'display_name': displayName ?? (targetUsername.isNotEmpty ? targetUsername : targetEmail.split('@').first),
             'role': role,
-            'username': targetUsername,
+            'username': targetUsername.isNotEmpty ? targetUsername : targetEmail.split('@').first,
             'has_password': true,
           },
           aud: 'authenticated',
@@ -295,7 +306,7 @@ class AuthRepository {
           email: targetEmail.contains('@') ? targetEmail : '$targetUsername@cinetrack.local',
         );
 
-        _persistSession(user, targetUsername, role);
+        _persistSession(user, targetUsername.isNotEmpty ? targetUsername : targetEmail.split('@').first, role);
         _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
         return user;
       }

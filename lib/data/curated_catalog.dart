@@ -518,7 +518,7 @@ class CuratedCatalog {
       filmLength: 107,
     ),
     CatalogItem(
-      kinopoiskId: 775276,
+      kinopoiskId: 679486,
       title: 'Тайна Коко',
       nameOriginal: 'Coco',
       type: 'cartoon',
@@ -530,12 +530,32 @@ class CuratedCatalog {
       description:
           '12-летний Мигель мечтает стать музыкантом вопреки семейному запрету и в День мёртвых отправляется в красочный Загробный мир.',
       posterUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/4716873/893bba73-3105-4944-8d18-a38f929f2759/x1000',
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/679486.jpg',
       coverUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/4716873/893bba73-3105-4944-8d18-a38f929f2759/x1000',
+          'https://cdnrrviubnyuntopbez5.svc.cdn.yandex.net/get-ott/2439731/2a0000017c0771239f12d94e40418314a93d/orig',
       rating: 8.7,
       ratingImdb: 8.4,
       filmLength: 105,
+    ),
+    CatalogItem(
+      kinopoiskId: 775276,
+      title: 'Зверополис',
+      nameOriginal: 'Zootopia',
+      type: 'cartoon',
+      typeLabel: 'Мультфильм',
+      genres: ['Мультфильм', 'Комедия', 'Криминал', 'Детектив', 'Семейный'],
+      year: 2016,
+      director: 'Байрон Ховард, Рич Мур, Джаред Буш',
+      actors: 'Джиннифер Гудвин, Джейсон Бейтман, Идрис Эльба',
+      description:
+          'Жизнерадостная зайчиха Джуди Хоппс становится первым кроликом на службе в полиции огромного мегаполиса Зверополис и вместе с хитрым лисом Ником берется за опасное расследование.',
+      posterUrl:
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/4716873/893bba73-3105-4944-8d18-a38f929f2759/x1000',
+      coverUrl:
+          'https://avatars.mds.yandex.net/get-kinopoisk-image/4716873/893bba73-3105-4944-8d18-a38f929f2759/x1000',
+      rating: 8.3,
+      ratingImdb: 8.0,
+      filmLength: 108,
     ),
     CatalogItem(
       kinopoiskId: 279102,

@@ -11,6 +11,7 @@ import '../../data/curated_catalog.dart';
 import '../../models/catalog_item.dart';
 import '../../models/media_item.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/kinopoisk_provider.dart';
 import '../../providers/media_provider.dart';
 import '../../providers/room_provider.dart';
 import '../../providers/stats_provider.dart';
@@ -955,6 +956,207 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     };
   }
 
+  Widget _buildItemMetadataRow(CatalogItem item, bool isDark) {
+    if (!item.isSeries) {
+      // Movie metadata row (Year and duration)
+      return Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.calendar_today_rounded, size: 12, color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5)),
+                const SizedBox(width: 6),
+                Text(
+                  '${item.year} год',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (item.filmLength != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule_rounded, size: 13, color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${item.filmLength} мин (${(item.filmLength! / 60).toStringAsFixed(1)} ч)',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+
+    // Series metadata row: Seasons count, Episodes count, Duration info
+    return Consumer(
+      builder: (context, ref, _) {
+        final kpId = item.kinopoiskId;
+        final seasonsAsync = kpId != null ? ref.watch(seasonsProvider(kpId)) : null;
+        final seasons = seasonsAsync?.valueOrNull ?? [];
+
+        int totalSeasons = seasons.isNotEmpty ? seasons.length : 1;
+        int totalEpisodes = 0;
+        int airedEpisodes = 0;
+        for (final s in seasons) {
+          totalEpisodes += s.totalCount;
+          airedEpisodes += s.airedCount;
+        }
+
+        final epDuration = item.filmLength ?? 45;
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // Year
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.calendar_today_rounded, size: 12, color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${item.year} год',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Seasons count
+            if (seasons.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.layers_rounded, size: 13, color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$totalSeasons ${_pluralize(totalSeasons, 'сезон', 'сезона', 'сезонов')}',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Episodes count
+            if (totalEpisodes > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.playlist_play_rounded, size: 15, color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
+                    const SizedBox(width: 5),
+                    Text(
+                      airedEpisodes < totalEpisodes
+                          ? '$airedEpisodes из $totalEpisodes сер. (вышло)'
+                          : '$totalEpisodes ${_pluralize(totalEpisodes, 'серия', 'серии', 'серий')}',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Average episode duration
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule_rounded, size: 13, color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7)),
+                  const SizedBox(width: 6),
+                  Text(
+                    totalEpisodes > 0
+                        ? '~$epDuration мин / сер. (общая: ${(totalEpisodes * epDuration / 60).round()} ч)'
+                        : '~$epDuration мин / серия',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _pluralize(int count, String one, String few, String many) {
+    final mod10 = count % 10;
+    final mod100 = count % 100;
+    if (mod100 >= 11 && mod100 <= 19) return many;
+    if (mod10 == 1) return one;
+    if (mod10 >= 2 && mod10 <= 4) return few;
+    return many;
+  }
+
   PopupMenuItem<String> _buildStatusMenuItem(
       String value, String icon, String title, bool isSelected, [bool isDark = true]) {
     return PopupMenuItem<String>(
@@ -1127,16 +1329,6 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               ),
             ),
 
-            // Year & Runtime
-            Text(
-              '${item.year} год${item.filmLength != null ? '  •  ${item.filmLength} мин' : ''}',
-              style: TextStyle(
-                color: isDark ? const Color(0xFFC7D2FE) : const Color(0xFF64748B),
-                fontWeight: FontWeight.w600,
-                fontSize: 11.5,
-              ),
-            ),
-
             // Content advisory (Triggers / Violence / Family)
             Builder(builder: (context) {
               final advisory = _getContentAdvisory(item);
@@ -1190,6 +1382,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+
+        // Dedicated Metadata Line (Year, Runtime, Series info: Seasons, Episodes, Average duration)
+        _buildItemMetadataRow(item, isDark),
         const SizedBox(height: 16),
 
         // Synopsis (Description)

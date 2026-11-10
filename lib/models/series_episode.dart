@@ -15,6 +15,45 @@ class SeriesEpisode {
     this.releaseDate,
   });
 
+  /// Checks if episode has already aired based on releaseDate
+  bool get isAired {
+    if (releaseDate == null || releaseDate!.trim().isEmpty) return true;
+    try {
+      final date = DateTime.tryParse(releaseDate!.trim());
+      if (date != null) {
+        final now = DateTime.now();
+        final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        return date.isBefore(endOfToday);
+      }
+    } catch (_) {}
+    return true;
+  }
+
+  String? get formattedReleaseDate {
+    if (releaseDate == null || releaseDate!.trim().isEmpty) return null;
+    try {
+      final date = DateTime.tryParse(releaseDate!.trim());
+      if (date != null) {
+        const months = [
+          'янв',
+          'фев',
+          'мар',
+          'апр',
+          'мая',
+          'июн',
+          'июл',
+          'авг',
+          'сен',
+          'окт',
+          'ноя',
+          'дек'
+        ];
+        return '${date.day} ${months[date.month - 1]} ${date.year}';
+      }
+    } catch (_) {}
+    return releaseDate;
+  }
+
   String get displayTitle {
     if (nameRu != null && nameRu!.trim().isNotEmpty) {
       return '$episodeNumber. $nameRu';
@@ -47,6 +86,12 @@ class SeriesSeason {
   });
 
   String get displayTitle => 'Сезон $number';
+
+  int get totalCount => episodes.length;
+  int get airedCount => episodes.where((e) => e.isAired).length;
+  List<SeriesEpisode> get airedEpisodes =>
+      episodes.where((e) => e.isAired).toList();
+  bool get hasUpcoming => airedCount < totalCount;
 
   factory SeriesSeason.fromJson(Map<String, dynamic> json) {
     final epList = (json['episodes'] as List<dynamic>?) ?? [];

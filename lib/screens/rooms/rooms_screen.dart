@@ -265,11 +265,11 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                     final user = ref.read(currentUserProvider);
                     final customProf = ref.read(profileCustomizationProvider);
                     final dbProf = ref.read(userProfileProvider).value;
-                    final ownerName = (customProf?.username.isNotEmpty == true
-                            ? '@${customProf!.username.replaceAll('@', '')}'
+                    final ownerName = (dbProf?.username.isNotEmpty == true && dbProf!.username != 'cinelover'
+                            ? '@${dbProf.username.replaceAll('@', '')}'
                             : null) ??
-                        (dbProf?.username.isNotEmpty == true
-                            ? '@${dbProf!.username.replaceAll('@', '')}'
+                        (customProf?.username.isNotEmpty == true && customProf!.username != 'cinelover'
+                            ? '@${customProf.username.replaceAll('@', '')}'
                             : null) ??
                         (user?.userMetadata?['username'] != null
                             ? '@${user!.userMetadata!['username']}'
@@ -419,11 +419,16 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   Widget _buildRoomCard(WatchRoom room) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(currentUserProvider);
+    final dbProf = ref.watch(userProfileProvider).valueOrNull;
     final isAdmin = ref.watch(isAdminProvider);
+    final myHandle = (dbProf?.username.isNotEmpty == true && dbProf!.username != 'cinelover')
+        ? dbProf.username.replaceAll('@', '').toLowerCase()
+        : (user?.userMetadata?['username'] as String? ?? (user?.email?.split('@').first.toLowerCase() ?? ''));
     final isOwner = user != null &&
         (room.ownerId == user.id ||
-            room.ownerName.toLowerCase() ==
-                (user.email?.split('@').first ?? '').toLowerCase());
+            room.ownerName.replaceAll('@', '').toLowerCase() == myHandle ||
+            (dbProf != null && room.ownerName.toLowerCase() == dbProf.displayName.toLowerCase()) ||
+            room.ownerName.toLowerCase() == (user.email?.split('@').first ?? '').toLowerCase());
     final canDelete = isOwner || isAdmin;
     final isWatching = room.status == 'watching';
     return Card(
