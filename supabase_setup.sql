@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     username        TEXT,
     avatar_url      TEXT,
     banner_url      TEXT,
-    role            TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin', 'developer', 'coder', 'creator')),
+    role            TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin')),
     custom_title    TEXT,
     is_private      BOOLEAN NOT NULL DEFAULT false,
     friends         JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Добавляем колонки, если таблица profiles уже существовала ранее
+-- Колонки для случая, если таблица создавалась ранее
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
@@ -37,117 +37,94 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS friends JSONB NOT NULL DEFA
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS unlocked_titles JSONB NOT NULL DEFAULT '["welcome"]'::jsonb;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN NOT NULL DEFAULT false;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS block_reason TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS block_until TIMESTAMPTZ;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 
--- Обновление ограничения допустимых ролей (user, moderator, admin, developer, coder, creator)
+-- Удаление устаревшей колонки паролей (пароли живут только в auth.users)
+ALTER TABLE public.profiles DROP COLUMN IF EXISTS password_hash;
+
+-- Обновление ограничения допустимых ролей (строго: user, moderator, admin)
+UPDATE public.profiles SET role = 'admin' WHERE role IN ('developer', 'coder', 'creator');
+UPDATE public.profiles SET role = 'user' WHERE role NOT IN ('user', 'moderator', 'admin');
+
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check 
-    CHECK (role IN ('user', 'moderator', 'admin', 'developer', 'coder', 'creator'));
+    CHECK (role IN ('user', 'moderator', 'admin'));
 
--- Индексы для быстрого поиска и УНИКАЛЬНОСТИ username (логина)
+-- Индексы для быстрого поиска и уникальности юзернейма
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
 DROP INDEX IF EXISTS idx_profiles_username;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique ON public.profiles(LOWER(username));
 
--- Функция проверки прав персонала (SECURITY DEFINER для предотвращения бесконечной рекурсии в RLS)
+-- Функции проверки прав персонала
 CREATE OR REPLACE FUNCTION public.is_admin_or_staff(check_uid UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
+    IF check_uid IS NULL THEN
+        RETURN FALSE;
+    END IF;
     RETURN EXISTS (
         SELECT 1 FROM public.profiles 
-        WHERE id = check_uid AND role IN ('admin', 'creator', 'developer', 'coder')
+        WHERE id = check_uid AND role IN ('admin', 'moderator')
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- Включаем RLS для profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Публичный доступ к чтению профилей" ON public.profiles;
-DROP POLICY IF EXISTS "Все авторизованные могут читать профили" ON public.profiles;
-CREATE POLICY "Публичный доступ к чтению профилей"
-    ON public.profiles FOR SELECT
-    USING (true);
-
-DROP POLICY IF EXISTS "Пользователи могут обновлять свой профиль или админы" ON public.profiles;
-CREATE POLICY "Пользователи могут обновлять свой профиль или админы"
-    ON public.profiles FOR UPDATE
-    TO authenticated
-    USING (
-        auth.uid() = id OR public.is_admin_or_staff(auth.uid())
-    );
-
-DROP POLICY IF EXISTS "Пользователи могут создавать свой профиль" ON public.profiles;
-CREATE POLICY "Пользователи могут создавать свой профиль"
-    ON public.profiles FOR INSERT
-    TO authenticated
-    WITH CHECK (auth.uid() = id);
-
--- ==============================================================================
--- RPC ФУНКЦИИ ДЛЯ БЕЗОПАСНОЙ СМЕНЫ ПАРОЛЕЙ, РОЛЕЙ И ЗАМОРОЗКИ
--- ==============================================================================
-
--- 1. Установка пароля пользователя (хеширование через bcrypt/pgcrypto)
-CREATE OR REPLACE FUNCTION public.set_user_password(target_user_id UUID, new_password TEXT)
+CREATE OR REPLACE FUNCTION public.is_admin(check_uid UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
-    UPDATE public.profiles
-    SET password_hash = crypt(new_password, gen_salt('bf')),
-        updated_at = NOW()
-    WHERE id = target_user_id;
-    RETURN TRUE;
+    IF check_uid IS NULL THEN
+        RETURN FALSE;
+    END IF;
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE id = check_uid AND role = 'admin'
+    );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- 2. Проверка логина/email и пароля при входе
-CREATE OR REPLACE FUNCTION public.verify_user_password(login_or_email TEXT, input_password TEXT)
-RETURNS TABLE (
-    user_id UUID,
-    user_email TEXT,
-    user_username TEXT,
-    user_display_name TEXT,
-    user_role TEXT,
-    user_is_blocked BOOLEAN,
-    user_is_frozen BOOLEAN,
-    user_block_reason TEXT
-) AS $$
+-- Безопасный поиск email по логину (для входа по логину или email)
+CREATE OR REPLACE FUNCTION public.find_user_email_by_login(user_login TEXT)
+RETURNS TEXT AS $$
 DECLARE
-    found_profile public.profiles%ROWTYPE;
+    found_email TEXT;
+    clean_login TEXT;
 BEGIN
-    SELECT * INTO found_profile
+    IF user_login IS NULL OR TRIM(user_login) = '' THEN
+        RETURN NULL;
+    END IF;
+
+    clean_login := LOWER(TRIM(REPLACE(user_login, '@', '')));
+
+    SELECT email INTO found_email
     FROM public.profiles
-    WHERE LOWER(profiles.email) = LOWER(TRIM(login_or_email))
-       OR LOWER(profiles.username) = LOWER(TRIM(REPLACE(login_or_email, '@', '')))
+    WHERE LOWER(profiles.username) = clean_login
+       OR LOWER(profiles.email) = LOWER(TRIM(user_login))
     LIMIT 1;
 
-    IF found_profile.id IS NOT NULL AND found_profile.password_hash IS NOT NULL THEN
-        IF found_profile.password_hash = crypt(input_password, found_profile.password_hash) THEN
-            RETURN QUERY SELECT 
-                found_profile.id,
-                found_profile.email,
-                found_profile.username,
-                found_profile.display_name,
-                found_profile.role,
-                found_profile.is_blocked,
-                found_profile.is_frozen,
-                found_profile.block_reason;
-        END IF;
-    END IF;
+    RETURN found_email;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- 3. Назначение роли пользователя модерацией/админом
+REVOKE EXECUTE ON FUNCTION public.find_user_email_by_login(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.find_user_email_by_login(TEXT) TO anon, authenticated;
+
+-- Защищенные RPC функции: смена роли и блокировка
 CREATE OR REPLACE FUNCTION public.set_user_role(target_user_id UUID, new_role TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
-    IF new_role NOT IN ('user', 'moderator', 'admin', 'developer', 'coder', 'creator') THEN
-        RAISE EXCEPTION 'Недопустимая роль: %', new_role;
+    IF NOT public.is_admin_or_staff(auth.uid()) THEN
+        RAISE EXCEPTION 'Access denied: caller is not authorized to set roles';
+    END IF;
+
+    IF auth.uid() = target_user_id THEN
+        RAISE EXCEPTION 'Cannot modify own role';
+    END IF;
+
+    IF new_role NOT IN ('user', 'moderator', 'admin') THEN
+        RAISE EXCEPTION 'Invalid role: %', new_role;
     END IF;
 
     UPDATE public.profiles
@@ -157,9 +134,11 @@ BEGIN
 
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- 4. Заморозка / блокировка пользователя
+REVOKE EXECUTE ON FUNCTION public.set_user_role(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_user_role(UUID, TEXT) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.freeze_or_block_user(
     target_user_id UUID,
     set_frozen BOOLEAN,
@@ -169,9 +148,17 @@ CREATE OR REPLACE FUNCTION public.freeze_or_block_user(
 )
 RETURNS BOOLEAN AS $$
 BEGIN
+    IF NOT public.is_admin_or_staff(auth.uid()) THEN
+        RAISE EXCEPTION 'Access denied: caller is not staff';
+    END IF;
+
+    IF auth.uid() = target_user_id THEN
+        RAISE EXCEPTION 'Cannot freeze or block self';
+    END IF;
+
     UPDATE public.profiles
-    SET is_frozen = set_frozen,
-        is_blocked = set_blocked,
+    SET is_frozen = COALESCE(set_frozen, false),
+        is_blocked = COALESCE(set_blocked, false),
         block_reason = reason,
         block_until = freeze_until,
         updated_at = NOW()
@@ -179,7 +166,110 @@ BEGIN
 
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE EXECUTE ON FUNCTION public.freeze_or_block_user(UUID, BOOLEAN, BOOLEAN, TEXT, TIMESTAMPTZ) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.freeze_or_block_user(UUID, BOOLEAN, BOOLEAN, TEXT, TIMESTAMPTZ) TO authenticated;
+
+-- Удаление старых небезопасных RPC функций
+DROP FUNCTION IF EXISTS public.set_user_password(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.set_user_password(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.verify_user_password(TEXT, TEXT);
+
+-- Триггер защиты привилегированных полей от прямого UPDATE
+CREATE OR REPLACE FUNCTION public.protect_profile_privileged_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF auth.uid() IS NOT NULL AND NOT public.is_admin_or_staff(auth.uid()) THEN
+        NEW.role := OLD.role;
+        NEW.is_blocked := OLD.is_blocked;
+        NEW.is_frozen := OLD.is_frozen;
+        NEW.block_reason := OLD.block_reason;
+        NEW.block_until := OLD.block_until;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS tr_protect_profile_privileged_fields ON public.profiles;
+CREATE TRIGGER tr_protect_profile_privileged_fields
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.protect_profile_privileged_fields();
+
+-- Публичный View профилей с маскированием email и приватных данных
+CREATE OR REPLACE VIEW public.public_profiles AS
+SELECT 
+    p.id,
+    p.username,
+    p.avatar_url,
+    CASE 
+        WHEN auth.uid() = p.id OR public.is_admin_or_staff(auth.uid()) OR p.is_private = false THEN p.display_name
+        ELSE p.username 
+    END AS display_name,
+    CASE 
+        WHEN auth.uid() = p.id OR public.is_admin_or_staff(auth.uid()) OR p.is_private = false THEN p.banner_url
+        ELSE NULL 
+    END AS banner_url,
+    CASE 
+        WHEN auth.uid() = p.id OR public.is_admin_or_staff(auth.uid()) OR p.is_private = false THEN p.role
+        ELSE 'user' 
+    END AS role,
+    CASE 
+        WHEN auth.uid() = p.id OR public.is_admin_or_staff(auth.uid()) OR p.is_private = false THEN p.custom_title
+        ELSE NULL 
+    END AS custom_title,
+    p.is_private,
+    CASE 
+        WHEN auth.uid() = p.id OR public.is_admin_or_staff(auth.uid()) THEN p.email
+        ELSE NULL 
+    END AS email,
+    CASE 
+        WHEN auth.uid() = p.id OR public.is_admin_or_staff(auth.uid()) OR p.is_private = false THEN p.friends
+        ELSE '[]'::jsonb 
+    END AS friends,
+    CASE 
+        WHEN auth.uid() = p.id OR public.is_admin_or_staff(auth.uid()) OR p.is_private = false THEN p.unlocked_titles
+        ELSE '[]'::jsonb 
+    END AS unlocked_titles,
+    p.created_at,
+    p.updated_at
+FROM public.profiles p;
+
+GRANT SELECT ON public.public_profiles TO anon, authenticated;
+
+-- RLS для profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Публичный доступ к чтению профилей" ON public.profiles;
+DROP POLICY IF EXISTS "Все авторизованные могут читать профили" ON public.profiles;
+DROP POLICY IF EXISTS "Пользователи видят свой профиль или админы" ON public.profiles;
+DROP POLICY IF EXISTS "Профиль доступен владельцу, персоналу или публично" ON public.profiles;
+
+CREATE POLICY "Профиль доступен владельцу, персоналу или публично"
+    ON public.profiles FOR SELECT
+    USING (
+        auth.uid() = id 
+        OR public.is_admin_or_staff(auth.uid())
+        OR is_private = false
+    );
+
+DROP POLICY IF EXISTS "Пользователи могут обновлять свой профиль или админы" ON public.profiles;
+CREATE POLICY "Пользователи могут обновлять свой профиль или админы"
+    ON public.profiles FOR UPDATE
+    TO authenticated
+    USING (
+        auth.uid() = id OR public.is_admin_or_staff(auth.uid())
+    )
+    WITH CHECK (
+        auth.uid() = id OR public.is_admin_or_staff(auth.uid())
+    );
+
+DROP POLICY IF EXISTS "Пользователи могут создавать свой профиль" ON public.profiles;
+CREATE POLICY "Пользователи могут создавать свой профиль"
+    ON public.profiles FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = id);
 
 
 -- 2. ТРИГГЕР: АВТОМАТИЧЕСКОЕ СОЗДАНИЕ ПРОФИЛЯ ПРИ РЕГИСТРАЦИИ (auth.users)
@@ -189,15 +279,19 @@ DECLARE
     user_handle TEXT;
     user_name TEXT;
     user_avatar TEXT;
-    initial_role TEXT;
 BEGIN
-    -- Юзернейм (логин): сначала username, если нет — префикс почты до @ (без @domain.com)
     user_handle := COALESCE(
         NULLIF(TRIM(NEW.raw_user_meta_data->>'username'), ''),
         split_part(NEW.email, '@', 1)
     );
 
-    -- Имя для отображения: display_name, либо full_name/name из Google, либо префикс почты
+    IF EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE LOWER(profiles.username) = LOWER(user_handle) AND profiles.id <> NEW.id
+    ) THEN
+        user_handle := user_handle || '_' || substr(NEW.id::text, 1, 4);
+    END IF;
+
     user_name := COALESCE(
         NULLIF(TRIM(NEW.raw_user_meta_data->>'display_name'), ''),
         NULLIF(TRIM(NEW.raw_user_meta_data->>'full_name'), ''),
@@ -205,14 +299,10 @@ BEGIN
         user_handle
     );
 
-    -- Фото профиля (Google OAuth возвращает avatar_url или picture)
     user_avatar := COALESCE(
         NULLIF(TRIM(NEW.raw_user_meta_data->>'avatar_url'), ''),
         NULLIF(TRIM(NEW.raw_user_meta_data->>'picture'), '')
     );
-    
-    -- Все новые пользователи по умолчанию получают обычную роль 'user'
-    initial_role := 'user';
 
     INSERT INTO public.profiles (
         id,
@@ -229,7 +319,7 @@ BEGIN
         user_name,
         user_handle,
         user_avatar,
-        initial_role,
+        'user',
         '["welcome"]'::jsonb
     )
     ON CONFLICT (id) DO UPDATE SET
@@ -240,7 +330,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -292,24 +382,42 @@ ALTER TABLE public.media ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Пользователи видят своё медиа или админы" ON public.media;
 CREATE POLICY "Пользователи видят своё медиа или админы"
     ON public.media FOR SELECT
-    USING (auth.uid() = user_id OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
-    ));
+    TO authenticated
+    USING (
+        auth.uid() = user_id 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 DROP POLICY IF EXISTS "Пользователи могут добавлять медиа" ON public.media;
 CREATE POLICY "Пользователи могут добавлять медиа"
     ON public.media FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    TO authenticated
+    WITH CHECK (
+        auth.uid() = user_id 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 DROP POLICY IF EXISTS "Пользователи могут обновлять своё медиа" ON public.media;
 CREATE POLICY "Пользователи могут обновлять своё медиа"
     ON public.media FOR UPDATE
-    USING (auth.uid() = user_id);
+    TO authenticated
+    USING (
+        auth.uid() = user_id 
+        OR public.is_admin_or_staff(auth.uid())
+    )
+    WITH CHECK (
+        auth.uid() = user_id 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 DROP POLICY IF EXISTS "Пользователи могут удалять своё медиа" ON public.media;
 CREATE POLICY "Пользователи могут удалять своё медиа"
     ON public.media FOR DELETE
-    USING (auth.uid() = user_id);
+    TO authenticated
+    USING (
+        auth.uid() = user_id 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 
 -- 4. ТАБЛИЦА КОМНАТ СОВМЕСТНОГО ПРОСМОТРА (public.rooms)
@@ -347,19 +455,33 @@ CREATE POLICY "Все могут просматривать комнаты"
 DROP POLICY IF EXISTS "Авторизованные могут создавать комнаты" ON public.rooms;
 CREATE POLICY "Авторизованные могут создавать комнаты"
     ON public.rooms FOR INSERT
-    WITH CHECK (true);
+    TO authenticated
+    WITH CHECK (owner_id = auth.uid()::text);
 
 DROP POLICY IF EXISTS "Участники или админы могут обновлять комнату" ON public.rooms;
-CREATE POLICY "Участники или админы могут обновлять комнату"
+DROP POLICY IF EXISTS "Владелец или админ может обновлять комнату" ON public.rooms;
+CREATE POLICY "Владелец или админ может обновлять комнату"
     ON public.rooms FOR UPDATE
-    USING (true);
+    TO authenticated
+    USING (
+        owner_id = auth.uid()::text 
+        OR public.is_admin_or_staff(auth.uid())
+        OR allow_guest_control = true
+    )
+    WITH CHECK (
+        owner_id = auth.uid()::text 
+        OR public.is_admin_or_staff(auth.uid())
+        OR allow_guest_control = true
+    );
 
 DROP POLICY IF EXISTS "Владелец или админ может удалять комнату" ON public.rooms;
 CREATE POLICY "Владелец или админ может удалять комнату"
     ON public.rooms FOR DELETE
-    USING (owner_id = auth.uid()::text OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
-    ));
+    TO authenticated
+    USING (
+        owner_id = auth.uid()::text 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 
 -- 5. ТАБЛИЦА СООБЩЕНИЙ ЧАТА КОМНАТЫ (public.room_messages)
@@ -384,7 +506,17 @@ DROP POLICY IF EXISTS "Все могут отправлять сообщения
 DROP POLICY IF EXISTS "Авторизованные могут отправлять сообщения" ON public.room_messages;
 CREATE POLICY "Все могут отправлять сообщения"
     ON public.room_messages FOR INSERT
-    WITH CHECK (true);
+    TO authenticated
+    WITH CHECK (user_id = auth.uid()::text);
+
+DROP POLICY IF EXISTS "Авторы или админы могут удалять сообщения" ON public.room_messages;
+CREATE POLICY "Авторы или админы могут удалять сообщения"
+    ON public.room_messages FOR DELETE
+    TO authenticated
+    USING (
+        user_id = auth.uid()::text 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 
 -- 6. ТАБЛИЦА РЕЦЕНЗИЙ И ОТЗЫВОВ (public.reviews)
@@ -415,15 +547,29 @@ DROP POLICY IF EXISTS "Авторизованные могут писать ре
 CREATE POLICY "Авторизованные могут писать рецензии"
     ON public.reviews FOR INSERT
     TO authenticated
-    WITH CHECK (true);
+    WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Авторы или админы могут обновлять рецензии" ON public.reviews;
+CREATE POLICY "Авторы или админы могут обновлять рецензии"
+    ON public.reviews FOR UPDATE
+    TO authenticated
+    USING (
+        user_id = auth.uid() 
+        OR public.is_admin_or_staff(auth.uid())
+    )
+    WITH CHECK (
+        user_id = auth.uid() 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 DROP POLICY IF EXISTS "Авторы или админы могут удалять рецензии" ON public.reviews;
 CREATE POLICY "Авторы или админы могут удалять рецензии"
     ON public.reviews FOR DELETE
     TO authenticated
-    USING (user_id = auth.uid() OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
-    ));
+    USING (
+        user_id = auth.uid() 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 
 -- 7. ТАБЛИЦА КОММЕНТАРИЕВ К СЕРИЯМ И ТАЙМКОДАМ (public.episode_comments)
@@ -452,7 +598,29 @@ DROP POLICY IF EXISTS "Авторизованные могут оставлят�
 CREATE POLICY "Авторизованные могут оставлять комментарии к сериям"
     ON public.episode_comments FOR INSERT
     TO authenticated
-    WITH CHECK (true);
+    WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Авторы или админы могут обновлять комментарии к сериям" ON public.episode_comments;
+CREATE POLICY "Авторы или админы могут обновлять комментарии к сериям"
+    ON public.episode_comments FOR UPDATE
+    TO authenticated
+    USING (
+        user_id = auth.uid() 
+        OR public.is_admin_or_staff(auth.uid())
+    )
+    WITH CHECK (
+        user_id = auth.uid() 
+        OR public.is_admin_or_staff(auth.uid())
+    );
+
+DROP POLICY IF EXISTS "Авторы или админы могут удалять комментарии к сериям" ON public.episode_comments;
+CREATE POLICY "Авторы или админы могут удалять комментарии к сериям"
+    ON public.episode_comments FOR DELETE
+    TO authenticated
+    USING (
+        user_id = auth.uid() 
+        OR public.is_admin_or_staff(auth.uid())
+    );
 
 
 -- 8. ХРАНИЛИЩЕ SUPABASE STORAGE: BUCKETS ДЛЯ АВАТАРОК И БАННЕРОВ
@@ -464,23 +632,59 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('banners', 'banners', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Политики доступа к Storage (загрузка и просмотр картинок)
 DROP POLICY IF EXISTS "Публичный просмотр аватарок и баннеров" ON storage.objects;
+DROP POLICY IF EXISTS "Авторизованные могут загружать файлы в аватарки и баннеры" ON storage.objects;
+DROP POLICY IF EXISTS "Авторизованные могут обновлять свои файлы в storage" ON storage.objects;
+DROP POLICY IF EXISTS "Пользователи могут загружать файлы только в свою папку" ON storage.objects;
+DROP POLICY IF EXISTS "Пользователи могут обновлять только свои файлы" ON storage.objects;
+DROP POLICY IF EXISTS "Пользователи могут удалять только свои файлы" ON storage.objects;
+
 CREATE POLICY "Публичный просмотр аватарок и баннеров"
     ON storage.objects FOR SELECT
     USING (bucket_id IN ('avatars', 'banners'));
 
-DROP POLICY IF EXISTS "Авторизованные могут загружать файлы в аватарки и баннеры" ON storage.objects;
-CREATE POLICY "Авторизованные могут загружать файлы в аватарки и баннеры"
+CREATE POLICY "Пользователи могут загружать файлы только в свою папку"
     ON storage.objects FOR INSERT
     TO authenticated
-    WITH CHECK (bucket_id IN ('avatars', 'banners'));
+    WITH CHECK (
+        bucket_id IN ('avatars', 'banners') 
+        AND (
+            (storage.foldername(name))[1] = auth.uid()::text
+            OR name LIKE (auth.uid()::text || '/%')
+        )
+    );
 
-DROP POLICY IF EXISTS "Авторизованные могут обновлять свои файлы в storage" ON storage.objects;
-CREATE POLICY "Авторизованные могут обновлять свои файлы в storage"
+CREATE POLICY "Пользователи могут обновлять только свои файлы"
     ON storage.objects FOR UPDATE
     TO authenticated
-    USING (bucket_id IN ('avatars', 'banners'));
+    USING (
+        bucket_id IN ('avatars', 'banners') 
+        AND (
+            (storage.foldername(name))[1] = auth.uid()::text
+            OR name LIKE (auth.uid()::text || '/%')
+            OR owner::text = auth.uid()::text
+        )
+    )
+    WITH CHECK (
+        bucket_id IN ('avatars', 'banners') 
+        AND (
+            (storage.foldername(name))[1] = auth.uid()::text
+            OR name LIKE (auth.uid()::text || '/%')
+        )
+    );
+
+CREATE POLICY "Пользователи могут удалять только свои файлы"
+    ON storage.objects FOR DELETE
+    TO authenticated
+    USING (
+        bucket_id IN ('avatars', 'banners') 
+        AND (
+            (storage.foldername(name))[1] = auth.uid()::text
+            OR name LIKE (auth.uid()::text || '/%')
+            OR owner::text = auth.uid()::text
+            OR public.is_admin_or_staff(auth.uid())
+        )
+    );
 
 
 -- 9. REALTIME: СИНХРОНИЗАЦИЯ КОМНАТ И ЧАТА В РЕАЛЬНОМ ВРЕМЕНИ
