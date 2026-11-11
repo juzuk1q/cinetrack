@@ -72,6 +72,125 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailCtrl = TextEditingController(
+      text: _usernameController.text.contains('@') ? _usernameController.text.trim() : '',
+    );
+    final formKey = GlobalKey<FormState>();
+    bool sending = false;
+
+    await showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: const Color(0xFF16162A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.white12),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_reset_rounded, color: Color(0xFF9F67FF)),
+              SizedBox(width: 10),
+              Text(
+                'Сброс пароля',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Введите email, указанный при регистрации. Мы отправим ссылку для сброса пароля.',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: emailCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Ваш email',
+                      hintText: 'user@example.com',
+                      prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF9F67FF)),
+                      filled: true,
+                      fillColor: const Color(0xFF202038),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty || !v.contains('@')) {
+                        return 'Введите корректный email';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: sending ? null : () => Navigator.pop(dlgCtx),
+              child: const Text('Отмена', style: TextStyle(color: Colors.white60)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: sending
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDlgState(() => sending = true);
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        await ref
+                            .read(authRepositoryProvider)
+                            .resetPasswordForEmail(emailCtrl.text.trim());
+                        if (mounted) {
+                          if (dlgCtx.mounted) Navigator.pop(dlgCtx);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Ссылка для сброса пароля отправлена на ${emailCtrl.text.trim()}',
+                              ),
+                              backgroundColor: Colors.green[700],
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDlgState(() => sending = false);
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Ошибка отправки: $e'),
+                              backgroundColor: Colors.red[700],
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: sending
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Отправить'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
@@ -186,6 +305,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               return null;
                             },
                             onFieldSubmitted: (_) => _submit(),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _showForgotPasswordDialog,
+                              child: const Text(
+                                'Забыли пароль?',
+                                style: TextStyle(
+                                  color: Color(0xFF9F67FF),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 24),
 

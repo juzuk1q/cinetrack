@@ -2690,11 +2690,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         builder: (context) {
                           final currentUser = ref.read(currentUserProvider);
                           final prof = ref.read(userProfileProvider).valueOrNull;
-                          final hasPassword = (prof?.hasPassword == true) ||
-                              (kIsWeb &&
-                                  html.window.localStorage['cinetrack_has_password'] ==
-                                      'true') ||
+                          final hasPassword = (prof?.effectiveHasPassword == true) ||
                               (currentUser?.appMetadata['provider'] == 'email') ||
+                              (currentUser?.identities?.any((i) => i.provider == 'email') == true) ||
                               (currentUser?.userMetadata?['has_password'] == true);
 
                           return Container(
@@ -3109,86 +3107,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         setPassState(() => isSaving = true);
                         final newPassword = passCtrl.text;
 
-                        // 1. Attempt Supabase Auth password update & Database RPC
-                        final currentUser = ref.read(currentUserProvider);
-                        if (currentUser != null) {
-                          try {
-                            await supabase.rpc('set_user_password', params: {
-                              'target_user_id': currentUser.id,
-                              'new_password': newPassword,
-                            });
-                          } catch (e) {
-                            debugPrint('Supabase set_user_password note: $e');
-                          }
-                        }
-
                         try {
                           await supabase.auth.updateUser(
-                            UserAttributes(password: newPassword),
+                            UserAttributes(
+                              password: newPassword,
+                              data: {'has_password': true},
+                            ),
                           );
+
+                          ref.invalidate(userProfileProvider);
+
+                          if (context.mounted) {
+                            Navigator.pop(dlgCtx);
+                            setState(() {});
+                            TopNotification.showSuccess(
+                              context,
+                              'Пароль успешно сохранён! ✅ Теперь вы можете безопасно входить с новым паролем.',
+                              title: 'Пароль обновлён',
+                            );
+                          }
                         } catch (e) {
-                          debugPrint('Supabase updateUser password note: $e');
-                        }
-
-                        // 2. Persist credentials locally and in DB for seamless login by username and email
-                        final email = currentUser?.email ?? '';
-                        final customProf = ref.read(profileCustomizationProvider);
-                        final effectiveProf = ref.read(userProfileProvider).valueOrNull;
-                        String username = '';
-                        if (effectiveProf != null &&
-                            effectiveProf.username.isNotEmpty &&
-                            effectiveProf.username != 'cinelover') {
-                          username = effectiveProf.username;
-                        } else if (customProf != null &&
-                            customProf.username.isNotEmpty &&
-                            customProf.username != 'cinelover') {
-                          username = customProf.username;
-                        } else if (currentUser?.userMetadata?['username'] != null &&
-                            currentUser!.userMetadata!['username'] != 'cinelover') {
-                          username = currentUser.userMetadata!['username'] as String;
-                        } else if (email.contains('@')) {
-                          username = email.split('@').first;
-                        } else {
-                          username = 'user';
-                        }
-                        final cleanUsername = username.replaceAll('@', '').toLowerCase();
-
-                        if (kIsWeb) {
-                          try {
-                            html.window.localStorage['cinetrack_has_password'] = 'true';
-                            html.window.localStorage.remove('cinetrack_pwd_cinelover');
-                            if (email.isNotEmpty) {
-                              html.window.localStorage['cinetrack_pwd_${email.toLowerCase()}'] = newPassword;
-                            }
-                            if (cleanUsername.isNotEmpty) {
-                              html.window.localStorage['cinetrack_pwd_$cleanUsername'] = newPassword;
-                              html.window.localStorage['cinetrack_pwd_@$cleanUsername'] = newPassword;
-                            }
-                            if (currentUser != null) {
-                              html.window.localStorage['cinetrack_pwd_${currentUser.id}'] = newPassword;
-                            }
-                          } catch (_) {}
-                        }
-
-                        // 3. Update Supabase profiles table
-                        if (currentUser != null) {
-                          try {
-                            await supabase.from('profiles').update({
-                              'has_password': true,
-                              'password_hash': newPassword,
-                              'updated_at': DateTime.now().toIso8601String(),
-                            }).eq('id', currentUser.id);
-                          } catch (_) {}
-                        }
-
-                        if (context.mounted) {
-                          Navigator.pop(dlgCtx);
-                          setState(() {});
-                          TopNotification.showSuccess(
-                            context,
-                            'Пароль успешно установлен! ✅ Теперь можно входить и по логину (@$cleanUsername), и по email ($email).',
-                            title: 'Пароль сохранён',
-                          );
+                          if (context.mounted) {
+                            setPassState(() => isSaving = false);
+                            final msg = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
+                            TopNotification.showError(
+                              context,
+                              'Ошибка установки пароля: $msg',
+                              title: 'Не удалось сохранить пароль',
+                            );
+                          }
                         }
                       },
                 child: isSaving

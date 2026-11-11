@@ -55,7 +55,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
     } else {
-      _showConfirmationDialog(_emailController.text.trim());
+      final session = ref.read(authRepositoryProvider).currentSession;
+      if (session != null) {
+        context.go('/home');
+      } else {
+        _showConfirmationDialog(_emailController.text.trim());
+      }
     }
   }
 

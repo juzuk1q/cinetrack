@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 class AchievementTitle {
   final String id;
   final String title;
@@ -130,6 +132,23 @@ class UserProfile {
   final String? blockReason;
   final DateTime? blockUntil;
   final bool hasPassword;
+
+  bool get effectiveHasPassword =>
+      hasPassword || _computeHasPassword(id);
+
+  static bool _computeHasPassword(String? uid) {
+    try {
+      final authUser = Supabase.instance.client.auth.currentUser;
+      if (authUser != null && (uid == null || authUser.id == uid)) {
+        final provider = authUser.appMetadata['provider'] as String?;
+        final hasEmailIdentity =
+            authUser.identities?.any((i) => i.provider == 'email') ?? false;
+        final hasMetadataFlag = authUser.userMetadata?['has_password'] == true;
+        return provider == 'email' || hasEmailIdentity || hasMetadataFlag;
+      }
+    } catch (_) {}
+    return false;
+  }
 
   // Role hierarchy getters
   bool get isCreator => role == 'creator';
@@ -372,8 +391,7 @@ class UserProfile {
           ? DateTime.tryParse(json['block_until'].toString())
           : null,
       hasPassword: json['has_password'] as bool? ??
-          (json['password_hash'] != null &&
-              json['password_hash'].toString().isNotEmpty),
+          _computeHasPassword(json['id'] as String?),
     );
   }
 

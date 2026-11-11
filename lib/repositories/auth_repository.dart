@@ -1,6 +1,5 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:async';
-import 'dart:convert';
 import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
@@ -16,67 +15,7 @@ class EmailConfirmationRequiredException implements Exception {
 }
 
 class AuthRepository {
-  AuthRepository() {
-    _initLocalSession();
-  }
-
-  static const String _kActiveUserKey = 'cinetrack_active_user';
-  static const String _kSavedUsersKey = 'cinetrack_saved_users';
-
-  final _authStreamController = StreamController<AuthState>.broadcast();
-  User? _localCurrentUser;
-
-  void _initLocalSession() {
-    if (!kIsWeb) return;
-    try {
-      final raw = html.window.localStorage[_kActiveUserKey];
-      if (raw != null && raw.isNotEmpty) {
-        final data = jsonDecode(raw) as Map<String, dynamic>;
-        _localCurrentUser = _createUserFromJson(data);
-      }
-    } catch (e) {
-      debugPrint('Error restoring local auth session: $e');
-    }
-  }
-
-  User _createUserFromJson(Map<String, dynamic> data) {
-    final username = data['username'] as String? ?? 'user';
-    final role = data['role'] as String? ?? 'user';
-    final displayName = data['display_name'] as String? ?? username;
-    final email = data['email'] as String? ?? '$username@cinetrack.local';
-
-    return User(
-      id: data['id'] as String? ?? 'u_${username.toLowerCase()}',
-      appMetadata: const {'provider': 'cinetrack'},
-      userMetadata: {
-        'display_name': displayName,
-        'role': role,
-        'username': username,
-      },
-      aud: 'authenticated',
-      createdAt: data['created_at'] as String? ?? DateTime.now().toIso8601String(),
-      email: email,
-    );
-  }
-
-  void _persistSession(User user, String username, String role) {
-    _localCurrentUser = user;
-    if (kIsWeb) {
-      try {
-        final map = {
-          'id': user.id,
-          'username': username,
-          'display_name': user.userMetadata?['display_name'] ?? username,
-          'role': role,
-          'email': user.email,
-          'created_at': user.createdAt,
-        };
-        html.window.localStorage[_kActiveUserKey] = jsonEncode(map);
-      } catch (e) {
-        debugPrint('Error persisting local auth session: $e');
-      }
-    }
-  }
+  AuthRepository();
 
   Future<User> signIn({
     required String username,
@@ -91,302 +30,89 @@ class AuthRepository {
     }
 
     final isEmail = rawInput.contains('@');
-    final cleanInput = isEmail
-        ? rawInput.toLowerCase()
-        : rawInput.replaceAll('@', '').toLowerCase();
+    String targetEmail;
 
-    String targetEmail = isEmail ? cleanInput : '';
-    String targetUsername = isEmail ? cleanInput.split('@').first : cleanInput;
-    String? displayName;
-    String role = 'user';
-    String? targetUserId;
-
-    // 1. Resolve username to email if input is not already an email
-    if (!isEmail) {
-      // A) Query Supabase profiles table for matching username or display_name
-      try {
-        final prof = await supabase
-            .from('profiles')
-            .select()
-            .or('username.ilike.$cleanInput,display_name.ilike.$cleanInput')
-            .maybeSingle();
-        if (prof != null) {
-          final dbEmail = (prof['email'] as String? ?? '').toLowerCase();
-          if (dbEmail.isNotEmpty) targetEmail = dbEmail;
-          targetUsername = (prof['username'] as String? ?? cleanInput).toLowerCase();
-          displayName = prof['display_name'] as String?;
-          role = prof['role'] as String? ?? 'user';
-          targetUserId = prof['id'] as String?;
-        }
-      } catch (e) {
-        debugPrint('Supabase profile lookup note: $e');
-      }
-
-      // B) Query localStorage admin users if email is still unresolved
-      if (!targetEmail.contains('@') && kIsWeb) {
-        try {
-          final raw = html.window.localStorage['cinetrack_admin_users'];
-          if (raw != null && raw.isNotEmpty) {
-            final list = jsonDecode(raw) as List<dynamic>;
-            for (final u in list) {
-              final uName = (u['username'] ?? '').toString().toLowerCase();
-              final uDisplay = (u['display_name'] ?? '').toString().toLowerCase();
-              if (uName == cleanInput || uDisplay == cleanInput) {
-                targetEmail = (u['email'] ?? '').toString().toLowerCase();
-                targetUsername = uName;
-                displayName = u['display_name'] as String?;
-                role = u['role'] as String? ?? 'user';
-                targetUserId = u['id'] as String?;
-                break;
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      // C) Query localStorage custom profile
-      if (!targetEmail.contains('@') && kIsWeb) {
-        try {
-          final raw = html.window.localStorage['cinetrack_custom_profile'];
-          if (raw != null && raw.isNotEmpty) {
-            final map = jsonDecode(raw) as Map<String, dynamic>;
-            final uName = (map['username'] ?? '').toString().toLowerCase();
-            final uDisplay = (map['display_name'] ?? '').toString().toLowerCase();
-            if (uName == cleanInput || uDisplay == cleanInput) {
-              targetEmail = (map['email'] ?? '').toString().toLowerCase();
-              targetUsername = uName;
-              displayName = map['display_name'] as String?;
-              role = map['role'] as String? ?? 'user';
-              targetUserId = map['id'] as String?;
-            }
-          }
-        } catch (_) {}
-      }
+    if (isEmail) {
+      targetEmail = rawInput.toLowerCase();
     } else {
-      // Input is an email. Try to fetch associated username and role
-      targetEmail = cleanInput;
+      // Resolve username to email via secure RPC find_user_email_by_login
       try {
-        final prof = await supabase
-            .from('profiles')
-            .select()
-            .eq('email', targetEmail)
-            .maybeSingle();
-        if (prof != null) {
-          targetUsername = (prof['username'] as String? ?? targetEmail.split('@').first).toLowerCase();
-          displayName = prof['display_name'] as String?;
-          role = prof['role'] as String? ?? 'user';
-          targetUserId = prof['id'] as String?;
+        final res = await supabase.rpc('find_user_email_by_login', params: {
+          'user_login': rawInput,
+        });
+        if (res == null || (res as String).trim().isEmpty) {
+          throw 'Пользователь с логином "$rawInput" не найден';
         }
-      } catch (_) {}
-
-      if (kIsWeb) {
-        try {
-          final raw = html.window.localStorage['cinetrack_admin_users'];
-          if (raw != null && raw.isNotEmpty) {
-            final list = jsonDecode(raw) as List<dynamic>;
-            for (final u in list) {
-              final uEmail = (u['email'] ?? '').toString().toLowerCase();
-              if (uEmail == targetEmail) {
-                targetUsername = (u['username'] ?? targetUsername).toString().toLowerCase();
-                displayName ??= u['display_name'] as String?;
-                role = u['role'] as String? ?? role;
-                targetUserId ??= u['id'] as String?;
-                break;
-              }
-            }
-          }
-        } catch (_) {}
+        targetEmail = res.trim().toLowerCase();
+      } catch (e) {
+        if (e is String) rethrow;
+        throw 'Пользователь с логином "$rawInput" не найден';
       }
     }
 
-    final emailFormat = targetEmail.contains('@') ? targetEmail : '$targetUsername@cinetrack.local';
-
-    // 2. Try standard Supabase cloud authentication
-    User? authenticatedUser;
+    // Supabase Auth SignIn
+    AuthResponse authRes;
     try {
-      final authRes = await supabase.auth.signInWithPassword(
-        email: emailFormat,
+      authRes = await supabase.auth.signInWithPassword(
+        email: targetEmail,
         password: password,
       );
-      if (authRes.user != null) {
-        authenticatedUser = authRes.user;
-        final prof = await supabase
-            .from('profiles')
-            .select('role, display_name')
-            .eq('id', authRes.user!.id)
-            .maybeSingle();
-        if (prof != null) {
-          role = prof['role'] as String? ?? role;
-          displayName = prof['display_name'] as String? ?? displayName;
+    } on AuthException catch (e) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid credentials')) {
+        throw 'Неверный логин, почта или пароль.';
+      } else if (msg.contains('email not confirmed')) {
+        throw 'Почта ещё не подтверждена! Пожалуйста, перейдите по ссылке активации из письма (проверьте папку «Спам»).';
+      } else {
+        throw e.message;
+      }
+    } catch (e) {
+      throw 'Ошибка авторизации: $e';
+    }
+
+    final user = authRes.user;
+    if (user == null) {
+      throw 'Не удалось войти в аккаунт';
+    }
+
+    // Check account restriction (ban / freeze)
+    await _checkAccountRestrictions(user.id);
+
+    return user;
+  }
+
+  Future<void> _checkAccountRestrictions(String userId) async {
+    try {
+      final res = await supabase
+          .from('profiles')
+          .select('is_blocked, is_frozen, block_reason, block_until')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (res != null) {
+        final isBlocked = res['is_blocked'] as bool? ?? false;
+        final isFrozen = res['is_frozen'] as bool? ?? false;
+        final reason = res['block_reason'] as String?;
+        final untilStr = res['block_until'] as String?;
+        DateTime? until = untilStr != null ? DateTime.tryParse(untilStr) : null;
+
+        final isCurrentlyFrozen =
+            isFrozen && (until == null || DateTime.now().isBefore(until));
+
+        if (isBlocked || isCurrentlyFrozen) {
+          await supabase.auth.signOut();
+          if (isBlocked) {
+            throw 'Ваш аккаунт заблокирован администрацией.${reason != null && reason.isNotEmpty ? " Причина: $reason" : ""}';
+          } else {
+            throw 'Ваш аккаунт временно заморожен.${reason != null && reason.isNotEmpty ? " Причина: $reason" : ""}';
+          }
         }
       }
     } catch (e) {
-      final err = e.toString().toLowerCase();
-      if (err.contains('email not confirmed')) {
-        throw 'Почта ещё не подтверждена! Пожалуйста, перейдите по ссылке активации из письма.';
-      }
-      debugPrint('Supabase cloud signIn attempt note: $e');
+      if (e is String) rethrow;
+      debugPrint('Account restriction check note: $e');
     }
-
-    // 3. Database Password Verification (via direct profiles table check or secure PostgreSQL RPC)
-    if (authenticatedUser == null) {
-      try {
-        final query = supabase.from('profiles').select();
-        final Map<String, dynamic>? dbProfile = isEmail
-            ? await query.eq('email', targetEmail).maybeSingle()
-            : await query
-                .or('username.ilike.$cleanInput,display_name.ilike.$cleanInput')
-                .maybeSingle();
-
-        if (dbProfile != null) {
-          final dbPwd = dbProfile['password_hash'] as String?;
-          final isBlocked = dbProfile['is_blocked'] as bool? ?? false;
-          if (isBlocked) {
-            throw 'Ваш аккаунт заблокирован администрацией.';
-          }
-
-          if (dbPwd != null && dbPwd.isNotEmpty && dbPwd == password) {
-            final uid = dbProfile['id'] as String;
-            final uEmail = (dbProfile['email'] as String? ?? targetEmail).trim();
-            final uUsername =
-                (dbProfile['username'] as String? ?? targetUsername).trim();
-            final uDisplayName =
-                dbProfile['display_name'] as String? ?? displayName ?? uUsername;
-            final uRole = dbProfile['role'] as String? ?? role;
-            final isFrozen = dbProfile['is_frozen'] as bool? ?? false;
-
-            final user = User(
-              id: uid,
-              appMetadata: const {'provider': 'cinetrack'},
-              userMetadata: {
-                'display_name': uDisplayName,
-                'role': uRole,
-                'username': uUsername,
-                'has_password': true,
-                'is_frozen': isFrozen,
-              },
-              aud: 'authenticated',
-              createdAt: DateTime.now().toIso8601String(),
-              email: uEmail.contains('@') ? uEmail : '$uUsername@cinetrack.local',
-            );
-
-            _persistSession(user, uUsername, uRole);
-            if (kIsWeb) {
-              html.window.localStorage['cinetrack_has_password'] = 'true';
-              html.window.localStorage['cinetrack_pwd_${uEmail.toLowerCase()}'] =
-                  password;
-              html.window.localStorage['cinetrack_pwd_${uUsername.toLowerCase()}'] =
-                  password;
-            }
-            _authStreamController
-                .add(const AuthState(AuthChangeEvent.signedIn, null));
-            return user;
-          }
-        }
-      } catch (e) {
-        if (e is String) rethrow;
-        debugPrint('Direct profiles password check note: $e');
-      }
-
-      try {
-        final res = await supabase.rpc('verify_user_password', params: {
-          'login_or_email': isEmail ? targetEmail : targetUsername,
-          'input_password': password,
-        });
-        if (res != null && res is List && res.isNotEmpty) {
-          final row = res.first as Map<String, dynamic>;
-          final uid = row['user_id'] as String;
-          final uEmail = (row['user_email'] as String? ?? targetEmail).trim();
-          final uUsername = (row['user_username'] as String? ?? targetUsername).trim();
-          final uDisplayName = row['user_display_name'] as String? ?? displayName ?? uUsername;
-          final uRole = row['user_role'] as String? ?? role;
-          final isBlocked = row['user_is_blocked'] as bool? ?? false;
-          final isFrozen = row['user_is_frozen'] as bool? ?? false;
-
-          if (isBlocked) {
-            throw 'Ваш аккаунт заблокирован администрацией.';
-          }
-
-          final user = User(
-            id: uid,
-            appMetadata: const {'provider': 'cinetrack'},
-            userMetadata: {
-              'display_name': uDisplayName,
-              'role': uRole,
-              'username': uUsername,
-              'has_password': true,
-              'is_frozen': isFrozen,
-            },
-            aud: 'authenticated',
-            createdAt: DateTime.now().toIso8601String(),
-            email: uEmail.contains('@') ? uEmail : '$uUsername@cinetrack.local',
-          );
-
-          _persistSession(user, uUsername, uRole);
-          if (kIsWeb) {
-            html.window.localStorage['cinetrack_has_password'] = 'true';
-            html.window.localStorage['cinetrack_pwd_${uEmail.toLowerCase()}'] =
-                password;
-            html.window.localStorage['cinetrack_pwd_${uUsername.toLowerCase()}'] =
-                password;
-          }
-          _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
-          return user;
-        }
-      } catch (e) {
-        if (e is String) rethrow;
-        debugPrint('verify_user_password RPC note: $e');
-      }
-    }
-
-    // 4. Fallback: Check local stored password credentials (specifically for accounts linked or created with password)
-    if (authenticatedUser == null && kIsWeb) {
-      final savedPwdByEmail = targetEmail.contains('@')
-          ? html.window.localStorage['cinetrack_pwd_${targetEmail.toLowerCase()}']
-          : null;
-      final savedPwdByUsername = targetUsername.isNotEmpty
-          ? html.window.localStorage['cinetrack_pwd_${targetUsername.toLowerCase()}']
-          : null;
-      final savedPwdByInput =
-          html.window.localStorage['cinetrack_pwd_${cleanInput.toLowerCase()}'];
-      final savedPwdById = targetUserId != null
-          ? html.window.localStorage['cinetrack_pwd_$targetUserId']
-          : null;
-
-      if ((savedPwdByEmail != null && savedPwdByEmail == password) ||
-          (savedPwdByUsername != null && savedPwdByUsername == password) ||
-          (savedPwdByInput != null && savedPwdByInput == password) ||
-          (savedPwdById != null && savedPwdById == password)) {
-        final user = User(
-          id: targetUserId ?? 'u_${targetUsername.isNotEmpty ? targetUsername.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_') : targetEmail.split('@').first}',
-          appMetadata: const {'provider': 'cinetrack'},
-          userMetadata: {
-            'display_name': displayName ?? (targetUsername.isNotEmpty ? targetUsername : targetEmail.split('@').first),
-            'role': role,
-            'username': targetUsername.isNotEmpty ? targetUsername : targetEmail.split('@').first,
-            'has_password': true,
-          },
-          aud: 'authenticated',
-          createdAt: DateTime.now().toIso8601String(),
-          email: targetEmail.contains('@') ? targetEmail : '$targetUsername@cinetrack.local',
-        );
-
-        _persistSession(user, targetUsername.isNotEmpty ? targetUsername : targetEmail.split('@').first, role);
-        _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
-        return user;
-      }
-    }
-
-    if (authenticatedUser != null) {
-      _persistSession(authenticatedUser, targetUsername, role);
-      if (kIsWeb) {
-        html.window.localStorage['cinetrack_has_password'] = 'true';
-      }
-      _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
-      return authenticatedUser;
-    }
-
-    throw 'Неверный логин, почта или пароль.';
   }
 
   Future<User> signUp({
@@ -395,87 +121,60 @@ class AuthRepository {
     required String password,
     String? displayName,
   }) async {
-    final cleanUsername = username.trim().toLowerCase();
-    final cleanEmail = email.trim();
+    final cleanUsername = username.trim().toLowerCase().replaceAll('@', '');
+    final cleanEmail = email.trim().toLowerCase();
+
     if (cleanUsername.isEmpty) {
       throw 'Введите имя пользователя';
+    }
+    if (cleanUsername.length < 3) {
+      throw 'Имя пользователя должно содержать не менее 3 символов';
     }
     if (cleanEmail.isEmpty || !cleanEmail.contains('@')) {
       throw 'Введите корректный адрес электронной почты';
     }
-    if (cleanUsername.length < 3) {
-      throw 'Имя пользователя должно быть не менее 3 символов';
+    if (password.length < 6) {
+      throw 'Пароль должен содержать не менее 6 символов';
     }
 
-    const role = 'user';
     final finalDisplayName = displayName?.trim().isNotEmpty == true
         ? displayName!.trim()
         : username.trim();
 
-    // Supabase cloud signup
+    AuthResponse res;
     try {
-      final res = await supabase.auth.signUp(
+      res = await supabase.auth.signUp(
         email: cleanEmail,
         password: password,
-        data: {'display_name': finalDisplayName, 'username': cleanUsername},
+        data: {
+          'display_name': finalDisplayName,
+          'username': cleanUsername,
+          'has_password': true,
+        },
       );
-      if (res.user != null) {
-        try {
-          await supabase.rpc('set_user_password', params: {
-            'target_user_id': res.user!.id,
-            'new_password': password,
-          });
-        } catch (_) {}
-      }
-      if (res.session == null && res.user != null) {
-        // Email confirmation is required by Supabase!
-        throw EmailConfirmationRequiredException(cleanEmail);
+    } on AuthException catch (e) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('already registered') ||
+          msg.contains('user already exists')) {
+        throw 'Пользователь с такой почтой уже зарегистрирован';
+      } else if (msg.contains('password')) {
+        throw 'Пароль слишком простой: используйте не менее 6 символов, буквы и цифры';
+      } else {
+        throw e.message;
       }
     } catch (e) {
-      if (e is EmailConfirmationRequiredException) rethrow;
-      final err = e.toString().toLowerCase();
-      if (err.contains('already registered') || err.contains('user already exists')) {
-        throw 'Пользователь с такой почтой уже зарегистрирован';
-      } else if (err.contains('weak') || err.contains('password should contain')) {
-        throw 'Пароль не соответствует требованиям: от 8 символов, заглавная, строчная буква, цифра и спецсимвол';
-      }
-      debugPrint('Supabase cloud sign up note: $e');
+      throw 'Ошибка регистрации: $e';
     }
 
-    // Save locally
-    if (kIsWeb) {
-      try {
-        final existingRaw = html.window.localStorage[_kSavedUsersKey] ?? '{}';
-        final existing = jsonDecode(existingRaw) as Map<String, dynamic>;
-        existing[cleanUsername] = {
-          'username': cleanUsername,
-          'email': cleanEmail,
-          'role': role,
-          'display_name': finalDisplayName,
-          'created_at': DateTime.now().toIso8601String(),
-        };
-        html.window.localStorage[_kSavedUsersKey] = jsonEncode(existing);
-        html.window.localStorage['cinetrack_pwd_${cleanEmail.toLowerCase()}'] = password;
-        html.window.localStorage['cinetrack_pwd_$cleanUsername'] = password;
-      } catch (_) {}
+    if (res.user == null) {
+      throw 'Не удалось создать аккаунт';
     }
 
-    final user = User(
-      id: 'u_${cleanUsername.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')}',
-      appMetadata: const {'provider': 'cinetrack'},
-      userMetadata: {
-        'display_name': finalDisplayName,
-        'role': role,
-        'username': cleanUsername,
-      },
-      aud: 'authenticated',
-      createdAt: DateTime.now().toIso8601String(),
-      email: cleanEmail,
-    );
+    if (res.session == null) {
+      throw EmailConfirmationRequiredException(cleanEmail);
+    }
 
-    _persistSession(user, cleanUsername, role);
-    _authStreamController.add(const AuthState(AuthChangeEvent.signedIn, null));
-    return user;
+    return res.user!;
   }
 
   Future<void> signInWithOAuth(OAuthProvider provider) async {
@@ -486,16 +185,39 @@ class AuthRepository {
     );
   }
 
+  Future<void> resetPasswordForEmail(String email) async {
+    final clean = email.trim().toLowerCase();
+    if (clean.isEmpty || !clean.contains('@')) {
+      throw 'Введите корректный email для сброса пароля';
+    }
+    await supabase.auth.resetPasswordForEmail(
+      clean,
+      redirectTo: kIsWeb ? html.window.location.origin : null,
+    );
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    if (newPassword.length < 6) {
+      throw 'Пароль должен содержать не менее 6 символов';
+    }
+    await supabase.auth.updateUser(
+      UserAttributes(
+        password: newPassword,
+        data: {'has_password': true},
+      ),
+    );
+  }
+
   Future<void> signOut() async {
-    _localCurrentUser = null;
     if (kIsWeb) {
       try {
-        html.window.localStorage.remove(_kActiveUserKey);
+        html.window.localStorage.remove('cinetrack_active_user');
         html.window.localStorage.remove('cinetrack_custom_profile');
         html.window.localStorage.remove('cinetrack_my_role');
         html.window.localStorage.remove('cinetrack_has_password');
         final keysToRemove = html.window.localStorage.keys
             .where((k) =>
+                k.startsWith('cinetrack_pwd_') ||
                 k.startsWith('cinetrack_my_role_') ||
                 k.startsWith('cinetrack_custom_profile_'))
             .toList();
@@ -504,30 +226,12 @@ class AuthRepository {
         }
       } catch (_) {}
     }
-    try {
-      await supabase.auth.signOut();
-    } catch (_) {}
-    _authStreamController.add(const AuthState(AuthChangeEvent.signedOut, null));
+    await supabase.auth.signOut();
   }
 
-  User? get currentUser {
-    if (_localCurrentUser != null) {
-      return _localCurrentUser;
-    }
-    try {
-      return supabase.auth.currentUser;
-    } catch (_) {
-      return null;
-    }
-  }
+  User? get currentUser => supabase.auth.currentUser;
 
-  Session? get currentSession {
-    try {
-      return supabase.auth.currentSession;
-    } catch (_) {
-      return null;
-    }
-  }
+  Session? get currentSession => supabase.auth.currentSession;
 
-  Stream<AuthState> get authStateChanges => _authStreamController.stream;
+  Stream<AuthState> get authStateChanges => supabase.auth.onAuthStateChange;
 }
