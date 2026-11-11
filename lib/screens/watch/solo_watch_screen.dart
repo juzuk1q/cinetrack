@@ -15,28 +15,10 @@ import '../../providers/kinopoisk_provider.dart';
 import '../../providers/room_provider.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/top_notification.dart';
+import '../../models/episode_comment.dart';
+import '../../repositories/review_repository.dart';
 
-class SoloWatchComment {
-  final String id;
-  final String authorName;
-  final String? authorAvatar;
-  final String? authorTitle;
-  final String text;
-  final String timeAgo;
-  int likes;
-  bool isLiked;
 
-  SoloWatchComment({
-    required this.id,
-    required this.authorName,
-    this.authorAvatar,
-    this.authorTitle,
-    required this.text,
-    required this.timeAgo,
-    this.likes = 0,
-    this.isLiked = false,
-  });
-}
 
 class FranchiseStep {
   final String title;
@@ -93,7 +75,6 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   bool _isLoadingSeasons = false;
 
   final TextEditingController _commentCtrl = TextEditingController();
-  final List<SoloWatchComment> _comments = [];
 
   @override
   void initState() {
@@ -108,7 +89,6 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     _activeTab = 'collaps';
     _viewId = 'cinetrack-solo-player-${DateTime.now().microsecondsSinceEpoch}';
     _initIframe();
-    _initComments();
     if (isLikelySeries) {
       _loadSeasons();
     }
@@ -279,9 +259,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     );
   }
 
-  void _initComments() {
-    _comments.clear();
-  }
+
 
   String _getCurrentUrl() {
     final kpId = widget.kinopoiskId ?? 258687;
@@ -383,39 +361,60 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     context.go('/rooms/${room.id}');
   }
 
-  void _addComment() {
+  Future<void> _addComment() async {
     final text = _commentCtrl.text.trim();
     if (text.isEmpty) return;
 
     final user = ref.read(currentUserProvider);
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для добавления комментария необходимо войти в аккаунт',
+        title: 'Авторизация',
+      );
+      return;
+    }
+
     final profile = ref.read(userProfileProvider).value;
     final authorName = profile?.displayName.isNotEmpty == true
         ? profile!.displayName
-        : (user?.email?.split('@').first ?? 'Киноман');
-    final authorTitle = profile?.effectiveTitle ?? 'Зритель 🍿';
-    final authorAvatar = profile?.avatarUrl;
+        : (user.email?.split('@').first ?? 'Киноман');
 
-    setState(() {
-      _comments.insert(
-        0,
-        SoloWatchComment(
-          id: 'c_${DateTime.now().millisecondsSinceEpoch}',
-          authorName: authorName,
-          authorAvatar: authorAvatar,
-          authorTitle: authorTitle,
-          text: text,
-          timeAgo: 'Только что',
-          likes: 0,
-        ),
+    final kpId = widget.kinopoiskId ?? 0;
+    final tcMatch = RegExp(r'(\d{1,2}:\d{2}(?::\d{2})?)').firstMatch(text);
+    final timecode = tcMatch?.group(1);
+
+    try {
+      await ref.read(reviewRepositoryProvider).addEpisodeComment(
+        kinopoiskId: kpId,
+        episode: _selectedEpisode,
+        season: _selectedSeason,
+        timecode: timecode,
+        authorName: authorName,
+        text: text,
       );
       _commentCtrl.clear();
-    });
-
-    TopNotification.showSuccess(
-      context,
-      'Комментарий опубликован! ✨',
-      title: 'Обсуждение',
-    );
+      ref.invalidate(episodeCommentsProvider((
+        kinopoiskId: kpId,
+        episode: _selectedEpisode,
+        season: _selectedSeason,
+      )));
+      if (mounted) {
+        TopNotification.showSuccess(
+          context,
+          'Комментарий опубликован! ✨',
+          title: 'Обсуждение',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        TopNotification.showError(
+          context,
+          'Ошибка добавления комментария: $e',
+          title: 'Ошибка',
+        );
+      }
+    }
   }
 
 
@@ -1819,6 +1818,14 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
   // Interactive Comments Section with Clickable Timestamp Support
   Widget _buildCommentsSection(bool isDark) {
+    final kpId = widget.kinopoiskId ?? 0;
+    final commentsAsync = ref.watch(episodeCommentsProvider((
+      kinopoiskId: kpId,
+      episode: _selectedEpisode,
+      season: _selectedSeason,
+    )));
+    final comments = commentsAsync.value ?? [];
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -1844,7 +1851,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                       color: Color(0xFF9F67FF), size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Обсуждение & таймкоды (${_comments.length})',
+                    'Обсуждение & таймкоды (${comments.length})',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
@@ -1888,7 +1895,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText:
-                        'Оставьте комментарий к серии или фильму (можно указывать таймкод в тексте, например 12:34)...',
+                        'Оставить комментарий к серии... (можно с таймкодом)',
                     hintStyle: TextStyle(
                       fontSize: 12.5,
                       color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
@@ -1929,12 +1936,12 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           ),
           const SizedBox(height: 20),
 
-          if (_comments.isEmpty)
+          if (comments.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 28),
               child: Center(
                 child: Text(
-                  'Пока нет комментариев к этому выпуску. Напишите первое впечатление или полезный таймкод!',
+                  'Пока нет комментариев к этой серии. Будьте первым!',
                   style: TextStyle(
                     fontSize: 13,
                     color: isDark ? Colors.white54 : const Color(0xFF6B7280),
@@ -1944,26 +1951,30 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
               ),
             )
           else
-          // List of comments with interactive timestamp parsing
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _comments.length,
-            separatorBuilder: (_, __) => Divider(
-              color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-              height: 24,
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: comments.length,
+              separatorBuilder: (_, __) => Divider(
+                color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+                height: 24,
+              ),
+              itemBuilder: (context, idx) {
+                final c = comments[idx];
+                return _buildCommentTile(c, isDark);
+              },
             ),
-            itemBuilder: (context, idx) {
-              final c = _comments[idx];
-              return _buildCommentTile(c, isDark);
-            },
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildCommentTile(SoloWatchComment c, bool isDark) {
+  Widget _buildCommentTile(EpisodeComment c, bool isDark) {
+    final user = ref.watch(currentUserProvider);
+    final profile = ref.watch(userProfileProvider).value;
+    final canDelete = (user != null && c.userId == user.id) ||
+        (profile != null && (profile.isAdmin || profile.isModerator));
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1971,19 +1982,13 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
         CircleAvatar(
           radius: 18,
           backgroundColor: const Color(0xFF7C3AED),
-          backgroundImage:
-              c.authorAvatar != null ? NetworkImage(c.authorAvatar!) : null,
-          child: c.authorAvatar == null
-              ? Text(
-                  c.authorName.isNotEmpty
-                      ? c.authorName[0].toUpperCase()
-                      : 'U',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold),
-                )
-              : null,
+          child: Text(
+            c.authorName.isNotEmpty ? c.authorName[0].toUpperCase() : 'U',
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold),
+          ),
         ),
         const SizedBox(width: 12),
 
@@ -2002,29 +2007,6 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                       color: isDark ? Colors.white : const Color(0xFF111827),
                     ),
                   ),
-                  if (c.authorTitle != null) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                            color:
-                                const Color(0xFF9F67FF).withValues(alpha: 0.4),
-                            width: 0.8),
-                      ),
-                      child: Text(
-                        c.authorTitle!,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          color: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF7C3AED),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
                   const SizedBox(width: 8),
                   Text(
                     c.timeAgo,
@@ -2033,6 +2015,66 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                       color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
                     ),
                   ),
+                  const Spacer(),
+                  if (canDelete)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 16, color: Colors.redAccent),
+                      tooltip: 'Удалить комментарий',
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor:
+                                isDark ? const Color(0xFF1E1E34) : Colors.white,
+                            title: const Text('Удаление комментария'),
+                            content: const Text(
+                                'Вы уверены, что хотите удалить этот комментарий?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('Отмена'),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent),
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text('Удалить',
+                                    style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          try {
+                            final kpId = widget.kinopoiskId ?? 0;
+                            await ref
+                                .read(reviewRepositoryProvider)
+                                .deleteEpisodeComment(c.id);
+                            ref.invalidate(episodeCommentsProvider((
+                              kinopoiskId: kpId,
+                              episode: _selectedEpisode,
+                              season: _selectedSeason,
+                            )));
+                            if (mounted) {
+                              TopNotification.showSuccess(
+                                context,
+                                'Комментарий удален',
+                                title: 'Успешно',
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              TopNotification.showError(
+                                context,
+                                'Ошибка удаления: $e',
+                                title: 'Ошибка',
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -2086,7 +2128,6 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       ],
     );
   }
-
   // Parses timestamps like 01:23:45 or 12:34 and turns them into clickable pills
   Widget _buildCommentTextWithTimestamps(String text, bool isDark) {
     final regex = RegExp(r'\b(?:\d{1,2}:)?\d{2}:\d{2}\b');

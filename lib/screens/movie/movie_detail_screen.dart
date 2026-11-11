@@ -10,6 +10,8 @@ import '../../core/constants.dart';
 import '../../data/curated_catalog.dart';
 import '../../models/catalog_item.dart';
 import '../../models/media_item.dart';
+import '../../models/movie_review.dart';
+import '../../repositories/review_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kinopoisk_provider.dart';
 import '../../providers/media_provider.dart';
@@ -40,20 +42,13 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   List<Map<String, dynamic>> _filmVideos = [];
   bool _isSavedToCollection = false;
 
-  // Reviews and Episode Comments state
-  int _socialTab = 0; // 0: Reviews, 1: Episode Comments
-  int _activeEpisode = 1;
+  // Reviews state
   String _reviewSort = 'popular'; // 'popular' | 'date' | 'rating'
   bool _reviewSortAsc = false;
-  final TextEditingController _newCommentCtrl = TextEditingController();
-  final TextEditingController _timecodeCtrl = TextEditingController();
-  late List<_MovieReview> _reviews;
-  late List<_EpisodeComment> _episodeComments;
 
   @override
   void initState() {
     super.initState();
-    _initSocialData();
     if (widget.initialItem != null) {
       _item = widget.initialItem;
       _loadExtendedData();
@@ -1988,13 +1983,11 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
-  void _initSocialData() {
-    _reviews = [];
-    _episodeComments = [];
-  }
-
   Widget _buildSocialSection(CatalogItem item, String userDisplayName, [bool isDark = true]) {
-    final isSeries = item.type == 'series' || item.type == 'anime';
+    final kpId = item.kinopoiskId ?? 0;
+    final reviewsAsync = ref.watch(movieReviewsProvider(kpId));
+    final reviews = reviewsAsync.value ?? [];
+    final sortedReviews = _getSortedReviews(reviews);
 
     return Container(
       decoration: BoxDecoration(
@@ -2017,53 +2010,44 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Tabs: Reviews vs Episode Comments
           Row(
             children: [
-              _buildTabPill(
-                label: '💬 Отзывы и рецензии (${_reviews.length})',
-                isSelected: _socialTab == 0,
-                onTap: () => setState(() => _socialTab = 0),
-                isDark: isDark,
-              ),
-              const SizedBox(width: 12),
-              _buildTabPill(
-                label: isSeries
-                    ? '📺 Комментарии к сериям'
-                    : '🎬 Обсуждение моментов',
-                isSelected: _socialTab == 1,
-                onTap: () => setState(() => _socialTab = 1),
-                isDark: isDark,
+              Text(
+                '💬 Отзывы и рецензии (${reviews.length})',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
               const Spacer(),
-              if (_socialTab == 0)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.rate_review_rounded, size: 16),
-                  label: const Text('Написать рецензию',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                  onPressed: () => _showAddReviewDialog(userDisplayName),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
+                icon: const Icon(Icons.rate_review_rounded, size: 16),
+                label: const Text('Написать рецензию',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                onPressed: () => _showAddReviewDialog(item, userDisplayName),
+              ),
             ],
           ),
           const SizedBox(height: 24),
-
-          // TAB 0: Reviews Section
-          if (_socialTab == 0) ...[
-            _buildReviewFilterBar(isDark),
-            const SizedBox(height: 16),
-            _buildReviewsList(isDark),
-          ]
-          // TAB 1: Episode Comments / Moments Section
-          else ...[
-            _buildEpisodeCommentsView(userDisplayName, isSeries: isSeries, isDark: isDark),
-          ],
+          _buildReviewFilterBar(isDark),
+          const SizedBox(height: 16),
+          if (reviewsAsync.isLoading && reviews.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else
+            _buildReviewsList(item, sortedReviews, isDark),
         ],
       ),
     );
@@ -2182,8 +2166,8 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
-  List<_MovieReview> get _sortedReviews {
-    final list = List<_MovieReview>.from(_reviews);
+  List<MovieReview> _getSortedReviews(List<MovieReview> reviews) {
+    final list = List<MovieReview>.from(reviews);
     if (_reviewSort == 'popular') {
       list.sort((a, b) => _reviewSortAsc
           ? a.likes.compareTo(b.likes)
@@ -2200,45 +2184,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     return list;
   }
 
-  Widget _buildTabPill({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-    bool isDark = true,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF7C3AED)
-              : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFF9F67FF)
-                : (isDark ? Colors.transparent : const Color(0xFFE2E8F0)),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : (isDark ? Colors.white70 : const Color(0xFF475569)),
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReviewsList([bool isDark = true]) {
-    final sorted = _sortedReviews;
+  Widget _buildReviewsList(CatalogItem item, List<MovieReview> sorted, [bool isDark = true]) {
     if (sorted.isEmpty) {
       return Center(
         child: Padding(
@@ -2246,13 +2192,20 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           child: Text(
             'Пока нет рецензий. Будьте первым!',
             style: TextStyle(
-                color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF94A3B8)),
+                color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF94A3B8),
+                fontSize: 14),
           ),
         ),
       );
     }
+    final user = ref.watch(currentUserProvider);
+    final profile = ref.watch(userProfileProvider).value;
+
     return Column(
       children: sorted.map((rev) {
+        final canDelete = (user != null && rev.userId == user.id) ||
+            (profile != null && (profile.isAdmin || profile.isModerator));
+
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(20),
@@ -2266,7 +2219,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Author Avatar, Name, Title, Rating, Date
+              // Header: Author Avatar, Name, Title, Rating, Date, Delete button
               Row(
                 children: [
                   CircleAvatar(
@@ -2348,6 +2301,63 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       ],
                     ),
                   ),
+                  if (canDelete) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 18, color: Colors.redAccent),
+                      tooltip: 'Удалить рецензию',
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            backgroundColor:
+                                isDark ? const Color(0xFF1E1E34) : Colors.white,
+                            title: const Text('Удаление рецензии'),
+                            content: const Text(
+                                'Вы уверены, что хотите удалить эту рецензию?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(c).pop(false),
+                                child: const Text('Отмена'),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent),
+                                onPressed: () => Navigator.of(c).pop(true),
+                                child: const Text('Удалить',
+                                    style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          try {
+                            await ref
+                                .read(reviewRepositoryProvider)
+                                .deleteReview(rev.id);
+                            ref.invalidate(
+                                movieReviewsProvider(item.kinopoiskId ?? 0));
+                            if (mounted) {
+                              TopNotification.showSuccess(
+                                context,
+                                'Рецензия удалена',
+                                title: 'Успешно',
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              TopNotification.showError(
+                                context,
+                                'Ошибка удаления: $e',
+                                title: 'Ошибка',
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 14),
@@ -2438,437 +2448,19 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
-  Widget _buildEpisodeCommentsView(String userDisplayName,
-      {required bool isSeries, bool isDark = true}) {
-    final episodeComments = isSeries
-        ? _episodeComments.where((c) => c.episode == _activeEpisode).toList()
-        : _episodeComments;
+  void _showAddReviewDialog(CatalogItem item, String userDisplayName) {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для публикации рецензии необходимо войти в аккаунт',
+        title: 'Авторизация',
+      );
+      return;
+    }
+    final profile = ref.read(userProfileProvider).value;
+    final effectiveTitle = profile?.effectiveTitle ?? 'Зритель CineTrack 🍿';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Episode Picker Chips (Only shown for TV series, hidden for films!)
-        if (isSeries) ...[
-          Text(
-            'Выберите серию для обсуждения:',
-            style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: isDark ? Colors.white70 : const Color(0xFF475569)),
-          ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: List.generate(12, (i) {
-                final ep = i + 1;
-                final isSel = _activeEpisode == ep;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    onTap: () => setState(() => _activeEpisode = ep),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: isSel
-                            ? const Color(0xFF7C3AED)
-                            : (isDark ? const Color(0xFF1F1F35) : const Color(0xFFF1F5F9)),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isSel
-                              ? const Color(0xFF9F67FF)
-                              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                        ),
-                      ),
-                      child: Text(
-                        'Серия $ep',
-                        style: TextStyle(
-                          color: isSel
-                              ? Colors.white
-                              : (isDark ? Colors.white70 : const Color(0xFF475569)),
-                          fontWeight:
-                              isSel ? FontWeight.w800 : FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ] else ...[
-          Row(
-            children: [
-              const Icon(Icons.movie_filter_rounded, size: 18, color: Color(0xFF9F67FF)),
-              const SizedBox(width: 8),
-              Text(
-                'Обсуждение ярких моментов и таймкоды фильма',
-                style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-        ],
-
-        // New Comment Input Card with prominent Timecode
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: const Color(0xFF7C3AED),
-                    child: Text(
-                      userDisplayName.isNotEmpty
-                          ? userDisplayName[0].toUpperCase()
-                          : 'U',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    isSeries
-                        ? 'Оставить комментарий к серии $_activeEpisode:'
-                        : 'Оставить комментарий к фильму:',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                  ),
-                  const Spacer(),
-                  // Prominent Timecode input
-                  SizedBox(
-                    width: 140,
-                    height: 34,
-                    child: TextField(
-                      controller: _timecodeCtrl,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontWeight: FontWeight.w700),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: '⏱ 12:40',
-                        hintStyle: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.timer_rounded,
-                            size: 15, color: Color(0xFF9F67FF)),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 6),
-                        filled: true,
-                        fillColor: isDark ? const Color(0xFF121220) : Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 0.8),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(
-                              color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                              width: 0.8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF9F67FF), width: 1.2),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Quick Timecode Presets
-              Row(
-                children: [
-                  Text('Быстрый таймкод: ',
-                      style: TextStyle(
-                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                          fontSize: 11)),
-                  ...['05:30', '14:20', '35:10', '01:10:00'].map((tc) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: InkWell(
-                        onTap: () => setState(() => _timecodeCtrl.text = tc),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
-                          ),
-                          child: Text(
-                            tc,
-                            style: const TextStyle(color: Color(0xFFC084FC), fontSize: 10, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: _newCommentCtrl,
-                maxLines: 2,
-                style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                decoration: InputDecoration(
-                  hintText: isSeries
-                      ? 'Поделитесь впечатлением о серии...'
-                      : 'Поделитесь впечатлением о моменте фильма...',
-                  hintStyle: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF121220) : Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(
-                        color: isDark ? Colors.transparent : const Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(
-                        color: isDark ? Colors.transparent : const Color(0xFFE2E8F0)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                  ),
-                  icon: const Icon(Icons.send_rounded, size: 14),
-                  label: const Text('Отправить',
-                      style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700)),
-                  onPressed: () {
-                    final text = _newCommentCtrl.text.trim();
-                    if (text.isEmpty) return;
-                    final tc = _timecodeCtrl.text.trim();
-                    setState(() {
-                      _episodeComments.insert(
-                        0,
-                        _EpisodeComment(
-                          id: 'com-${DateTime.now().millisecondsSinceEpoch}',
-                          episode: isSeries ? _activeEpisode : 1,
-                          authorName: userDisplayName,
-                          text: text,
-                          timecode: tc.isNotEmpty ? tc : null,
-                          date: 'Только что',
-                        ),
-                      );
-                      _newCommentCtrl.clear();
-                      _timecodeCtrl.clear();
-                    });
-                    TopNotification.showSuccess(
-                      context,
-                      'Комментарий успешно добавлен!',
-                      title: 'Обсуждение',
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Comments List
-        if (episodeComments.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(32),
-            alignment: Alignment.center,
-            child: Text(
-              isSeries
-                  ? 'К этой серии ещё нет комментариев. Будьте первыми!'
-                  : 'К этому фильму ещё нет комментариев. Будьте первыми!',
-              style: TextStyle(
-                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                  fontSize: 13),
-            ),
-          )
-        else
-          Column(
-            children: episodeComments.map((com) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1B1B2F) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.05)
-                          : const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: const Color(0xFF6366F1),
-                      child: Text(
-                        com.authorName.isNotEmpty
-                            ? com.authorName[0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                com.authorName,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                              ),
-                              if (com.timecode != null) ...[
-                                const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: () {
-                                    _startSoloWatch();
-                                    TopNotification.showInfo(
-                                      context,
-                                      'Переход к моменту [ ${com.timecode} ]',
-                                      title: 'Таймкод',
-                                    );
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 7, vertical: 2.5),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF7C3AED)
-                                          .withValues(alpha: 0.25),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: const Color(0xFF9F67FF),
-                                          width: 0.9),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.play_circle_fill_rounded,
-                                            size: 13,
-                                            color: Color(0xFFC084FC)),
-                                        const SizedBox(width: 3.5),
-                                        Text(
-                                          com.timecode!,
-                                          style: const TextStyle(
-                                              color: Color(0xFFE9D5FF),
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.w800),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              const Spacer(),
-                              Text(
-                                com.date,
-                                style: TextStyle(
-                                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                                    fontSize: 11),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            com.text,
-                            style: TextStyle(
-                                color: isDark ? Colors.white70 : const Color(0xFF334155),
-                                fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          if (com.isLiked) {
-                            com.likes--;
-                            com.isLiked = false;
-                          } else {
-                            com.likes++;
-                            com.isLiked = true;
-                          }
-                        });
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            com.isLiked
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            size: 14,
-                            color: com.isLiked
-                                ? const Color(0xFFEF4444)
-                                : Colors.white38,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${com.likes}',
-                            style: TextStyle(
-                              color: com.isLiked
-                                  ? const Color(0xFFEF4444)
-                                  : Colors.white38,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-      ],
-    );
-  }
-
-  void _showAddReviewDialog(String userDisplayName) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     double ratingVal = 9.0;
     final titleCtrl = TextEditingController();
@@ -2907,7 +2499,6 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Interactive Star Rating (supports half-stars)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -2954,7 +2545,6 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                               return GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTapDown: (details) {
-                                  // Click left half = half-star, right half = full star
                                   final isLeft = details.localPosition.dx < 16;
                                   setDlgState(() {
                                     ratingVal = isLeft ? starNum - 0.5 : starNum.toDouble();
@@ -2975,7 +2565,6 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Title
                       Text('Заголовок рецензии:',
                           style: TextStyle(
                               fontWeight: FontWeight.w700,
@@ -3011,7 +2600,6 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Text
                       Text('Текст вашей рецензии:',
                           style: TextStyle(
                               fontWeight: FontWeight.w700,
@@ -3061,34 +2649,42 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF7C3AED)),
-                  onPressed: () {
+                  onPressed: () async {
                     final t = titleCtrl.text.trim();
                     final b = textCtrl.text.trim();
                     if (t.isEmpty || b.isEmpty) return;
 
-                    setState(() {
-                      _reviews.insert(
-                        0,
-                        _MovieReview(
-                          id: 'rev-${DateTime.now().millisecondsSinceEpoch}',
-                          authorName: userDisplayName,
-                          authorTitle: 'Зритель CineTrack 🍿',
-                          rating: ratingVal,
-                          type: ratingVal >= 7.0
-                              ? 'positive'
-                              : (ratingVal >= 5.0 ? 'neutral' : 'negative'),
-                          title: t,
-                          text: b,
-                          date: 'Только что',
-                        ),
+                    try {
+                      await ref.read(reviewRepositoryProvider).addReview(
+                        kinopoiskId: item.kinopoiskId ?? 0,
+                        movieTitle: item.title,
+                        authorName: userDisplayName,
+                        authorTitle: effectiveTitle,
+                        rating: ratingVal,
+                        type: ratingVal >= 7.0
+                            ? 'positive'
+                            : (ratingVal >= 5.0 ? 'neutral' : 'negative'),
+                        title: t,
+                        text: b,
                       );
-                    });
-                    Navigator.of(ctx).pop();
-                    TopNotification.showSuccess(
-                      context,
-                      'Рецензия успешно опубликована! ⭐',
-                      title: 'Рецензия добавлена',
-                    );
+                      ref.invalidate(movieReviewsProvider(item.kinopoiskId ?? 0));
+                      if (ctx.mounted) Navigator.of(ctx).pop();
+                      if (context.mounted) {
+                        TopNotification.showSuccess(
+                          context,
+                          'Рецензия успешно опубликована! ⭐',
+                          title: 'Рецензия добавлена',
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        TopNotification.showError(
+                          context,
+                          'Не удалось опубликовать рецензию: $e',
+                          title: 'Ошибка',
+                        );
+                      }
+                    }
                   },
                   child: const Text('Опубликовать',
                       style: TextStyle(color: Colors.white)),
@@ -3100,50 +2696,4 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       },
     );
   }
-}
-
-class _MovieReview {
-  final String id;
-  final String authorName;
-  final String authorTitle;
-  final double rating;
-  final String type; // 'positive' | 'neutral' | 'negative'
-  final String title;
-  final String text;
-  final String date;
-  final DateTime createdAt;
-  int likes = 0;
-  bool isLiked = false;
-
-  _MovieReview({
-    required this.id,
-    required this.authorName,
-    required this.authorTitle,
-    required this.rating,
-    required this.type,
-    required this.title,
-    required this.text,
-    required this.date,
-    DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
-}
-
-class _EpisodeComment {
-  final String id;
-  final int episode;
-  final String authorName;
-  final String text;
-  final String? timecode;
-  final String date;
-  int likes = 0;
-  bool isLiked = false;
-
-  _EpisodeComment({
-    required this.id,
-    required this.episode,
-    required this.authorName,
-    required this.text,
-    this.timecode,
-    required this.date,
-  });
 }
