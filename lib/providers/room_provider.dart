@@ -391,7 +391,7 @@ class RoomRepository {
         final stored = data['password_hash'] as String?;
         if (stored == null || stored.isEmpty) return true;
         return stored == _hashPassword(password);
-      } catch (_) {
+      } catch (e) {
         return false;
       }
     }
@@ -411,7 +411,7 @@ class RoomRepository {
       try {
         adjusted['participants'] =
             jsonDecode(adjusted['participants'] as String);
-      } catch (_) {
+      } catch (e) {
         adjusted['participants'] = [];
       }
     }
@@ -419,7 +419,7 @@ class RoomRepository {
       try {
         adjusted['allowed_controllers'] =
             jsonDecode(adjusted['allowed_controllers'] as String);
-      } catch (_) {
+      } catch (e) {
         adjusted['allowed_controllers'] = [];
       }
     }
@@ -750,7 +750,7 @@ final singleRoomProvider = Provider.family<WatchRoom?, String>((ref, id) {
   final rooms = ref.watch(roomsProvider);
   try {
     return rooms.firstWhere((r) => r.id == id);
-  } catch (_) {
+  } catch (e) {
     return null;
   }
 });

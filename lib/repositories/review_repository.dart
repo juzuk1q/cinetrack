@@ -18,7 +18,7 @@ class ReviewRepository {
       return (res as List)
           .map((e) => MovieReview.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
@@ -80,7 +80,7 @@ class ReviewRepository {
       return (res as List)
           .map((e) => EpisodeComment.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }

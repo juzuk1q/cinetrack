@@ -78,7 +78,9 @@ Future<void> main() async {
           final cleanPath = html.window.location.pathname ?? '';
           html.window.history.replaceState(null, 'CineTrack', '$origin$cleanPath');
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('URL cleanup error: $e');
+      }
     }
   } catch (e) {
     debugPrint('Supabase initialization handled: $e');

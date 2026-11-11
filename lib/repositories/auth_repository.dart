@@ -224,7 +224,9 @@ class AuthRepository {
         for (final k in keysToRemove) {
           html.window.localStorage.remove(k);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error purging storage on signOut: $e');
+      }
     }
     await supabase.auth.signOut();
   }

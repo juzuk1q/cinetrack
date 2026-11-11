@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AchievementTitle {
@@ -132,6 +133,9 @@ class UserProfile {
   final String? blockReason;
   final DateTime? blockUntil;
   final bool hasPassword;
+  final DateTime? updatedAt;
+
+  String get name => displayName.isNotEmpty ? displayName : handle;
 
   bool get effectiveHasPassword =>
       hasPassword || _computeHasPassword(id);
@@ -146,7 +150,9 @@ class UserProfile {
         final hasMetadataFlag = authUser.userMetadata?['has_password'] == true;
         return provider == 'email' || hasEmailIdentity || hasMetadataFlag;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error computing hasPassword: $e');
+    }
     return false;
   }
 
@@ -269,6 +275,7 @@ class UserProfile {
     this.blockReason,
     this.blockUntil,
     this.hasPassword = false,
+    this.updatedAt,
   });
 
   String get handle {
@@ -360,6 +367,9 @@ class UserProfile {
           : null,
       hasPassword: json['has_password'] as bool? ??
           _computeHasPassword(json['id'] as String?),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'].toString())
+          : null,
     );
   }
 
@@ -385,3 +395,7 @@ class UserProfile {
     };
   }
 }
+
+
+/// Merged profile model alias for backward compatibility
+typedef Profile = UserProfile;

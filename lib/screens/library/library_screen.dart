@@ -96,7 +96,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           }
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error syncing query params in library: $e');
+    }
   }
 
   @override
@@ -1275,7 +1277,7 @@ class _MovieDetailDialogState extends State<_MovieDetailDialog> {
           _isLoadingFull = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _isLoadingFull = false);
     }
   }

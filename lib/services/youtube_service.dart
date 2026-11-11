@@ -124,7 +124,7 @@ class YouTubeService {
             return items;
           }
         }
-      } catch (_) {
+      } catch (e) {
         // Try next instance
       }
     }
@@ -159,7 +159,7 @@ class YouTubeService {
             return items;
           }
         }
-      } catch (_) {
+      } catch (e) {
         // Try next instance
       }
     }

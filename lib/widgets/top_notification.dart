@@ -25,7 +25,9 @@ class TopNotification {
         onDismiss: () {
           try {
             entry.remove();
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('Error dismissing notification overlay: $e');
+          }
         },
       ),
     );

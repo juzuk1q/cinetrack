@@ -15,7 +15,9 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
         final saved = html.window.localStorage[_kThemeStorageKey];
         if (saved == 'light') return ThemeMode.light;
         if (saved == 'dark') return ThemeMode.dark;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error reading saved theme: $e');
+      }
     }
     return ThemeMode.dark;
   }
@@ -34,7 +36,9 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       try {
         html.window.localStorage[_kThemeStorageKey] =
             mode == ThemeMode.light ? 'light' : 'dark';
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error saving theme: $e');
+      }
     }
   }
 }

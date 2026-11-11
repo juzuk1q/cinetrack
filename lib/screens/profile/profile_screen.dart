@@ -127,7 +127,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         });
         return;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error loading remote user profile: $e');
+    }
 
     if (mounted) {
       setState(() {
@@ -437,7 +439,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               .update({
                                             'avatar_url': newAvatarBase64
                                           }).eq('id', cur.id);
-                                        } catch (_) {}
+                                        } catch (e) {
+                                          debugPrint('Error updating profile avatar in Supabase: $e');
+                                        }
 
                                         ref
                                             .read(adminUsersProvider.notifier)
@@ -1587,7 +1591,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await supabase.from('profiles').update({
           'friends': currentFriends,
         }).eq('id', curUser.id);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error updating friends in Supabase: $e');
+      }
     }
 
     if (!mounted) return;

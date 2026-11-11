@@ -121,7 +121,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           }
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _isLoadingSeasons = false);
     }
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 class SeriesEpisode {
   final int seasonNumber;
   final int episodeNumber;
@@ -25,7 +26,9 @@ class SeriesEpisode {
         final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
         return date.isBefore(endOfToday);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error checking isReleased: $e');
+    }
     return true;
   }
 
@@ -50,7 +53,9 @@ class SeriesEpisode {
         ];
         return '${date.day} ${months[date.month - 1]} ${date.year}';
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error formatting release date: $e');
+    }
     return releaseDate;
   }
 

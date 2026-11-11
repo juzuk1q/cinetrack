@@ -104,7 +104,9 @@ class KinopoiskService {
             if (it is Map<String, dynamic>) {
               results.add(CatalogItem.fromKinopoisk(it));
             }
-          } catch (_) {}
+          } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
         }
 
         if (results.isNotEmpty) {
@@ -112,7 +114,9 @@ class KinopoiskService {
           return results;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
 
     return CuratedCatalog.items;
   }
@@ -140,7 +144,9 @@ class KinopoiskService {
             if (it is Map<String, dynamic>) {
               results.add(CatalogItem.fromKinopoisk(it));
             }
-          } catch (_) {}
+          } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
         }
 
         if (results.isNotEmpty) {
@@ -148,7 +154,9 @@ class KinopoiskService {
           return results;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
 
     // Fallback: search in curated catalog
     final q = keyword.toLowerCase();
@@ -174,7 +182,9 @@ class KinopoiskService {
         _cache[cacheKey] = [item];
         return item;
       }
-    } catch (_) {}
+    } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
 
     return null;
   }
@@ -244,7 +254,9 @@ class KinopoiskService {
                 fallbackCategory: category,
               ));
             }
-          } catch (_) {}
+          } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
         }
 
         if (results.isNotEmpty) {
@@ -252,7 +264,9 @@ class KinopoiskService {
           return results;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
 
     // Fallback: local filtering
     return CuratedCatalog.items.where((item) {
@@ -296,7 +310,9 @@ class KinopoiskService {
           return urls;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
 
     return [];
   }
@@ -310,7 +326,9 @@ class KinopoiskService {
         final List<dynamic> items = data['items'] ?? [];
         return items.cast<Map<String, dynamic>>();
       }
-    } catch (_) {}
+    } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
 
     return [];
   }
@@ -340,7 +358,9 @@ class KinopoiskService {
           return seasons;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+        debugPrint('KinopoiskService handled error: $e');
+      }
 
     return [];
   }

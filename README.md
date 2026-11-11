@@ -21,6 +21,15 @@ flutter build web --release \
   --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
+### Деплой на Vercel
+Проект оптимизирован для деплоя на [Vercel](https://vercel.com) через единый файл конфигурации `vercel.json`:
+1. Подключите Git-репозиторий к Vercel.
+2. В настройках сборки укажите:
+   - **Framework Preset**: Other
+   - **Build Command**: `flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY`
+   - **Output Directory**: `build/web`
+3. Добавьте Environment Variables: `SUPABASE_URL` и `SUPABASE_ANON_KEY`.
+
 ---
 
 ## ⚙️ Конфигурация и переменные окружения
@@ -46,7 +55,9 @@ flutter build web --release \
 
 1. Откройте панель управления [supabase.com](https://supabase.com) → выберите проект `cinetrack`.
 2. Перейдите в **SQL Editor** (слева в меню).
-3. Примените миграцию безопасности из [`supabase/migrations/001_security_fix.sql`](./supabase/migrations/001_security_fix.sql) (или базовый [`supabase_setup.sql`](./supabase_setup.sql)) и нажмите **Run** (зелёная кнопка ▶).
+3. Примените миграции безопасности из папки `supabase/migrations/`:
+   - `001_security_fix.sql` — защита профилей, RPC, RLS-политики
+   - `002_rooms_overhaul.sql` — совместный просмотр, хеширование паролей комнат, Realtime
 4. Перейдите в **Authentication → Providers → Email** и отключите флаг **"Confirm email"** (чтобы можно было сразу входить без подтверждения почты).
 
 ---
@@ -65,7 +76,9 @@ lib/
 │   ├── theme.dart                # Тёмная кинотеатральная тема (Material 3)
 │   └── constants.dart            # Справочники жанров, типов медиа, статусов
 ├── models/
-│   ├── user_profile.dart         # Профиль пользователя с ролевой моделью (user/moderator/admin)
+│   ├── user_profile.dart         # Единая модель профиля пользователя (user/moderator/admin)
+│   ├── watch_room.dart           # Комнаты совместного просмотра с защитой паролем
+│   ├── room_message.dart         # Сообщения чата комнаты
 │   ├── catalog_item.dart         # Элемент каталога Kinopoisk / Lordfilm
 │   ├── movie_review.dart         # Рецензии пользователей с оценками 1-10
 │   ├── episode_comment.dart      # Комментарии к сериям с интерактивными таймкодами
@@ -73,6 +86,7 @@ lib/
 │   └── series_season.dart        # Структура сезонов и серий
 ├── repositories/
 │   ├── auth_repository.dart      # Вход, регистрация, Supabase Auth
+│   ├── room_provider.dart        # Репозиторий и StateNotifier комнат (Supabase + Realtime)
 │   ├── review_repository.dart    # Рецензии и комментарии к сериям (Supabase RLS)
 │   ├── media_repository.dart     # CRUD медиатеки пользователя
 │   └── stats_repository.dart     # Агрегация аналитики для дашборда
@@ -90,7 +104,6 @@ lib/
     ├── catalog/                  # Каталог популярных фильмов и сериалов
     ├── rooms/                    # Комнаты совместного просмотра
     ├── admin/                    # Панель управления пользователями и ролями (admin-only)
-    ├── media/                    # Библиотека пользователя
     ├── planner/                  # Календарь запланированных просмотров
     └── stats/                    # Статистика и графики просмотров
 ```

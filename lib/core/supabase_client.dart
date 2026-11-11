@@ -5,7 +5,7 @@ import 'env.dart';
 SupabaseClient get supabase {
   try {
     return Supabase.instance.client;
-  } catch (_) {
+  } catch (e) {
     return SupabaseClient(
       Env.supabaseUrl,
       Env.supabaseAnonKey,

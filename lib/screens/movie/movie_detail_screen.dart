@@ -233,7 +233,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           return;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error searching movie by title: $e');
+    }
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -251,7 +253,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         if (full != null && mounted) {
           setState(() => _item = full);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error fetching full film details: $e');
+      }
     }
 
     // Fetch stills and backstage photos
@@ -260,7 +264,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       if (images.isNotEmpty && mounted) {
         setState(() => _filmImages = images);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error fetching film images: $e');
+    }
 
     // Fetch trailers
     try {
@@ -268,7 +274,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       if (videos.isNotEmpty && mounted) {
         setState(() => _filmVideos = videos);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error fetching film videos: $e');
+    }
   }
 
   void _startSoloWatch() {

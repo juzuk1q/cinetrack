@@ -212,7 +212,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
         currentPage: nextPage,
         hasMore: newItems.length >= 5,
       );
-    } catch (_) {
+    } catch (e) {
       state = state.copyWith(isLoadingMore: false, hasMore: false);
     }
   }

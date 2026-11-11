@@ -102,7 +102,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
             });
             _overlayEntry?.markNeedsBuild();
           }
-        } catch (_) {
+        } catch (e) {
           if (mounted) {
             setState(() {
               _isSearchingRemote = false;

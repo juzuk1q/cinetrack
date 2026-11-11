@@ -30,7 +30,9 @@ void setAllIframesPointerEvents(bool enabled) {
     if (body != null) visit(body);
     final docEl = html.document.documentElement;
     if (docEl != null) visit(docEl);
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('Error setting iframe pointer events: $e');
+  }
 }
 
 class RoomSyncPlayer extends StatefulWidget {

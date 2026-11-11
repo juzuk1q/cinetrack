@@ -91,12 +91,16 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     if (html.document.fullscreenElement == null) {
       try {
         html.document.documentElement?.requestFullscreen();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error requesting fullscreen: $e');
+      }
       setState(() => _isFullscreen = true);
     } else {
       try {
         html.document.exitFullscreen();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error exiting fullscreen: $e');
+      }
       setState(() => _isFullscreen = false);
     }
   }

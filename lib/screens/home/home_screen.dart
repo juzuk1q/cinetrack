@@ -552,7 +552,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         '«${item.title}» добавлен в вашу коллекцию! ⭐',
         title: 'Коллекция',
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error adding hero slide item to collection: $e');
+      if (mounted) {
+        TopNotification.showError(
+          context,
+          'Не удалось добавить «${item.title}» в коллекцию',
+          title: 'Ошибка',
+        );
+      }
+    }
   }
 
   void _startSlideSoloWatch(CatalogItem item) {

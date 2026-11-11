@@ -72,7 +72,7 @@ Future<String?> pickAndCropImageBase64({
 
           final croppedDataUrl = canvas.toDataUrl('image/jpeg', quality);
           if (!completer.isCompleted) completer.complete(croppedDataUrl);
-        } catch (_) {
+        } catch (e) {
           if (!completer.isCompleted) completer.complete(rawDataUrl);
         }
       });
@@ -158,7 +158,9 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error loading custom profile from localStorage: $e');
+    }
   }
 
   void updateProfile({
@@ -246,7 +248,9 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
         html.window.localStorage['cinetrack_custom_profile'] =
             jsonEncode(state!.toJson());
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error saving custom profile to localStorage: $e');
+    }
   }
 }
 

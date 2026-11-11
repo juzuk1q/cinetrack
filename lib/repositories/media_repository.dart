@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../core/supabase_client.dart';
 import '../models/media_item.dart';
 
@@ -118,7 +119,9 @@ class MediaRepository {
         if (existing != null) {
           return MediaItem.fromJson(existing);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Error checking duplicate media item: $e');
+      }
     }
 
     final response = await supabase
