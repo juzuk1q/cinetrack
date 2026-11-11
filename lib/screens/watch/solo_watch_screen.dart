@@ -338,13 +338,21 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
     _iframe?.src = _getCurrentUrl();
   }
 
-  void _createRoomAndInvite() {
+  Future<void> _createRoomAndInvite() async {
     final user = ref.read(currentUserProvider);
-    final ownerName = user?.email?.split('@').first ?? 'Организатор';
-    final clientToken = RoomRepository.getClientToken();
-    final ownerId = user?.id ?? clientToken;
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для создания комнаты необходимо войти в аккаунт',
+        title: 'Требуется авторизация',
+      );
+      context.push('/login');
+      return;
+    }
+    final ownerName = user.email?.split('@').first ?? 'Организатор';
+    final ownerId = user.id;
 
-    final room = ref.read(roomsProvider.notifier).createRoom(
+    final room = await ref.read(roomsProvider.notifier).createRoom(
       title: 'Смотрим: ${widget.title} 🍿',
       movieTitle: widget.title,
       movieType: widget.type,
@@ -358,6 +366,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       videoUrl: _getCurrentUrl(),
     );
 
+    if (room == null || !mounted) return;
     context.go('/rooms/${room.id}');
   }
 

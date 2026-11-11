@@ -67,9 +67,14 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   void initState() {
     super.initState();
     final user = ref.read(currentUserProvider);
-    _userId = user?.id ?? RoomRepository.getClientToken();
+    _userId = user?.id ?? supabase.auth.currentUser?.id ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
 
     _setupRealtimeChannel();
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(roomsProvider.notifier).loadMessages(widget.roomId);
+      }
+    });
 
     // Listen to browser fullscreen changes (e.g. Esc key pressed)
     _fullscreenSub = html.document.onFullscreenChange.listen((_) {
@@ -518,7 +523,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
   void _showRoomSettingsDialog(BuildContext context, WatchRoom room) {
     final titleCtrl = TextEditingController(text: room.title);
-    final passwordCtrl = TextEditingController(text: room.password ?? '');
+    final passwordCtrl = TextEditingController();
     int controlMode = room.allowGuestControl ? 1 : (room.allowedControllers.isNotEmpty ? 2 : 0);
     final selectedControllers = Set<String>.from(room.allowedControllers);
     int? maxParticipants = room.maxParticipants;
@@ -2385,8 +2390,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     );
   }
 
-  void _submitPassword(WatchRoom room) {
-    if (_passwordInputCtrl.text.trim() == (room.password ?? '')) {
+  Future<void> _submitPassword(WatchRoom room) async {
+    final entered = _passwordInputCtrl.text.trim();
+    final isValid = await ref
+        .read(roomRepositoryProvider)
+        .verifyRoomPassword(widget.roomId, entered);
+    if (!mounted) return;
+    if (isValid) {
       setState(() {
         _isPasswordUnlocked = true;
         _passwordError = null;

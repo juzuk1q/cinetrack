@@ -369,9 +369,18 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     );
   }
 
-  void _startPartyWatch() {
+  Future<void> _startPartyWatch() async {
     if (_item == null) return;
     final user = ref.read(currentUserProvider);
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для создания комнаты необходимо войти в аккаунт',
+        title: 'Требуется авторизация',
+      );
+      context.push('/login');
+      return;
+    }
     final customProf = ref.read(profileCustomizationProvider);
     final dbProf = ref.read(userProfileProvider).value;
     final ownerName = (customProf?.username.isNotEmpty == true
@@ -380,13 +389,13 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         (dbProf?.username.isNotEmpty == true
             ? '@${dbProf!.username.replaceAll('@', '')}'
             : null) ??
-        (user?.userMetadata?['username'] != null
-            ? '@${user!.userMetadata!['username']}'
+        (user.userMetadata?['username'] != null
+            ? '@${user.userMetadata!['username']}'
             : null) ??
-        (user?.email?.split('@').first ?? 'Организатор');
-    final ownerId = user?.id ?? 'host';
+        (user.email?.split('@').first ?? 'Организатор');
+    final ownerId = user.id;
 
-    final room = ref.read(roomsProvider.notifier).createRoom(
+    final room = await ref.read(roomsProvider.notifier).createRoom(
           title: 'Совместный просмотр: ${_item!.title} 🍿',
           movieTitle: _item!.title,
           movieType: _item!.type,
@@ -402,6 +411,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           ownerId: ownerId,
         );
 
+    if (room == null || !mounted) return;
     TopNotification.showSuccess(
       context,
       'Комната «${_item!.title}» создана! Подключаемся...',

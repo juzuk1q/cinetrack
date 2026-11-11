@@ -122,8 +122,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     context.go(uri.toString());
   }
 
-  void _startPartyWatch(CatalogItem item) {
+  Future<void> _startPartyWatch(CatalogItem item) async {
     final user = ref.read(currentUserProvider);
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для создания комнаты необходимо войти в аккаунт',
+        title: 'Требуется авторизация',
+      );
+      context.push('/login');
+      return;
+    }
     final customProf = ref.read(profileCustomizationProvider);
     final dbProf = ref.read(userProfileProvider).value;
     final ownerName = (customProf?.username.isNotEmpty == true
@@ -132,14 +141,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         (dbProf?.username.isNotEmpty == true
             ? '@${dbProf!.username.replaceAll('@', '')}'
             : null) ??
-        (user?.userMetadata?['username'] != null
-            ? '@${user!.userMetadata!['username']}'
+        (user.userMetadata?['username'] != null
+            ? '@${user.userMetadata!['username']}'
             : null) ??
-        (user?.email?.split('@').first ?? 'Организатор');
-    final clientToken = RoomRepository.getClientToken();
-    final ownerId = user?.id ?? clientToken;
+        (user.email?.split('@').first ?? 'Организатор');
+    final ownerId = user.id;
 
-    final room = ref.read(roomsProvider.notifier).createRoom(
+    final room = await ref.read(roomsProvider.notifier).createRoom(
           title: 'Совместный просмотр: ${item.title} 🍿',
           movieTitle: item.title,
           movieType: item.type,
@@ -153,6 +161,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ownerId: ownerId,
         );
 
+    if (room == null || !mounted) return;
     TopNotification.showSuccess(
       context,
       'Комната «${item.title}» создана! Подключаем к показу...',

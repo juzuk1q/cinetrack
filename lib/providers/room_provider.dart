@@ -1,64 +1,55 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:convert';
-import 'dart:html' as html;
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/supabase_client.dart';
 import '../models/room_message.dart';
 import '../models/watch_room.dart';
 
-class RoomRepository {
-  static const String _storageKey = 'cinetrack_rooms_v1';
-  final List<WatchRoom> _rooms = [];
+/// SHA-256 hash of a password string (matches PostgreSQL encode(sha256(...), 'hex'))
+String _hashPassword(String password) {
+  final bytes = utf8.encode(password);
+  return sha256.convert(bytes).toString();
+}
 
-  static String getClientToken() {
+/// Returns the current authenticated user's ID, or empty string.
+String _currentUserId() => supabase.auth.currentUser?.id ?? '';
+
+class RoomRepository {
+  /// Fetch all rooms from Supabase, ordered by creation date descending.
+  Future<List<WatchRoom>> fetchRooms() async {
     try {
-      final token = html.window.localStorage['cinetrack_client_uid'];
-      if (token != null && token.isNotEmpty) return token;
-      final newToken =
-          'user_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
-      html.window.localStorage['cinetrack_client_uid'] = newToken;
-      return newToken;
-    } catch (_) {
-      return 'user_default';
+      final data = await supabase
+          .from('rooms')
+          .select()
+          .order('created_at', ascending: false);
+
+      return (data as List<dynamic>)
+          .map((json) => _roomFromRow(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('RoomRepository.fetchRooms error: $e');
+      return [];
     }
   }
 
-  RoomRepository() {
-    _loadRooms();
-  }
-
-  void _loadRooms() {
+  /// Fetch a single room by ID.
+  Future<WatchRoom?> fetchRoomById(String id) async {
     try {
-      final saved = html.window.localStorage[_storageKey];
-      if (saved != null && saved.isNotEmpty) {
-        final List<dynamic> list = jsonDecode(saved);
-        _rooms.clear();
-        for (final item in list) {
-          _rooms.add(WatchRoom.fromJson(item as Map<String, dynamic>));
-        }
-      }
-    } catch (_) {}
-  }
-
-
-  void _saveRooms() {
-    try {
-      final jsonStr = jsonEncode(_rooms.map((r) => r.toJson()).toList());
-      html.window.localStorage[_storageKey] = jsonStr;
-    } catch (_) {}
-  }
-
-  List<WatchRoom> getRooms() => List.unmodifiable(_rooms);
-
-  WatchRoom? getRoomById(String id) {
-    try {
-      return _rooms.firstWhere((r) => r.id == id);
-    } catch (_) {
+      final data =
+          await supabase.from('rooms').select().eq('id', id).maybeSingle();
+      if (data == null) return null;
+      return _roomFromRow(data);
+    } catch (e) {
+      debugPrint('RoomRepository.fetchRoomById error: $e');
       return null;
     }
   }
 
-  WatchRoom createRoom({
+  /// Create a room via server-side RPC (with fallback to direct insert).
+  Future<WatchRoom?> createRoom({
     required String title,
     String movieTitle = 'Источник не выбран',
     String movieType = 'movie',
@@ -73,41 +64,87 @@ class RoomRepository {
     int? maxParticipants,
     String videoSourceType = 'none',
     String? videoUrl,
-  }) {
-    final effectiveOwnerId = ownerId ?? getClientToken();
-    final room = WatchRoom(
-      id: 'room-${DateTime.now().millisecondsSinceEpoch}',
-      title: title,
-      movieTitle: movieTitle,
-      movieType: movieType,
-      moviePoster: moviePoster,
-      movieYear: movieYear,
-      kinopoiskId: kinopoiskId,
-      status: 'watching',
-      scheduledAt: scheduledAt ?? DateTime.now(),
-      ownerName: ownerName,
-      ownerId: effectiveOwnerId,
-      allowGuestControl: allowGuestControl,
-      participantCount: 1,
-      password: password,
-      maxParticipants: maxParticipants,
-      videoSourceType: videoSourceType,
-      videoUrl: videoUrl,
-      messages: [
-        RoomMessage(
-          id: 'm-${DateTime.now().millisecondsSinceEpoch}',
+  }) async {
+    final effectiveOwnerId = (ownerId != null && ownerId.isNotEmpty)
+        ? ownerId
+        : _currentUserId();
+    final roomId = 'room-${DateTime.now().millisecondsSinceEpoch}';
+    final hasPwd = password != null && password.isNotEmpty;
+    final pwdHash = hasPwd ? _hashPassword(password) : null;
+    final sched = (scheduledAt ?? DateTime.now()).toIso8601String();
+
+    try {
+      final result = await supabase.rpc('create_room_with_password', params: {
+        'p_id': roomId,
+        'p_title': title,
+        'p_owner_name': ownerName,
+        'p_owner_id': effectiveOwnerId,
+        'p_password': password,
+        'p_max_participants': maxParticipants,
+        'p_movie_title': movieTitle,
+        'p_movie_type': movieType,
+        'p_movie_poster': moviePoster,
+        'p_movie_year': movieYear,
+        'p_kinopoisk_id': kinopoiskId,
+        'p_video_source_type': videoSourceType,
+        'p_video_url': videoUrl,
+        'p_scheduled_at': sched,
+        'p_allow_guest_control': allowGuestControl,
+      });
+
+      if (result is Map<String, dynamic>) {
+        final room = _roomFromRow(result);
+        await _insertMessage(
+          roomId: roomId,
           userName: ownerName,
           text: 'Комната создана! Ждём зрителей к просмотру 🍿',
-          createdAt: DateTime.now(),
-        ),
-      ],
-    );
-    _rooms.insert(0, room);
-    _saveRooms();
-    return room;
+          userId: effectiveOwnerId,
+        );
+        return room;
+      }
+    } catch (e) {
+      debugPrint('create_room_with_password RPC failed, trying fallback: $e');
+      try {
+        final row = {
+          'id': roomId,
+          'title': title,
+          'movie_title': movieTitle,
+          'movie_type': movieType,
+          'movie_poster': moviePoster,
+          'movie_year': movieYear,
+          'kinopoisk_id': kinopoiskId,
+          'status': 'watching',
+          'scheduled_at': sched,
+          'owner_name': ownerName,
+          'owner_id': effectiveOwnerId,
+          'allow_guest_control': allowGuestControl,
+          'participant_count': 1,
+          'video_source_type': videoSourceType,
+          'video_url': videoUrl,
+          'password_hash': pwdHash,
+          'max_participants': maxParticipants,
+          'participants': [
+            {'id': effectiveOwnerId, 'name': ownerName}
+          ],
+        };
+        final inserted =
+            await supabase.from('rooms').insert(row).select().single();
+        final room = _roomFromRow(inserted);
+        await _insertMessage(
+          roomId: roomId,
+          userName: ownerName,
+          text: 'Комната создана! Ждём зрителей к просмотру 🍿',
+          userId: effectiveOwnerId,
+        );
+        return room;
+      } catch (err2) {
+        debugPrint('Direct insert fallback failed: $err2');
+      }
+    }
+    return null;
   }
 
-  void updateRoomSettings(
+  Future<void> updateRoomSettings(
     String roomId, {
     String? title,
     String? status,
@@ -116,23 +153,37 @@ class RoomRepository {
     String? password,
     int? maxParticipants,
     List<String>? allowedControllers,
-  }) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      _rooms[index] = _rooms[index].copyWith(
-        title: title,
-        status: status,
-        scheduledAt: scheduledAt,
-        allowGuestControl: allowGuestControl,
-        password: password,
-        maxParticipants: maxParticipants,
-        allowedControllers: allowedControllers,
-      );
-      _saveRooms();
+  }) async {
+    try {
+      final updates = <String, dynamic>{};
+      if (title != null) updates['title'] = title;
+      if (status != null) updates['status'] = status;
+      if (scheduledAt != null) {
+        updates['scheduled_at'] = scheduledAt.toIso8601String();
+      }
+      if (allowGuestControl != null) {
+        updates['allow_guest_control'] = allowGuestControl;
+      }
+      if (password != null) {
+        updates['password_hash'] =
+            password.isNotEmpty ? _hashPassword(password) : null;
+      }
+      if (maxParticipants != null) {
+        updates['max_participants'] = maxParticipants;
+      }
+      if (allowedControllers != null) {
+        updates['allowed_controllers'] = allowedControllers;
+      }
+
+      if (updates.isNotEmpty) {
+        await supabase.from('rooms').update(updates).eq('id', roomId);
+      }
+    } catch (e) {
+      debugPrint('RoomRepository.updateRoomSettings error: $e');
     }
   }
 
-  void setRoomMovieSource(
+  Future<void> setRoomMovieSource(
     String roomId, {
     required String movieTitle,
     String movieType = 'movie',
@@ -142,65 +193,120 @@ class RoomRepository {
     required String videoSourceType,
     String? videoUrl,
     String? videoFileName,
-  }) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      _rooms[index] = _rooms[index].copyWith(
-        movieTitle: movieTitle,
-        movieType: movieType,
-        moviePoster: moviePoster,
-        movieYear: movieYear,
-        kinopoiskId: kinopoiskId,
-        videoSourceType: videoSourceType,
-        videoUrl: videoUrl,
-        videoFileName: videoFileName,
-      );
-      _saveRooms();
+  }) async {
+    try {
+      await supabase.from('rooms').update({
+        'movie_title': movieTitle,
+        'movie_type': movieType,
+        'movie_poster': moviePoster,
+        'movie_year': movieYear,
+        'kinopoisk_id': kinopoiskId,
+        'video_source_type': videoSourceType,
+        'video_url': videoUrl,
+        'video_file_name': videoFileName,
+      }).eq('id', roomId);
+    } catch (e) {
+      debugPrint('RoomRepository.setRoomMovieSource error: $e');
     }
   }
 
-  void deleteRoom(String roomId) {
-    _rooms.removeWhere((r) => r.id == roomId);
-    _saveRooms();
+  Future<void> updateStatus(String roomId, String newStatus) async {
+    try {
+      await supabase
+          .from('rooms')
+          .update({'status': newStatus}).eq('id', roomId);
+    } catch (e) {
+      debugPrint('RoomRepository.updateStatus error: $e');
+    }
   }
 
-  void addParticipant(String roomId, String userId, String userName) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      final room = _rooms[index];
+  Future<void> updateVideoSource(
+    String roomId, {
+    required String sourceType,
+    String? videoUrl,
+    String? videoFileName,
+  }) async {
+    try {
+      await supabase.from('rooms').update({
+        'video_source_type': sourceType,
+        'video_url': videoUrl,
+        'video_file_name': videoFileName,
+      }).eq('id', roomId);
+    } catch (e) {
+      debugPrint('RoomRepository.updateVideoSource error: $e');
+    }
+  }
+
+  Future<void> updatePlayback(
+    String roomId, {
+    required double position,
+    required bool isPlaying,
+  }) async {
+    try {
+      await supabase.from('rooms').update({
+        'current_position': position,
+        'is_playing': isPlaying,
+      }).eq('id', roomId);
+    } catch (e) {
+      debugPrint('RoomRepository.updatePlayback error: $e');
+    }
+  }
+
+  Future<void> deleteRoom(String roomId) async {
+    try {
+      await supabase.from('room_messages').delete().eq('room_id', roomId);
+      await supabase.from('rooms').delete().eq('id', roomId);
+    } catch (e) {
+      debugPrint('RoomRepository.deleteRoom error: $e');
+    }
+  }
+
+  Future<void> addParticipant(
+      String roomId, String participantId, String userName) async {
+    try {
+      final data =
+          await supabase.from('rooms').select().eq('id', roomId).single();
+      final room = _roomFromRow(data);
+
       final parts = List<Map<String, String>>.from(room.participants);
-      if (!parts.any((p) => p['id'] == userId)) {
-        parts.add({'id': userId, 'name': userName});
-        _rooms[index] = room.copyWith(
-          participants: parts,
-          participantCount: parts.length > room.participantCount ? parts.length : room.participantCount + 1,
-        );
-        _saveRooms();
+      if (!parts.any((p) => p['id'] == participantId)) {
+        parts.add({'id': participantId, 'name': userName});
+        await supabase.from('rooms').update({
+          'participants': parts,
+          'participant_count': parts.length > room.participantCount
+              ? parts.length
+              : room.participantCount + 1,
+        }).eq('id', roomId);
       }
+    } catch (e) {
+      debugPrint('RoomRepository.addParticipant error: $e');
     }
   }
 
-  void transferRoomHost(String roomId, {required String? newHostId, required String newHostName}) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      final room = _rooms[index];
-      _rooms[index] = room.copyWith(
-        ownerId: newHostId,
-        ownerName: newHostName,
-      );
-      _saveRooms();
+  Future<void> transferRoomHost(String roomId,
+      {required String? newHostId, required String newHostName}) async {
+    try {
+      await supabase.from('rooms').update({
+        'owner_id': newHostId,
+        'owner_name': newHostName,
+      }).eq('id', roomId);
+    } catch (e) {
+      debugPrint('RoomRepository.transferRoomHost error: $e');
     }
   }
 
-  void leaveRoom(String roomId, String userId) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      final room = _rooms[index];
+  Future<void> leaveRoom(String roomId, String userId) async {
+    try {
+      final data =
+          await supabase.from('rooms').select().eq('id', roomId).single();
+      final room = _roomFromRow(data);
+
       final parts = List<Map<String, String>>.from(room.participants)
         ..removeWhere((p) => p['id'] == userId);
       final newCount = (room.participantCount - 1).clamp(0, 9999);
+
       if (newCount <= 0 || parts.isEmpty) {
-        deleteRoom(roomId);
+        await deleteRoom(roomId);
       } else {
         String newOwnerId = room.ownerId ?? '';
         String newOwnerName = room.ownerName;
@@ -209,89 +315,168 @@ class RoomRepository {
           newOwnerId = nextHost['id'] ?? '';
           newOwnerName = nextHost['name'] ?? 'Организатор';
         }
-        _rooms[index] = room.copyWith(
-          participantCount: newCount,
-          participants: parts,
-          ownerId: newOwnerId,
-          ownerName: newOwnerName,
-        );
-        _saveRooms();
+        await supabase.from('rooms').update({
+          'participant_count': newCount,
+          'participants': parts,
+          'owner_id': newOwnerId,
+          'owner_name': newOwnerName,
+        }).eq('id', roomId);
+      }
+    } catch (e) {
+      debugPrint('RoomRepository.leaveRoom error: $e');
+    }
+  }
+
+  Future<void> _insertMessage({
+    required String roomId,
+    required String userName,
+    required String text,
+    String? userId,
+  }) async {
+    try {
+      await supabase.from('room_messages').insert({
+        'room_id': roomId,
+        'user_name': userName,
+        'text': text,
+        'user_id': userId ?? _currentUserId(),
+      });
+    } catch (e) {
+      debugPrint('RoomRepository._insertMessage error: $e');
+    }
+  }
+
+  Future<void> addMessage(
+      String roomId, String userName, String text, [String? senderId]) async {
+    await _insertMessage(
+      roomId: roomId,
+      userName: userName,
+      text: text,
+      userId: senderId ?? _currentUserId(),
+    );
+  }
+
+  Future<List<RoomMessage>> fetchMessages(String roomId) async {
+    try {
+      final data = await supabase
+          .from('room_messages')
+          .select()
+          .eq('room_id', roomId)
+          .order('created_at', ascending: true);
+
+      return (data as List<dynamic>)
+          .map((json) => RoomMessage.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('RoomRepository.fetchMessages error: $e');
+      return [];
+    }
+  }
+
+  Future<bool> verifyRoomPassword(String roomId, String password) async {
+    try {
+      final result = await supabase.rpc('verify_room_password', params: {
+        'target_room_id': roomId,
+        'attempt_password': password,
+      });
+      return result == true;
+    } catch (e) {
+      debugPrint('verify_room_password RPC failed, trying fallback: $e');
+      try {
+        final data = await supabase
+            .from('rooms')
+            .select('password_hash')
+            .eq('id', roomId)
+            .maybeSingle();
+        if (data == null) return false;
+        final stored = data['password_hash'] as String?;
+        if (stored == null || stored.isEmpty) return true;
+        return stored == _hashPassword(password);
+      } catch (_) {
+        return false;
       }
     }
   }
 
-  void addMessage(String roomId, String userName, String text, [String? senderId]) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      final room = _rooms[index];
-      final newMsg = RoomMessage(
-        id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
-        userName: userName,
-        text: text,
-        createdAt: DateTime.now(),
-      );
-      final updatedMessages = List<RoomMessage>.from(room.messages)..add(newMsg);
-      _rooms[index] = room.copyWith(messages: updatedMessages);
-      _saveRooms();
-    }
-  }
+  static WatchRoom _roomFromRow(Map<String, dynamic> json,
+      {List<RoomMessage> messages = const []}) {
+    final hasPasswordHash = json['password_hash'] != null &&
+        (json['password_hash'] as String).isNotEmpty;
+    final hasPassword = json['has_password'] == true || hasPasswordHash;
 
-  void updateStatus(String roomId, String newStatus) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      _rooms[index] = _rooms[index].copyWith(status: newStatus);
-      _saveRooms();
-    }
-  }
+    final adjusted = Map<String, dynamic>.from(json);
+    adjusted.remove('password_hash');
+    adjusted['password'] = hasPassword ? '***' : null;
 
-  void updateVideoSource(
-    String roomId, {
-    required String sourceType,
-    String? videoUrl,
-    String? videoFileName,
-  }) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      _rooms[index] = _rooms[index].copyWith(
-        videoSourceType: sourceType,
-        videoUrl: videoUrl,
-        videoFileName: videoFileName,
-      );
-      _saveRooms();
+    if (adjusted['participants'] is String) {
+      try {
+        adjusted['participants'] =
+            jsonDecode(adjusted['participants'] as String);
+      } catch (_) {
+        adjusted['participants'] = [];
+      }
     }
-  }
+    if (adjusted['allowed_controllers'] is String) {
+      try {
+        adjusted['allowed_controllers'] =
+            jsonDecode(adjusted['allowed_controllers'] as String);
+      } catch (_) {
+        adjusted['allowed_controllers'] = [];
+      }
+    }
 
-  void updatePlayback(
-    String roomId, {
-    required double position,
-    required bool isPlaying,
-  }) {
-    final index = _rooms.indexWhere((r) => r.id == roomId);
-    if (index != -1) {
-      _rooms[index] = _rooms[index].copyWith(
-        currentPosition: position,
-        isPlaying: isPlaying,
-      );
-      _saveRooms();
+    adjusted.remove('messages');
+
+    final room = WatchRoom.fromJson(adjusted);
+    if (messages.isNotEmpty) {
+      return room.copyWith(messages: messages);
     }
+    return room;
   }
 }
 
-// Providers
+// ──────────────────────── PROVIDERS ────────────────────────
+
 final roomRepositoryProvider = Provider<RoomRepository>((ref) {
   return RoomRepository();
 });
 
 class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
-  RoomsNotifier(this._repo) : super(_repo.getRooms());
-
-  final RoomRepository _repo;
-
-  void reload() {
-    state = _repo.getRooms();
+  RoomsNotifier(this._repo) : super([]) {
+    _loadRooms();
   }
 
-  WatchRoom createRoom({
+  final RoomRepository _repo;
+  final Map<String, List<RoomMessage>> _messagesCache = {};
+
+  Future<void> _loadRooms() async {
+    final rooms = await _repo.fetchRooms();
+    // Reattach cached messages
+    final updated = rooms.map((r) {
+      final cached = _messagesCache[r.id];
+      if (cached != null && cached.isNotEmpty) {
+        return r.copyWith(messages: cached);
+      }
+      return r;
+    }).toList();
+    state = updated;
+  }
+
+  Future<void> reload() async {
+    await _loadRooms();
+  }
+
+  Future<void> loadMessages(String roomId) async {
+    final msgs = await _repo.fetchMessages(roomId);
+    _messagesCache[roomId] = msgs;
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(messages: msgs);
+      state = updated;
+    }
+  }
+
+  Future<WatchRoom?> createRoom({
     required String title,
     String movieTitle = 'Источник не выбран',
     String movieType = 'movie',
@@ -306,8 +491,8 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
     int? maxParticipants,
     String videoSourceType = 'none',
     String? videoUrl,
-  }) {
-    final room = _repo.createRoom(
+  }) async {
+    final room = await _repo.createRoom(
       title: title,
       movieTitle: movieTitle,
       movieType: movieType,
@@ -323,11 +508,13 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
       videoSourceType: videoSourceType,
       videoUrl: videoUrl,
     );
-    state = _repo.getRooms();
+    if (room != null) {
+      state = [room, ...state];
+    }
     return room;
   }
 
-  void updateRoomSettings(
+  Future<void> updateRoomSettings(
     String roomId, {
     String? title,
     String? status,
@@ -336,8 +523,22 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
     String? password,
     int? maxParticipants,
     List<String>? allowedControllers,
-  }) {
-    _repo.updateRoomSettings(
+  }) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(
+        title: title,
+        status: status,
+        scheduledAt: scheduledAt,
+        allowGuestControl: allowGuestControl,
+        password: (password != null && password.isNotEmpty) ? '***' : null,
+        maxParticipants: maxParticipants,
+        allowedControllers: allowedControllers,
+      );
+      state = updated;
+    }
+    await _repo.updateRoomSettings(
       roomId,
       title: title,
       status: status,
@@ -347,10 +548,9 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
       maxParticipants: maxParticipants,
       allowedControllers: allowedControllers,
     );
-    state = _repo.getRooms();
   }
 
-  void setRoomMovieSource(
+  Future<void> setRoomMovieSource(
     String roomId, {
     required String movieTitle,
     String movieType = 'movie',
@@ -360,8 +560,23 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
     required String videoSourceType,
     String? videoUrl,
     String? videoFileName,
-  }) {
-    _repo.setRoomMovieSource(
+  }) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(
+        movieTitle: movieTitle,
+        movieType: movieType,
+        moviePoster: moviePoster,
+        movieYear: movieYear,
+        kinopoiskId: kinopoiskId,
+        videoSourceType: videoSourceType,
+        videoUrl: videoUrl,
+        videoFileName: videoFileName,
+      );
+      state = updated;
+    }
+    await _repo.setRoomMovieSource(
       roomId,
       movieTitle: movieTitle,
       movieType: movieType,
@@ -372,61 +587,157 @@ class RoomsNotifier extends StateNotifier<List<WatchRoom>> {
       videoUrl: videoUrl,
       videoFileName: videoFileName,
     );
-    state = _repo.getRooms();
   }
 
-  void deleteRoom(String roomId) {
-    _repo.deleteRoom(roomId);
-    state = _repo.getRooms();
+  Future<void> deleteRoom(String roomId) async {
+    state = state.where((r) => r.id != roomId).toList();
+    _messagesCache.remove(roomId);
+    await _repo.deleteRoom(roomId);
   }
 
-  void addParticipant(String roomId, String userId, String userName) {
-    _repo.addParticipant(roomId, userId, userName);
-    state = _repo.getRooms();
+  Future<void> addParticipant(
+      String roomId, String userId, String userName) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final room = state[index];
+      final parts = List<Map<String, String>>.from(room.participants);
+      if (!parts.any((p) => p['id'] == userId)) {
+        parts.add({'id': userId, 'name': userName});
+        final updated = List<WatchRoom>.from(state);
+        updated[index] = room.copyWith(
+          participants: parts,
+          participantCount: parts.length > room.participantCount
+              ? parts.length
+              : room.participantCount + 1,
+        );
+        state = updated;
+      }
+    }
+    await _repo.addParticipant(roomId, userId, userName);
   }
 
-  void transferRoomHost(String roomId, {required String? newHostId, required String newHostName}) {
-    _repo.transferRoomHost(roomId, newHostId: newHostId, newHostName: newHostName);
-    state = _repo.getRooms();
+  Future<void> transferRoomHost(String roomId,
+      {required String? newHostId, required String newHostName}) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(
+        ownerId: newHostId,
+        ownerName: newHostName,
+      );
+      state = updated;
+    }
+    await _repo.transferRoomHost(roomId,
+        newHostId: newHostId, newHostName: newHostName);
   }
 
-  void leaveRoom(String roomId, String userId) {
-    _repo.leaveRoom(roomId, userId);
-    state = _repo.getRooms();
+  Future<void> leaveRoom(String roomId, String userId) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final room = state[index];
+      final parts = List<Map<String, String>>.from(room.participants)
+        ..removeWhere((p) => p['id'] == userId);
+      final newCount = (room.participantCount - 1).clamp(0, 9999);
+
+      if (newCount <= 0 || parts.isEmpty) {
+        state = state.where((r) => r.id != roomId).toList();
+      } else {
+        String newOwnerId = room.ownerId ?? '';
+        String newOwnerName = room.ownerName;
+        if (room.ownerId == userId || room.ownerName == userId) {
+          final nextHost = parts.first;
+          newOwnerId = nextHost['id'] ?? '';
+          newOwnerName = nextHost['name'] ?? 'Организатор';
+        }
+        final updated = List<WatchRoom>.from(state);
+        updated[index] = room.copyWith(
+          participantCount: newCount,
+          participants: parts,
+          ownerId: newOwnerId,
+          ownerName: newOwnerName,
+        );
+        state = updated;
+      }
+    }
+    await _repo.leaveRoom(roomId, userId);
   }
 
-  void addMessage(String roomId, String userName, String text, [String? senderId]) {
-    _repo.addMessage(roomId, userName, text, senderId);
-    state = _repo.getRooms();
+  Future<void> addMessage(String roomId, String userName, String text,
+      [String? senderId]) async {
+    final newMsg = RoomMessage(
+      id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
+      userName: userName,
+      text: text,
+      createdAt: DateTime.now(),
+      senderId: senderId,
+    );
+
+    // Update local cache
+    final current = _messagesCache[roomId] ?? [];
+    _messagesCache[roomId] = [...current, newMsg];
+
+    // Update room in state
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(
+        messages: _messagesCache[roomId]!,
+      );
+      state = updated;
+    }
+
+    await _repo.addMessage(roomId, userName, text, senderId);
   }
 
-  void updateStatus(String roomId, String status) {
-    _repo.updateStatus(roomId, status);
-    state = _repo.getRooms();
+  Future<void> updateStatus(String roomId, String status) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(status: status);
+      state = updated;
+    }
+    await _repo.updateStatus(roomId, status);
   }
 
-  void updateVideoSource(
+  Future<void> updateVideoSource(
     String roomId, {
     required String sourceType,
     String? videoUrl,
     String? videoFileName,
-  }) {
-    _repo.updateVideoSource(
+  }) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(
+        videoSourceType: sourceType,
+        videoUrl: videoUrl,
+        videoFileName: videoFileName,
+      );
+      state = updated;
+    }
+    await _repo.updateVideoSource(
       roomId,
       sourceType: sourceType,
       videoUrl: videoUrl,
       videoFileName: videoFileName,
     );
-    state = _repo.getRooms();
   }
 
-  void updatePlayback(
+  Future<void> updatePlayback(
     String roomId, {
     required double position,
     required bool isPlaying,
-  }) {
-    _repo.updatePlayback(roomId, position: position, isPlaying: isPlaying);
-    state = _repo.getRooms();
+  }) async {
+    final index = state.indexWhere((r) => r.id == roomId);
+    if (index != -1) {
+      final updated = List<WatchRoom>.from(state);
+      updated[index] = updated[index].copyWith(
+        currentPosition: position,
+        isPlaying: isPlaying,
+      );
+      state = updated;
+    }
+    await _repo.updatePlayback(roomId, position: position, isPlaying: isPlaying);
   }
 }
 
@@ -435,12 +746,17 @@ final roomsProvider =
   return RoomsNotifier(ref.watch(roomRepositoryProvider));
 });
 
-final singleRoomProvider =
-    Provider.family<WatchRoom?, String>((ref, id) {
+final singleRoomProvider = Provider.family<WatchRoom?, String>((ref, id) {
   final rooms = ref.watch(roomsProvider);
   try {
     return rooms.firstWhere((r) => r.id == id);
   } catch (_) {
     return null;
   }
+});
+
+final roomMessagesProvider =
+    FutureProvider.family<List<RoomMessage>, String>((ref, roomId) async {
+  final repo = ref.read(roomRepositoryProvider);
+  return repo.fetchMessages(roomId);
 });

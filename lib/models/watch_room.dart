@@ -25,6 +25,8 @@ class WatchRoom {
   final List<Map<String, String>> participants;
   final List<String> allowedControllers;
 
+  bool get hasPassword => password != null && password!.isNotEmpty;
+
   const WatchRoom({
     required this.id,
     required this.title,

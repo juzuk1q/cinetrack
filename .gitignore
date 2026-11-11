@@ -36,3 +36,5 @@ web/flutter_bootstrap.js
 
 # Exclude credentials / caches / secrets
 .env*
+cinetrack.ps1
+supabase/.temp/

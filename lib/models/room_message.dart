@@ -15,13 +15,13 @@ class RoomMessage {
 
   factory RoomMessage.fromJson(Map<String, dynamic> json) {
     return RoomMessage(
-      id: json['id'] as String,
+      id: (json['id'] ?? '').toString(),
       userName: json['user_name'] as String? ?? 'Зритель',
       text: json['text'] as String? ?? '',
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      senderId: json['sender_id'] as String?,
+      senderId: (json['user_id'] ?? json['sender_id']) as String?,
     );
   }
 
@@ -31,6 +31,7 @@ class RoomMessage {
       'user_name': userName,
       'text': text,
       'created_at': createdAt.toIso8601String(),
+      if (senderId != null) 'user_id': senderId,
       if (senderId != null) 'sender_id': senderId,
     };
   }

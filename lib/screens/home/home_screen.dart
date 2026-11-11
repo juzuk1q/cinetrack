@@ -571,12 +571,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     context.go(uri.toString());
   }
 
-  void _startSlidePartyWatch(CatalogItem item) {
+  Future<void> _startSlidePartyWatch(CatalogItem item) async {
     final user = ref.read(currentUserProvider);
-    final ownerName = user?.email?.split('@').first ?? 'Организатор';
-    final ownerId = user?.id ?? 'host';
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для создания комнаты необходимо войти в аккаунт',
+        title: 'Требуется авторизация',
+      );
+      context.push('/login');
+      return;
+    }
+    final ownerName = user.email?.split('@').first ?? 'Организатор';
+    final ownerId = user.id;
 
-    final room = ref.read(roomsProvider.notifier).createRoom(
+    final room = await ref.read(roomsProvider.notifier).createRoom(
           title: 'Совместный сеанс: ${item.title} 🍿',
           movieTitle: item.title,
           movieType: item.type,
@@ -588,6 +597,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ownerId: ownerId,
         );
 
+    if (room == null || !mounted) return;
     TopNotification.showSuccess(
       context,
       'Комната создана! Подключаемся...',

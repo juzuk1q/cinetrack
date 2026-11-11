@@ -56,6 +56,14 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   }
 
   void _showCreateRoomDialog() {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Для создания комнаты необходимо войти в аккаунт')),
+      );
+      context.push('/login');
+      return;
+    }
     final titleCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
     bool isPasswordObscured = true;
@@ -252,7 +260,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                   ),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Создать комнату'),
-                  onPressed: () {
+                  onPressed: () async {
                     final title = titleCtrl.text.trim();
                     if (title.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -275,11 +283,10 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                             ? '@${user!.userMetadata!['username']}'
                             : null) ??
                         (user?.email?.split('@').first ?? 'Организатор');
-                    final clientToken = RoomRepository.getClientToken();
-                    final ownerId = user?.id ?? clientToken;
+                    final ownerId = user?.id ?? '';
                     final pwd = passwordCtrl.text.trim();
 
-                    final room = ref.read(roomsProvider.notifier).createRoom(
+                    final room = await ref.read(roomsProvider.notifier).createRoom(
                           title: title,
                           ownerName: ownerName,
                           ownerId: ownerId,
@@ -288,8 +295,11 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                           videoSourceType: 'none',
                         );
 
+                    if (!context.mounted) return;
                     Navigator.pop(ctx);
-                    context.go('/rooms/${room.id}');
+                    if (room != null) {
+                      context.go('/rooms/${room.id}');
+                    }
                   },
                 ),
               ],

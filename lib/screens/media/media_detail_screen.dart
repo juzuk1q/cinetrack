@@ -354,8 +354,8 @@ class MediaDetailScreen extends ConsumerWidget {
               'Смотреть с друзьями 🍿',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
-            onPressed: () {
-              final room = ref.read(roomsProvider.notifier).createRoom(
+            onPressed: () async {
+              final room = await ref.read(roomsProvider.notifier).createRoom(
                     title: 'Совместный просмотр: ${item.title}',
                     movieTitle: item.title,
                     movieType: item.type,
@@ -364,7 +364,9 @@ class MediaDetailScreen extends ConsumerWidget {
                     scheduledAt: DateTime.now(),
                     ownerName: 'Организатор',
                   );
-              context.go('/rooms/${room.id}');
+              if (room != null && context.mounted) {
+                context.go('/rooms/${room.id}');
+              }
             },
           ),
           OutlinedButton.icon(
