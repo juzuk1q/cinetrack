@@ -119,7 +119,7 @@ class UserProfile {
   final String email;
   final String displayName;
   final String username;
-  final String role; // 'creator', 'developer', 'admin', 'moderator', 'user'
+  final String role; // 'user', 'moderator', 'admin'
   final DateTime createdAt;
   final String? customTitle; // e.g. 'Мастер попкорна 🍿', 'Кинокритик 💬', 'Легенда платформы 🌟', etc.
   final String? bannerUrl;
@@ -150,62 +150,41 @@ class UserProfile {
     return false;
   }
 
-  // Role hierarchy getters
-  bool get isCreator => role == 'creator';
-  bool get isDeveloper => isCreator || role == 'developer' || role == 'coder';
-  bool get isAdmin => isDeveloper || role == 'admin';
+  // Role hierarchy getters (Strictly 3 roles: user, moderator, admin)
+  bool get isAdmin => role == 'admin';
   bool get isModerator => isAdmin || role == 'moderator';
+  bool get isUser => role == 'user';
 
   int get roleRank => rankForRole(role);
 
   static int rankForRole(String r) {
     switch (r.toLowerCase()) {
-      case 'creator':
-        return 100;
-      case 'developer':
-      case 'coder':
-        return 80;
       case 'admin':
-        return 60;
+        return 50;
       case 'moderator':
-        return 40;
+        return 30;
       case 'user':
       default:
         return 10;
     }
   }
 
-  bool get hasStaffRole =>
-      role == 'creator' ||
-      role == 'developer' ||
-      role == 'coder' ||
-      role == 'admin' ||
-      role == 'moderator';
+  bool get hasStaffRole => role == 'admin' || role == 'moderator';
 
   String? get roleDisplayName {
     switch (role.toLowerCase()) {
-      case 'creator':
-        return 'Создатель';
-      case 'developer':
-      case 'coder':
-        return 'Разработчик';
       case 'admin':
         return 'Администратор';
       case 'moderator':
         return 'Модератор';
       case 'user':
       default:
-        return null; // Обычный пользователь не имеет плашки роли
+        return null;
     }
   }
 
   String? get roleIcon {
     switch (role.toLowerCase()) {
-      case 'creator':
-        return '👑';
-      case 'developer':
-      case 'coder':
-        return '💻';
       case 'admin':
         return '⭐';
       case 'moderator':
@@ -220,16 +199,11 @@ class UserProfile {
     final name = roleDisplayName;
     final icon = roleIcon;
     if (name == null || icon == null) return null;
-    return '$name $icon';
+    return ' ';
   }
 
   String get fullRoleTitle {
     switch (role.toLowerCase()) {
-      case 'creator':
-        return 'Создатель 👑';
-      case 'developer':
-      case 'coder':
-        return 'Разработчик 💻';
       case 'admin':
         return 'Администратор ⭐';
       case 'moderator':
@@ -246,29 +220,23 @@ class UserProfile {
     if (id == target.id || email.toLowerCase() == target.email.toLowerCase()) {
       return false;
     }
-    // 2. Creator can manage everyone except themselves
-    if (isCreator) {
-      return true;
-    }
-    // 3. Creator can never be banned or modified by anyone
-    if (target.isCreator) {
+    // 2. Only admin can manage other users
+    if (!isAdmin) {
       return false;
     }
-    // 4. Strict hierarchy: actor rank must be strictly higher than target rank
-    return roleRank > target.roleRank;
+    return true;
   }
 
-  /// Permission check: whether this profile can assign `newRole` to targetUser
+  /// Permission check: whether this profile can assign newRole to targetUser
   bool canAssignRole(UserProfile target, String newRole) {
     if (!canManage(target)) return false;
-    // Cannot assign a role equal to or higher than own rank
-    return roleRank > rankForRole(newRole);
+    return isAdmin;
   }
 
-  /// List of roles this profile is allowed to assign to subordinates
+  /// List of roles this profile is allowed to assign to other users
   List<String> get assignableRoles {
-    const all = ['user', 'moderator', 'admin', 'developer', 'creator'];
-    return all.where((r) => roleRank > rankForRole(r)).toList();
+    if (!isAdmin) return const [];
+    return const ['user', 'moderator', 'admin'];
   }
 
   bool get isCurrentlyFrozen =>

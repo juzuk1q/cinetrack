@@ -21,7 +21,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _searchUserCtrl = TextEditingController();
-  final _secretCodeCtrl = TextEditingController();
   String _userSearchQuery = '';
 
   @override
@@ -34,7 +33,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
   void dispose() {
     _tabController.dispose();
     _searchUserCtrl.dispose();
-    _secretCodeCtrl.dispose();
     super.dispose();
   }
 
@@ -594,8 +592,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
             ),
             const SizedBox(height: 10),
             Text(
-              'Для входа в панель управления ваш аккаунт должен иметь роль «admin». '
-              'Вы можете мгновенно активировать права, введя мастер-ключ.',
+              'Для входа в панель управления ваш аккаунт должен иметь роль «admin» в базе данных.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: isDark ? Colors.white70 : const Color(0xFF64748B),
@@ -638,7 +635,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
             email: currentUser?.email ?? '',
             displayName: 'Вы',
             createdAt: DateTime.now(),
-            role: 'creator',
+            role: 'admin',
           ),
         );
 
@@ -770,21 +767,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
     Color badgeBorder;
 
     switch (user.role) {
-      case 'creator':
-        badgeBg = isDark
-            ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
-            : const Color(0xFFFEF3C7);
-        badgeText = isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
-        badgeBorder = const Color(0xFFF59E0B).withValues(alpha: 0.6);
-        break;
-      case 'developer':
-      case 'coder':
-        badgeBg = isDark
-            ? const Color(0xFF06B6D4).withValues(alpha: 0.25)
-            : const Color(0xFFCFFAFE);
-        badgeText = isDark ? const Color(0xFF22D3EE) : const Color(0xFF0E7490);
-        badgeBorder = const Color(0xFF06B6D4).withValues(alpha: 0.6);
-        break;
       case 'admin':
         badgeBg = isDark
             ? const Color(0xFFEAB308).withValues(alpha: 0.25)
@@ -819,8 +801,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   ? const Color(0xFFEF4444).withValues(alpha: 0.6)
                   : (user.isCurrentlyFrozen
                       ? const Color(0xFF38BDF8).withValues(alpha: 0.6)
-                      : (user.role == 'creator'
-                          ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                      : (user.role == 'admin'
+                          ? const Color(0xFFEAB308).withValues(alpha: 0.5)
                           : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))))),
           width: isSelf ? 1.5 : 1.0,
         ),
@@ -839,10 +821,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   radius: 22,
                   backgroundColor: user.isBlocked
                       ? const Color(0xFFEF4444)
-                      : (user.role == 'creator'
-                          ? const Color(0xFFF59E0B)
-                          : (user.role == 'admin'
-                              ? const Color(0xFFEAB308)
+                      : (user.role == 'admin'
+                          ? const Color(0xFFEAB308)
+                          : (user.role == 'moderator'
+                              ? const Color(0xFF6366F1)
                               : const Color(0xFF7C3AED))),
                   backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                       ? NetworkImage(user.avatarUrl!)
@@ -1095,8 +1077,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
                   icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF9F67FF)),
                   items: currentActor.assignableRoles.map((r) {
                     Color itemColor = isDark ? Colors.white : const Color(0xFF0F172A);
-                    if (r == 'creator') itemColor = isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
-                    if (r == 'developer') itemColor = isDark ? const Color(0xFF22D3EE) : const Color(0xFF0891B2);
                     if (r == 'admin') itemColor = isDark ? const Color(0xFFFDE047) : const Color(0xFFCA8A04);
                     if (r == 'moderator') itemColor = isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4338CA);
 

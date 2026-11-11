@@ -77,6 +77,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
         return '/home';
       }
 
+      // Проверка доступа к панели администратора /admin (только role == admin)
+      final isAdminRoute = state.matchedLocation == '/admin';
+      final isAdmin = userProf?.isAdmin ?? false;
+      if (isAdminRoute && !isAdmin) {
+        return '/home';
+      }
+
       // Если пользователь уже вошел и пытается открыть логин/регистрацию — перенаправляем на главную
       if (isAuth && isAuthRoute) {
         return '/home';

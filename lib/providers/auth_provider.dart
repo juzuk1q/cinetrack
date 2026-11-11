@@ -391,7 +391,8 @@ class AdminUsersNotifier extends StateNotifier<List<UserProfile>> {
       final res = await supabase
           .from('profiles')
           .select()
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(100);
 
       final list = (res as List<dynamic>)
           .map((e) => UserProfile.fromJson(e as Map<String, dynamic>))
