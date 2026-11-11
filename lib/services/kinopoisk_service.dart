@@ -1,79 +1,73 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
+import '../core/supabase_client.dart';
 import '../data/curated_catalog.dart';
 import '../models/catalog_item.dart';
 import '../models/series_episode.dart';
 
 class KinopoiskService {
-  static const String _baseUrl = 'https://kinopoiskapiunofficial.tech';
-  static final List<String> _apiKeys = [
-    '177d7b2b-c494-45dc-ae84-7e486611f512',
-    '94660b64-04f7-4aad-92f2-bf025a953f99',
-  ];
-  static int _currentKeyIndex = 0;
-
-  static String get _apiKey => _apiKeys[_currentKeyIndex % _apiKeys.length];
-
-  static void _rotateKey() {
-    _currentKeyIndex = (_currentKeyIndex + 1) % _apiKeys.length;
-  }
-
   static final Map<String, List<CatalogItem>> _cache = {};
   static final Map<String, List<SeriesSeason>> _seasonsCache = {};
 
-  static Map<String, String> get _headers => {
-        'X-API-KEY': _apiKey,
-        'Content-Type': 'application/json',
-      };
+  /// Invoke kinopoisk-proxy Supabase Edge Function
+  static Future<dynamic> _fetchProxy(
+    String path, [
+    Map<String, String>? params,
+  ]) async {
+    try {
+      final response = await supabase.functions.invoke(
+        'kinopoisk-proxy',
+        body: {
+          'path': path,
+          if (params != null && params.isNotEmpty) 'params': params,
+        },
+      );
 
-  static Future<http.Response> _getWithRetry(Uri uri) async {
-    for (int attempt = 0; attempt < _apiKeys.length; attempt++) {
-      try {
-        final resp = await http.get(uri, headers: _headers);
-        if (resp.statusCode == 402 || resp.statusCode == 429) {
-          _rotateKey();
-          continue;
+      if (response.status == 200) {
+        final data = response.data;
+        if (data is Map<String, dynamic> || data is List<dynamic>) {
+          return data;
         }
-        return resp;
-      } catch (_) {
-        _rotateKey();
+        if (data is String) {
+          return jsonDecode(data);
+        }
+      } else {
+        debugPrint('Kinopoisk proxy returned status ${response.status}: ${response.data}');
       }
+    } catch (e) {
+      debugPrint('Kinopoisk proxy request failed: $e');
     }
-    return http.get(uri, headers: _headers);
+    return null;
   }
 
   // Standard Lordfilm genre mappings to Kinopoisk API genre IDs
   static const Map<String, int> genreMap = {
     'Все жанры': 0,
-    'Биографические': 8,
-    'Боевики': 11,
-    'Вестерны': 10,
-    'Военные': 14,
-    'Детективы': 5,
-    'Детские': 33,
-    'Документальные': 22,
-    'Драмы': 2,
-    'Исторические': 15,
-    'Комедии': 13,
-    'Короткометражки': 23,
-    'Криминал': 3,
-    'Мелодрамы': 4,
-    'Музыкальные': 16,
-    'Мюзиклы': 20,
-    'Нуар': 9,
+    'Боевик': 11,
     'Приключения': 7,
-    'Семейные': 19,
-    'Спорт': 21,
-    'Триллеры': 1,
-    'Ужасы': 17,
+    'Комедия': 13,
+    'Драма': 2,
     'Фантастика': 6,
-    'Фэнтези': 12,
-    'Мультфильмы': 18,
+    'Фэнтези': 5,
+    'Триллер': 1,
+    'Ужасы': 17,
+    'Детектив': 19,
+    'Криминал': 3,
+    'Мелодрама': 4,
+    'Военный': 14,
+    'Исторический': 15,
+    'Документальный': 22,
+    'Семейный': 29,
+    'Биография': 8,
+    'Вестерн': 10,
     'Аниме': 24,
+    'Мультфильм': 18,
+    'Мюзикл': 9,
+    'Спорт': 21,
   };
 
-  // Standard Lordfilm country mappings to Kinopoisk API country IDs
+  // Standard country mappings
   static const Map<String, int> countryMap = {
     'Все страны': 0,
     'США': 1,
@@ -97,11 +91,12 @@ class KinopoiskService {
     }
 
     try {
-      final uri = Uri.parse('$_baseUrl/api/v2.2/films/collections?type=TOP_POPULAR_ALL&page=$page');
-      final response = await _getWithRetry(uri);
+      final data = await _fetchProxy(
+        '/api/v2.2/films/collections',
+        {'type': 'TOP_POPULAR_ALL', 'page': page.toString()},
+      );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is Map<String, dynamic>) {
         final List<dynamic> items = data['items'] ?? [];
         final results = <CatalogItem>[];
         for (final it in items) {
@@ -132,12 +127,12 @@ class KinopoiskService {
     }
 
     try {
-      final uri = Uri.parse(
-          '$_baseUrl/api/v2.1/films/search-by-keyword?keyword=${Uri.encodeQueryComponent(keyword.trim())}&page=$page');
-      final response = await _getWithRetry(uri);
+      final data = await _fetchProxy(
+        '/api/v2.1/films/search-by-keyword',
+        {'keyword': keyword.trim(), 'page': page.toString()},
+      );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is Map<String, dynamic>) {
         final List<dynamic> items = data['films'] ?? data['items'] ?? [];
         final results = <CatalogItem>[];
         for (final it in items) {
@@ -172,11 +167,9 @@ class KinopoiskService {
     }
 
     try {
-      final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id');
-      final response = await _getWithRetry(uri);
+      final data = await _fetchProxy('/api/v2.2/films/$id');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      if (data is Map<String, dynamic>) {
         final item = CatalogItem.fromKinopoisk(data);
         _cache[cacheKey] = [item];
         return item;
@@ -211,12 +204,10 @@ class KinopoiskService {
       } else if (category == 'series') {
         queryParams['type'] = 'TV_SERIES';
       } else if (category == 'cartoon') {
-        // Cartoon is genre 18
         if (genreId == null || genreId == 0) {
           queryParams['genres'] = '18';
         }
       } else if (category == 'anime') {
-        // Anime is genre 24
         if (genreId == null || genreId == 0) {
           queryParams['genres'] = '24';
         }
@@ -240,11 +231,9 @@ class KinopoiskService {
         queryParams['yearTo'] = year.toString();
       }
 
-      final uri = Uri.parse('$_baseUrl/api/v2.2/films').replace(queryParameters: queryParams);
-      final response = await _getWithRetry(uri);
+      final data = await _fetchProxy('/api/v2.2/films', queryParams);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is Map<String, dynamic>) {
         final List<dynamic> items = data['items'] ?? [];
         final results = <CatalogItem>[];
         for (final it in items) {
@@ -291,11 +280,12 @@ class KinopoiskService {
     }
 
     try {
-      final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id/images?type=STILL&page=1');
-      final response = await _getWithRetry(uri);
+      final data = await _fetchProxy(
+        '/api/v2.2/films/$id/images',
+        {'type': 'STILL', 'page': '1'},
+      );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is Map<String, dynamic>) {
         final List<dynamic> items = data['items'] ?? [];
         final urls = items
             .map((item) => (item['imageUrl'] ?? item['previewUrl']) as String? ?? '')
@@ -314,11 +304,9 @@ class KinopoiskService {
   /// Fetch trailers and videos for a film
   Future<List<Map<String, dynamic>>> getFilmVideos(int id) async {
     try {
-      final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id/videos');
-      final response = await _getWithRetry(uri);
+      final data = await _fetchProxy('/api/v2.2/films/$id/videos');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is Map<String, dynamic>) {
         final List<dynamic> items = data['items'] ?? [];
         return items.cast<Map<String, dynamic>>();
       }
@@ -335,11 +323,9 @@ class KinopoiskService {
     }
 
     try {
-      final uri = Uri.parse('$_baseUrl/api/v2.2/films/$id/seasons');
-      final response = await _getWithRetry(uri);
+      final data = await _fetchProxy('/api/v2.2/films/$id/seasons');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is Map<String, dynamic>) {
         final List<dynamic> items = data['items'] ?? [];
         final seasons = items
             .whereType<Map<String, dynamic>>()
@@ -347,7 +333,6 @@ class KinopoiskService {
             .where((s) => s.episodes.isNotEmpty)
             .toList();
 
-        // Sort seasons by number ascending
         seasons.sort((a, b) => a.number.compareTo(b.number));
 
         if (seasons.isNotEmpty) {

@@ -28,11 +28,11 @@ migrate_working_dir/
 .packages
 .pub-cache/
 .pub/
-/build/*
-!/build/web/
+/build/
+build/
 
 # Web related
 web/flutter_bootstrap.js
 
-# Exclude credentials / caches
-.env
+# Exclude credentials / caches / secrets
+.env*

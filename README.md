@@ -1,94 +1,96 @@
 # CineTrack 🎬
 
 > Полнофункциональное кроссплатформенное веб-приложение для учёта и планирования просмотра фильмов, сериалов и мультфильмов.
-> **Стек:** Flutter 3.x (Web) + Supabase (PostgreSQL 15, Auth, Row Level Security) + Riverpod 2.x + Material 3.
+> **Стек:** Flutter 3.x (Web) + Supabase (PostgreSQL 15, Auth, Row Level Security, Edge Functions) + Riverpod 2.x + Material 3.
 
 ---
 
-## 🚀 Быстрый запуск для защиты проекта
+## 🚀 Запуск и сборка проекта
 
-### Вариант 1: Мгновенный запуск готовой сборки (1 секунда)
-В папке проекта дважды кликните по:
-```text
-preview_build.bat
-```
-*(Или в терминале: `cd build\web && python -m http.server 8080`)*
-Приложение мгновенно откроется в браузере по адресу: **http://localhost:8080**
-
-### Вариант 2: Запуск в режиме разработки с Hot Reload
+### Запуск в режиме разработки с Hot Reload
 В папке проекта дважды кликните по:
 ```text
 run_chrome.bat
 ```
-*(Или в терминале: `flutter run -d chrome`)*
+*(Или в терминале: `flutter run -d chrome --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...`)*
+
+### Сборка для продакшена (Web)
+```bash
+flutter build web --release \
+  --dart-define=SUPABASE_URL=https://xwfixqgmuhzqbfdsiqmt.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
 
 ---
 
-## 🗄️ Настройка базы данных в Supabase (разово)
+## ⚙️ Конфигурация и переменные окружения
+
+Конфигурация Supabase вынесена в `lib/core/env.dart` и читается через `String.fromEnvironment`:
+- `SUPABASE_URL` — адрес проекта Supabase
+- `SUPABASE_ANON_KEY` — публичный anon-ключ
+
+### ⚡ Supabase Edge Function: `kinopoisk-proxy`
+Ключи Kinopoisk удалены из клиентского кода. Все запросы к каталогу проксируются через Edge Function `kinopoisk-proxy` с автоматической ротацией ключей при 402/429 ошибках и белым списком разрешённых эндпоинтов:
+1. Задайте секреты в Supabase CLI:
+   ```bash
+   supabase secrets set KINOPOISK_API_KEYS="ваш_ключ_1,ваш_ключ_2"
+   ```
+2. Задеплойте функцию:
+   ```bash
+   supabase functions deploy kinopoisk-proxy
+   ```
+
+---
+
+## 🗄️ Настройка базы данных в Supabase
 
 1. Откройте панель управления [supabase.com](https://supabase.com) → выберите проект `cinetrack`.
 2. Перейдите в **SQL Editor** (слева в меню).
-3. Скопируйте всё содержимое файла [`supabase_setup.sql`](./supabase_setup.sql) и нажмите **Run** (зелёная кнопка ▶).
-4. Перейдите в **Authentication → Providers → Email** и отключите флаг **"Confirm email"** (чтобы можно было сразу регистрироваться и входить без подтверждения почты).
+3. Примените миграцию безопасности из [`supabase/migrations/001_security_fix.sql`](./supabase/migrations/001_security_fix.sql) (или базовый [`supabase_setup.sql`](./supabase_setup.sql)) и нажмите **Run** (зелёная кнопка ▶).
+4. Перейдите в **Authentication → Providers → Email** и отключите флаг **"Confirm email"** (чтобы можно было сразу входить без подтверждения почты).
 
 ---
 
 ## 💡 Архитектура и структура проекта
 
-Проект построен по чистой слоистой архитектуре (Repository Pattern + Riverpod State Management):
+Проект построен по слоистой архитектуре (Repository Pattern + Riverpod State Management):
 
 ```text
 lib/
-├── main.dart                     # Инициализация Supabase + Scope провайдеров
+├── main.dart                     # Инициализация Supabase через Env + Scope провайдеров
 ├── app.dart                      # GoRouter с защищёнными маршрутами + локализация (ru)
 ├── core/
+│   ├── env.dart                  # Чтение SUPABASE_URL и SUPABASE_ANON_KEY из окружения
 │   ├── supabase_client.dart      # Singleton-клиент Supabase
-│   ├── theme.dart                # Тёмная кинотеатральная тема (Material 3 violet/surface)
-│   └── constants.dart            # Справочники: 20 жанров, типы медиа, статусы
+│   ├── theme.dart                # Тёмная кинотеатральная тема (Material 3)
+│   └── constants.dart            # Справочники жанров, типов медиа, статусов
 ├── models/
-│   ├── media_item.dart           # DTO сущности медиа с JSON-сериализацией и copyWith
-│   └── profile.dart              # Модель профиля пользователя
+│   ├── user_profile.dart         # Профиль пользователя с ролевой моделью (user/moderator/admin)
+│   ├── catalog_item.dart         # Элемент каталога Kinopoisk / Lordfilm
+│   ├── movie_review.dart         # Рецензии пользователей с оценками 1-10
+│   ├── episode_comment.dart      # Комментарии к сериям с интерактивными таймкодами
+│   ├── media_item.dart           # DTO сущности медиа библиотеки
+│   └── series_season.dart        # Структура сезонов и серий
 ├── repositories/
-│   ├── auth_repository.dart      # Вход, регистрация, выход, сессии
-│   ├── media_repository.dart     # CRUD, поиск по актёрам/названию, RLS-фильтры
+│   ├── auth_repository.dart      # Вход, регистрация, Supabase Auth
+│   ├── review_repository.dart    # Рецензии и комментарии к сериям (Supabase RLS)
+│   ├── media_repository.dart     # CRUD медиатеки пользователя
 │   └── stats_repository.dart     # Агрегация аналитики для дашборда
 ├── providers/
-│   ├── auth_provider.dart        # Слушатели состояния авторизации для GoRouter
-│   ├── media_provider.dart       # Провайдеры фильтрации, поиска и коллекций
-│   └── stats_provider.dart       # Реактивные вычисления для графиков
-├── screens/
-│   ├── auth/                     # Вход и регистрация с валидацией форм
-│   ├── home/                     # Главный дашборд с KPI, рекомендациями и баннером комнат
-│   ├── catalog/                  # Кураторская библиотека популярных фильмов и сериалов
-│   ├── rooms/                    # Комнаты совместного просмотра с живым чатом
-│   ├── media/                    # Коллекция пользователя, умное добавление с автопоиском
-│   ├── planner/                  # Календарь запланированных просмотров (TableCalendar)
-│   └── stats/                    # Аналитика и интерактивные графики (fl_chart)
-└── widgets/
-    ├── app_sidebar.dart          # Адаптивный сайдбар (Wide / NavigationRail)
-    ├── media_card.dart           # Отзывчивая карточка с постером и бейджами
-    ├── filter_bar.dart           # Фильтры по жанрам, годам и типам
-    └── star_rating.dart          # Интерактивный звёздный рейтинг 1-10
+│   ├── auth_provider.dart        # Сессия, профиль, проверка прав администратора
+│   ├── media_provider.dart       # Провайдеры фильтрации и коллекций
+│   └── stats_provider.dart       # Реактивные вычисления для дашборда
+├── services/
+│   └── kinopoisk_service.dart    # Клиент прокси Kinopoisk через Edge Function
+└── screens/
+    ├── auth/                     # Вход, регистрация, восстановление пароля
+    ├── home/                     # Главный дашборд
+    ├── movie/                    # Карточка фильма/сериала с рецензиями
+    ├── watch/                    # Видеоплеер с комментариями к сериям и таймкодами
+    ├── catalog/                  # Каталог популярных фильмов и сериалов
+    ├── rooms/                    # Комнаты совместного просмотра
+    ├── admin/                    # Панель управления пользователями и ролями (admin-only)
+    ├── media/                    # Библиотека пользователя
+    ├── planner/                  # Календарь запланированных просмотров
+    └── stats/                    # Статистика и графики просмотров
 ```
-
----
-
-## 🎓 Что говорить на защите (тезисы для преподавателя)
-
-1. **Тема и назначение:**
-   Информационная система для учёта и планирования просмотра медиа-контента (фильмы, сериалы, мультфильмы) с персонализированной аналитикой и календарем.
-2. **База данных и СУБД:**
-   Используется реляционная СУБД **PostgreSQL** в облачной платформе **Supabase**.
-   - Таблицы: `profiles` (пользователи), `media` (каталог контента).
-   - Поддерживаются внешние ключи (`FOREIGN KEY ... REFERENCES auth.users ON DELETE CASCADE`), ограничения целостности (`CHECK constraints`), индексы по статусам и датам (`CREATE INDEX`).
-   - Безопасность: реализована политика безопасности на уровне строк (**Row Level Security - RLS**), гарантирующая изоляцию данных между пользователями.
-   - Триггеры: автоматическое обновление времени изменения записи (`BEFORE UPDATE`) и автоматическое создание профиля при регистрации (`AFTER INSERT ON auth.users`).
-3. **Клиентская часть:**
-   Разработана на фреймворке **Flutter (Web)** с единой кодовой базой под веб и мобильные устройства.
-   - Реактивное управление состоянием: **Riverpod 2.x**.
-   - Декларативная маршрутизация с защитой авторизации (Auth Guards): **GoRouter**.
-   - Визуализация данных: интерактивные круговые, линейные и столбчатые диаграммы (**fl_chart**).
-   - Планировщик: календарная сетка с отметками запланированных просмотров (**table_calendar**).
-   - Полная русскоязычная локализация дат и компонентов интерфейса (`flutter_localizations`).
-
----

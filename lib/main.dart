@@ -8,6 +8,8 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/env.dart';
+
 import 'app.dart';
 
 Future<void> main() async {
@@ -61,9 +63,8 @@ Future<void> main() async {
 
   try {
     await Supabase.initialize(
-      url: 'https://xwfixqgmuhzqbfdsiqmt.supabase.co',
-      anonKey:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3Zml4cWdtdWh6cWJmZHNpcW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzQyNjIsImV4cCI6MjEwODgxMDI2Mn0.PJ17S9wHdLdF0kmADTVO2SS59h2aMpoXCe8A-cLmn5c',
+      url: Env.supabaseUrl,
+      anonKey: Env.supabaseAnonKey,
     ).timeout(const Duration(seconds: 4));
 
     // Clean up ugly OAuth tokens / error queries from browser address bar
