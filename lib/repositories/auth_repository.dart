@@ -1,11 +1,11 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:async';
-import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/supabase_client.dart';
+import '../platform/platform.dart';
 
 class EmailConfirmationRequiredException implements Exception {
   final String email;
@@ -180,7 +180,7 @@ class AuthRepository {
   Future<void> signInWithOAuth(OAuthProvider provider) async {
     await supabase.auth.signInWithOAuth(
       provider,
-      redirectTo: kIsWeb ? html.window.location.origin : null,
+      redirectTo: kIsWeb ? PlatformHelper.getOrigin() : null,
       scopes: provider == OAuthProvider.google ? 'email profile' : null,
     );
   }
@@ -192,7 +192,7 @@ class AuthRepository {
     }
     await supabase.auth.resetPasswordForEmail(
       clean,
-      redirectTo: kIsWeb ? html.window.location.origin : null,
+      redirectTo: kIsWeb ? PlatformHelper.getOrigin() : null,
     );
   }
 
@@ -209,24 +209,22 @@ class AuthRepository {
   }
 
   Future<void> signOut() async {
-    if (kIsWeb) {
-      try {
-        html.window.localStorage.remove('cinetrack_active_user');
-        html.window.localStorage.remove('cinetrack_custom_profile');
-        html.window.localStorage.remove('cinetrack_my_role');
-        html.window.localStorage.remove('cinetrack_has_password');
-        final keysToRemove = html.window.localStorage.keys
-            .where((k) =>
-                k.startsWith('cinetrack_pwd_') ||
-                k.startsWith('cinetrack_my_role_') ||
-                k.startsWith('cinetrack_custom_profile_'))
-            .toList();
-        for (final k in keysToRemove) {
-          html.window.localStorage.remove(k);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cinetrack_active_user');
+      await prefs.remove('cinetrack_custom_profile');
+      await prefs.remove('cinetrack_my_role');
+      await prefs.remove('cinetrack_has_password');
+      final keys = prefs.getKeys();
+      for (final k in keys) {
+        if (k.startsWith('cinetrack_pwd_') ||
+            k.startsWith('cinetrack_my_role_') ||
+            k.startsWith('cinetrack_custom_profile_')) {
+          await prefs.remove(k);
         }
-      } catch (e) {
-        debugPrint('Error purging storage on signOut: $e');
       }
+    } catch (e) {
+      debugPrint('Error purging SharedPreferences on signOut: $e');
     }
     await supabase.auth.signOut();
   }

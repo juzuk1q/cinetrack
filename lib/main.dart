@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,9 +6,9 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/env.dart';
-
 import 'app.dart';
+import 'core/env.dart';
+import 'platform/platform.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,23 +62,13 @@ Future<void> main() async {
   try {
     await Supabase.initialize(
       url: Env.supabaseUrl,
+      // ignore: deprecated_member_use
       anonKey: Env.supabaseAnonKey,
     ).timeout(const Duration(seconds: 4));
 
     // Clean up ugly OAuth tokens / error queries from browser address bar
     if (kIsWeb) {
-      try {
-        final currentHref = html.window.location.href;
-        if (currentHref.contains('access_token') ||
-            currentHref.contains('error=') ||
-            currentHref.contains('code=')) {
-          final origin = html.window.location.origin;
-          final cleanPath = html.window.location.pathname ?? '';
-          html.window.history.replaceState(null, 'CineTrack', '$origin$cleanPath');
-        }
-      } catch (e) {
-        debugPrint('URL cleanup error: $e');
-      }
+      PlatformHelper.cleanBrowserUrl();
     }
   } catch (e) {
     debugPrint('Supabase initialization handled: $e');

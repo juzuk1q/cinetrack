@@ -1,7 +1,6 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../platform/platform.dart';
 
 class PwaInstallDialog extends StatefulWidget {
   const PwaInstallDialog({super.key});
@@ -24,7 +23,7 @@ class _PwaInstallDialogState extends State<PwaInstallDialog> {
   void initState() {
     super.initState();
     if (kIsWeb) {
-      final ua = html.window.navigator.userAgent.toLowerCase();
+      final ua = PlatformHelper.getUserAgent();
       if (ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod')) {
         _tab = 0;
       } else {

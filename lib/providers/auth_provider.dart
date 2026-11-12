@@ -1,11 +1,11 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../platform/platform.dart';
 
 import '../core/supabase_client.dart';
 import '../models/user_profile.dart';
@@ -13,82 +13,17 @@ import '../repositories/auth_repository.dart';
 
 /// Helper to pick a local image file from PC or smartphone, auto-crop to target aspect ratio and scale down
 Future<String?> pickAndCropImageBase64({
-  required double targetAspectRatio, // e.g. 1.0 for avatar, 3.0 for banner (1200x400)
-  required int targetWidth,          // e.g. 400 for avatar, 1200 for banner
-  required int targetHeight,         // e.g. 400 for avatar, 400 for banner
+  required double targetAspectRatio,
+  required int targetWidth,
+  required int targetHeight,
   double quality = 0.85,
-}) async {
-  if (!kIsWeb) return null;
-  final completer = Completer<String?>();
-  final uploadInput = html.FileUploadInputElement()
-    ..accept = 'image/*'
-    ..multiple = false;
-
-  uploadInput.click();
-
-  uploadInput.onChange.listen((event) {
-    final files = uploadInput.files;
-    if (files == null || files.isEmpty) {
-      if (!completer.isCompleted) completer.complete(null);
-      return;
-    }
-    final file = files[0];
-    final reader = html.FileReader();
-    reader.readAsDataUrl(file);
-    reader.onLoadEnd.listen((_) {
-      final rawDataUrl = reader.result;
-      if (rawDataUrl is! String) {
-        if (!completer.isCompleted) completer.complete(null);
-        return;
-      }
-
-      final img = html.ImageElement()..src = rawDataUrl;
-      img.onLoad.listen((_) {
-        try {
-          final naturalWidth = img.naturalWidth;
-          final naturalHeight = img.naturalHeight;
-          if (naturalWidth == 0 || naturalHeight == 0) {
-            if (!completer.isCompleted) completer.complete(rawDataUrl);
-            return;
-          }
-
-          // Calculate center crop with target aspect ratio
-          final currentRatio = naturalWidth / naturalHeight;
-          num sx = 0, sy = 0, sw = naturalWidth, sh = naturalHeight;
-
-          if (currentRatio > targetAspectRatio) {
-            // Source is wider than target -> crop sides
-            sw = (naturalHeight * targetAspectRatio).round();
-            sx = ((naturalWidth - sw) / 2).round();
-          } else {
-            // Source is taller than target -> crop top/bottom
-            sh = (naturalWidth / targetAspectRatio).round();
-            sy = ((naturalHeight - sh) / 2).round();
-          }
-
-          final canvas = html.CanvasElement(width: targetWidth, height: targetHeight);
-          final ctx = canvas.context2D;
-          ctx.drawImageScaledFromSource(img, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
-
-          final croppedDataUrl = canvas.toDataUrl('image/jpeg', quality);
-          if (!completer.isCompleted) completer.complete(croppedDataUrl);
-        } catch (e) {
-          if (!completer.isCompleted) completer.complete(rawDataUrl);
-        }
-      });
-
-      img.onError.listen((_) {
-        if (!completer.isCompleted) completer.complete(rawDataUrl);
-      });
-    });
-
-    reader.onError.listen((_) {
-      if (!completer.isCompleted) completer.complete(null);
-    });
-  });
-
-  return completer.future;
-}
+}) =>
+    PlatformHelper.pickAndCropImageBase64(
+      targetAspectRatio: targetAspectRatio,
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+      quality: quality,
+    );
 
 /// Helper to pick a local image file from user's computer or phone on Web and convert to base64 Data URL
 Future<String?> pickLocalImageBase64() async {
@@ -143,23 +78,21 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
     _loadFromLocal();
   }
 
-  void _loadFromLocal() {
+  Future<void> _loadFromLocal() async {
     try {
-      if (kIsWeb) {
-        final raw = html.window.localStorage['cinetrack_custom_profile'];
-        if (raw != null && raw.isNotEmpty) {
-          final data = jsonDecode(raw) as Map<String, dynamic>;
-          final prof = UserProfile.fromJson(data);
-          // Purge legacy bugged dummy profile if present
-          if (prof.username == 'cinelover' || prof.displayName == 'Пользователь') {
-            html.window.localStorage.remove('cinetrack_custom_profile');
-          } else {
-            state = prof;
-          }
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('cinetrack_custom_profile');
+      if (raw != null && raw.isNotEmpty) {
+        final data = jsonDecode(raw) as Map<String, dynamic>;
+        final prof = UserProfile.fromJson(data);
+        if (prof.username == 'cinelover' || prof.displayName == 'Пользователь') {
+          await prefs.remove('cinetrack_custom_profile');
+        } else {
+          state = prof;
         }
       }
     } catch (e) {
-      debugPrint('Error loading custom profile from localStorage: $e');
+      debugPrint('Error loading custom profile from SharedPreferences: $e');
     }
   }
 
@@ -242,14 +175,17 @@ class ProfileCustomizationNotifier extends StateNotifier<UserProfile?> {
     }
   }
 
-  void _persist() {
+  Future<void> _persist() async {
     try {
-      if (kIsWeb && state != null) {
-        html.window.localStorage['cinetrack_custom_profile'] =
-            jsonEncode(state!.toJson());
+      if (state != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cinetrack_custom_profile',
+          jsonEncode(state!.toJson()),
+        );
       }
     } catch (e) {
-      debugPrint('Error saving custom profile to localStorage: $e');
+      debugPrint('Error saving custom profile to SharedPreferences: $e');
     }
   }
 }

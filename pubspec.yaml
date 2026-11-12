@@ -1,10 +1,10 @@
 name: cinetrack
-description: CineTrack — приложение для отслеживания фильмов, сериалов и мультфильмов.
+description: "A new Flutter project."
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: ^3.5.0
 
 dependencies:
   flutter:
@@ -12,11 +12,11 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # Supabase
-  supabase_flutter: ^2.8.4
-
-  # State management
+  # State Management
   flutter_riverpod: ^2.6.1
+
+  # Backend & Auth
+  supabase_flutter: ^2.8.3
 
   # Navigation
   go_router: ^14.6.2
@@ -27,7 +27,8 @@ dependencies:
   flutter_rating_bar: ^4.0.1
   cached_network_image: ^3.4.1
 
-  # Utils
+  # Storage & Utils
+  shared_preferences: ^2.3.2
   intl: ^0.20.3
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.3
