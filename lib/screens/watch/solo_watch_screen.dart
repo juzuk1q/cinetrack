@@ -1,0 +1,4014 @@
+import '../../models/media_item.dart';
+import '../../providers/media_provider.dart';
+import '../../providers/stats_provider.dart';
+import '../../widgets/animations/app_animations.dart';
+
+
+import '../../platform/platform.dart';
+
+import 'package:flutter/material.dart';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:go_router/go_router.dart';
+
+
+
+import '../../core/constants.dart';
+
+import '../../data/curated_catalog.dart';
+
+import '../../models/catalog_item.dart';
+
+import '../../models/series_episode.dart';
+
+import '../../providers/auth_provider.dart';
+
+import '../../providers/kinopoisk_provider.dart';
+
+import '../../providers/room_provider.dart';
+
+import '../../widgets/app_header.dart';
+
+import '../../widgets/top_notification.dart';
+
+import '../../models/episode_comment.dart';
+
+import '../../repositories/review_repository.dart';
+
+
+
+
+
+
+
+class FranchiseStep {
+
+  final String title;
+
+  final String typeLabel;
+
+  final int year;
+
+  final bool isCurrent;
+
+  final int? kinopoiskId;
+
+  final String? posterUrl;
+
+
+
+  const FranchiseStep({
+
+    required this.title,
+
+    required this.typeLabel,
+
+    required this.year,
+
+    required this.isCurrent,
+
+    this.kinopoiskId,
+
+    this.posterUrl,
+
+  });
+
+}
+
+
+
+class SoloWatchScreen extends ConsumerStatefulWidget {
+
+  final String title;
+
+  final int? year;
+
+  final int? kinopoiskId;
+
+  final String? posterUrl;
+
+  final String type;
+
+  final String? description;
+
+  final String? genres;
+
+
+
+  const SoloWatchScreen({
+
+    super.key,
+
+    required this.title,
+
+    this.year,
+
+    this.kinopoiskId,
+
+    this.posterUrl,
+
+    required this.type,
+
+    this.description,
+
+    this.genres,
+
+  });
+
+
+
+  @override
+
+  ConsumerState<SoloWatchScreen> createState() => _SoloWatchScreenState();
+
+}
+
+
+
+class VoiceoverOption {
+  final String id;
+  final String name;
+  final String badge;
+  const VoiceoverOption({required this.id, required this.name, required this.badge});
+}
+
+const List<VoiceoverOption> defaultVoiceovers = [
+  VoiceoverOption(id: 'dubbing', name: 'Дубляж (Официальный)', badge: 'HQ'),
+  VoiceoverOption(id: 'lostfilm', name: 'LostFilm', badge: 'Студия'),
+  VoiceoverOption(id: 'hdrezka', name: 'HDRezka Studio', badge: '1080p'),
+  VoiceoverOption(id: 'kubik', name: 'Кубик в кубе', badge: '18+'),
+  VoiceoverOption(id: 'newstudio', name: 'NewStudio', badge: 'Студия'),
+  VoiceoverOption(id: 'tvshows', name: 'TVShows', badge: 'Студия'),
+  VoiceoverOption(id: 'original', name: 'Оригинал (Sub)', badge: 'Sub'),
+];
+
+class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
+  late String _viewId;
+  final _iframeController = IFrameController();
+  final bool _blockAds = true;
+  String _selectedBalancer = 'delivembd'; // 'delivembd' | 'namy'
+
+  int _selectedSeason = 1;
+  int _selectedEpisode = 1;
+  int _viewingSeason = 1;
+  String _selectedVoiceover = 'dubbing';
+  bool _isGridView = false;
+  final Set<String> _watchedEpisodes = {};
+
+  List<SeriesSeason> _seasons = [];
+  bool _isLoadingSeasons = false;
+
+  final TextEditingController _commentCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final isLikelySeries = widget.type == 'series' ||
+        widget.type == 'anime' ||
+        widget.title.toLowerCase().contains('сезон') ||
+        (widget.genres?.toLowerCase().contains('сериал') ?? false) ||
+        (widget.genres?.toLowerCase().contains('аниме') ?? false);
+
+    _viewId = 'cinetrack-solo-player-${DateTime.now().microsecondsSinceEpoch}';
+    _initIframe();
+    if (isLikelySeries) {
+      _loadSeasons();
+    }
+  }
+
+  @override
+  void dispose() {
+    _iframeController.dispose();
+    _commentCtrl.dispose();
+    super.dispose();
+  }
+
+
+
+  void _loadSeasons() async {
+
+    final kpId = widget.kinopoiskId;
+
+    if (kpId == null) return;
+
+    setState(() => _isLoadingSeasons = true);
+
+    try {
+
+      final seasons = await ref.read(kinopoiskServiceProvider).getSeasons(kpId);
+
+      if (mounted) {
+
+        setState(() {
+
+          _seasons = seasons;
+
+          _isLoadingSeasons = false;
+
+          if (_seasons.isNotEmpty) {
+
+            _selectedSeason = _seasons.first.number;
+
+            final aired = _seasons.first.airedEpisodes;
+
+            if (aired.isNotEmpty) {
+
+              _selectedEpisode = aired.first.episodeNumber;
+
+            } else if (_seasons.first.episodes.isNotEmpty) {
+
+              _selectedEpisode = _seasons.first.episodes.first.episodeNumber;
+
+            }
+
+          }
+
+        });
+
+      }
+
+    } catch (e) {
+
+      if (mounted) setState(() => _isLoadingSeasons = false);
+
+    }
+
+  }
+
+
+
+  List<SeriesSeason> get _effectiveSeasons {
+
+    if (_seasons.isNotEmpty) return _seasons;
+
+    final isSeries = widget.type == 'series' ||
+
+        widget.type == 'anime' ||
+
+        widget.title.toLowerCase().contains('сезон') ||
+
+        (widget.genres?.toLowerCase().contains('сериал') ?? false);
+
+
+
+    if (isSeries) {
+
+      return [
+
+        SeriesSeason(
+
+          number: 1,
+
+          episodes: List.generate(
+
+            12,
+
+            (index) => SeriesEpisode(
+
+              seasonNumber: 1,
+
+              episodeNumber: index + 1,
+
+              nameRu: 'Серия ${index + 1}',
+
+            ),
+
+          ),
+
+        ),
+
+      ];
+
+    }
+
+    return [];
+
+  }
+
+
+
+  SeriesSeason? get _currentSeasonData {
+
+    final eff = _effectiveSeasons;
+
+    if (eff.isEmpty) return null;
+
+    return eff.firstWhere(
+
+      (s) => s.number == _selectedSeason,
+
+      orElse: () => eff.first,
+
+    );
+
+  }
+
+
+
+  SeriesSeason? get _viewingSeasonData {
+
+    final eff = _effectiveSeasons;
+
+    if (eff.isEmpty) return null;
+
+    return eff.firstWhere(
+
+      (s) => s.number == _viewingSeason,
+
+      orElse: () => _currentSeasonData ?? eff.first,
+
+    );
+
+  }
+
+
+
+  bool get _hasNextEpisode {
+
+    final cur = _currentSeasonData;
+
+    if (cur == null || cur.episodes.isEmpty) return false;
+
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+
+    if (curIdx >= 0 && curIdx < aired.length - 1) return true;
+
+    final eff = _effectiveSeasons;
+
+    final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
+
+    return sIdx >= 0 && sIdx < eff.length - 1;
+
+  }
+
+
+
+  bool get _hasPrevEpisode {
+
+    final cur = _currentSeasonData;
+
+    if (cur == null || cur.episodes.isEmpty) return false;
+
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+
+    if (curIdx > 0) return true;
+
+    final eff = _effectiveSeasons;
+
+    final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
+
+    return sIdx > 0;
+
+  }
+
+
+
+  void _nextEpisode() {
+
+    final cur = _currentSeasonData;
+
+    if (cur == null || cur.episodes.isEmpty) return;
+
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+
+    if (curIdx >= 0 && curIdx < aired.length - 1) {
+
+      _selectEpisode(_selectedSeason, aired[curIdx + 1].episodeNumber);
+
+    } else {
+
+      final eff = _effectiveSeasons;
+
+      final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
+
+      if (sIdx >= 0 && sIdx < eff.length - 1) {
+
+        final nextS = eff[sIdx + 1];
+
+        final nextAired = nextS.airedEpisodes.isNotEmpty ? nextS.airedEpisodes : nextS.episodes;
+
+        if (nextAired.isNotEmpty) {
+
+          _selectEpisode(nextS.number, nextAired.first.episodeNumber);
+
+        }
+
+      }
+
+    }
+
+  }
+
+
+
+  void _prevEpisode() {
+
+    final cur = _currentSeasonData;
+
+    if (cur == null || cur.episodes.isEmpty) return;
+
+    final aired = cur.airedEpisodes.isNotEmpty ? cur.airedEpisodes : cur.episodes;
+
+    final curIdx = aired.indexWhere((e) => e.episodeNumber == _selectedEpisode);
+
+    if (curIdx > 0) {
+
+      _selectEpisode(_selectedSeason, aired[curIdx - 1].episodeNumber);
+
+    } else {
+
+      final eff = _effectiveSeasons;
+
+      final sIdx = eff.indexWhere((s) => s.number == _selectedSeason);
+
+      if (sIdx > 0) {
+
+        final prevS = eff[sIdx - 1];
+
+        final prevAired = prevS.airedEpisodes.isNotEmpty ? prevS.airedEpisodes : prevS.episodes;
+
+        if (prevAired.isNotEmpty) {
+
+          _selectEpisode(prevS.number, prevAired.last.episodeNumber);
+
+        }
+
+      }
+
+    }
+
+  }
+
+
+
+  void _selectEpisode(int seasonNum, int episodeNum) {
+    if (_selectedSeason == seasonNum && _selectedEpisode == episodeNum) return;
+
+    // Check if target episode is available / aired
+    final eff = _effectiveSeasons;
+    final targetSeason = eff.firstWhere((s) => s.number == seasonNum, orElse: () => eff.first);
+    final targetEp = targetSeason.episodes.firstWhere((e) => e.episodeNumber == episodeNum, orElse: () => targetSeason.episodes.first);
+    if (!targetEp.isAired) {
+      TopNotification.showWarning(
+        context,
+        'Серия $episodeNum ещё не вышла! Дата премьеры: ${targetEp.formattedReleaseDate ?? targetEp.releaseDate ?? 'скоро'} ⏳',
+        title: 'Серия не доступна',
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedSeason = seasonNum;
+      _selectedEpisode = episodeNum;
+      _viewingSeason = seasonNum;
+      _watchedEpisodes.add('${seasonNum}_$episodeNum');
+    });
+
+    _iframeController.updateUrl(_getCurrentUrl());
+
+    TopNotification.showSuccess(
+      context,
+      'Сезон $seasonNum, Серия $episodeNum ▶',
+      title: 'Выбор серии',
+    );
+  }
+
+  void _selectVoiceover(String voiceoverId) {
+    if (_selectedVoiceover == voiceoverId) return;
+    setState(() {
+      _selectedVoiceover = voiceoverId;
+    });
+    _iframeController.updateUrl(_getCurrentUrl());
+    final vo = defaultVoiceovers.firstWhere((v) => v.id == voiceoverId, orElse: () => defaultVoiceovers.first);
+    TopNotification.showSuccess(
+      context,
+      'Озвучка: ${vo.name}',
+      title: 'Смена озвучки',
+    );
+  }
+
+  void _toggleEpisodeWatched(int seasonNum, int episodeNum) {
+    final key = '${seasonNum}_$episodeNum';
+    setState(() {
+      if (_watchedEpisodes.contains(key)) {
+        _watchedEpisodes.remove(key);
+      } else {
+        _watchedEpisodes.add(key);
+      }
+    });
+  }
+
+  void _toggleBalancer() {
+    setState(() {
+      _selectedBalancer = _selectedBalancer == 'delivembd' ? 'namy' : 'delivembd';
+    });
+    _iframeController.updateUrl(_getCurrentUrl());
+    TopNotification.showSuccess(
+      context,
+      _selectedBalancer == 'namy'
+          ? 'Переключено на Резервное зеркало (Namy)'
+          : 'Переключено на Основной балансер (HD)',
+      title: 'Смена сервера',
+    );
+  }
+
+  String _getCurrentUrl() {
+    final kpId = widget.kinopoiskId ?? 258687;
+    final isSeries = widget.type == 'series' || _selectedSeason > 0 || _selectedEpisode > 0;
+    final seriesParams = isSeries ? '?season=$_selectedSeason&episode=$_selectedEpisode' : '';
+    final voiceParam = '${seriesParams.isNotEmpty ? '&' : '?'}voice=$_selectedVoiceover';
+    final host = _selectedBalancer == 'namy' ? 'api.namy.ws' : 'api.delivembd.ws';
+    return 'https://$host/embed/kp/$kpId$seriesParams$voiceParam';
+  }
+  void _initIframe() {
+
+    final url = _getCurrentUrl();
+
+    _iframeController.init(
+
+      viewId: _viewId,
+
+      url: url,
+
+      blockAds: _blockAds,
+    );
+  }
+
+
+
+
+
+
+
+  
+  Future<void> _toggleWatched() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Войдите в аккаунт, чтобы сохранять в коллекцию',
+        title: 'Требуется авторизация',
+      );
+      context.push('/login');
+      return;
+    }
+    final mediaList = ref.read(mediaListProvider).value ?? [];
+    final existing = mediaList.where((m) {
+      if (widget.kinopoiskId != null && m.kinopoiskId != null) {
+        return m.kinopoiskId == widget.kinopoiskId;
+      }
+      return m.title.trim().toLowerCase() == widget.title.trim().toLowerCase();
+    }).firstOrNull;
+
+    final now = DateTime.now();
+    var normType = widget.type.toLowerCase();
+    if (normType.contains('series') || normType.contains('show')) {
+      normType = 'series';
+    } else if (normType.contains('anime')) {
+      normType = 'anime';
+    } else if (normType.contains('cartoon') || normType.contains('мульт')) {
+      normType = 'cartoon';
+    } else {
+      normType = 'movie';
+    }
+
+    if (existing != null) {
+      final newStatus = existing.status == 'watched' ? 'want_to_watch' : 'watched';
+      final updated = existing.copyWith(
+        status: newStatus,
+        watchedAt: newStatus == 'watched' ? now : null,
+        updatedAt: now,
+      );
+      await ref.read(mediaNotifierProvider.notifier).update(existing.id, updated);
+      ref.invalidate(mediaListProvider);
+      ref.invalidate(statsDataProvider);
+      if (!mounted) return;
+      TopNotification.showSuccess(
+        context,
+        newStatus == 'watched'
+            ? '«${widget.title}» отмечен как просмотренный! 🎉'
+            : '«${widget.title}» перемещён в «Хочу посмотреть»',
+        title: 'Коллекция обновлена',
+      );
+    } else {
+      final item = MediaItem(
+        id: '',
+        userId: user.id,
+        title: widget.title,
+        type: normType,
+        genres: widget.genres != null
+            ? widget.genres!.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+            : const [],
+        year: widget.year,
+        description: widget.description,
+        posterUrl: widget.posterUrl,
+        kinopoiskId: widget.kinopoiskId,
+        status: 'watched',
+        watchedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await ref.read(mediaNotifierProvider.notifier).create(item);
+      ref.invalidate(mediaListProvider);
+      ref.invalidate(statsDataProvider);
+      if (!mounted) return;
+      TopNotification.showSuccess(
+        context,
+        '«${widget.title}» добавлен в просмотренные! 🎉',
+        title: 'Просмотрено ✓',
+      );
+    }
+  }
+
+  Future<void> _createRoomAndInvite() async {
+
+    final user = ref.read(currentUserProvider);
+
+    if (user == null) {
+
+      TopNotification.showWarning(
+
+        context,
+
+        'Для создания комнаты необходимо войти в аккаунт',
+
+        title: 'Требуется авторизация',
+
+      );
+
+      context.push('/login');
+
+      return;
+
+    }
+
+    final ownerName = user.email?.split('@').first ?? 'Организатор';
+
+    final ownerId = user.id;
+
+
+
+    final room = await ref.read(roomsProvider.notifier).createRoom(
+
+      title: 'Смотрим: ${widget.title} 🍿',
+
+      movieTitle: widget.title,
+
+      movieType: widget.type,
+
+      moviePoster: widget.posterUrl,
+
+      movieYear: widget.year,
+
+      kinopoiskId: widget.kinopoiskId,
+
+      scheduledAt: DateTime.now(),
+
+      ownerName: ownerName,
+
+      ownerId: ownerId,
+
+      videoSourceType: 'catalog',
+
+      videoUrl: _getCurrentUrl(),
+
+    );
+
+
+
+    if (room == null || !mounted) return;
+
+    context.go('/rooms/${room.id}');
+
+  }
+
+
+
+  Future<void> _addComment() async {
+
+    final text = _commentCtrl.text.trim();
+
+    if (text.isEmpty) return;
+
+
+
+    final user = ref.read(currentUserProvider);
+
+    if (user == null) {
+
+      TopNotification.showWarning(
+
+        context,
+
+        'Для добавления комментария необходимо войти в аккаунт',
+
+        title: 'Авторизация',
+
+      );
+
+      return;
+
+    }
+
+
+
+    final profile = ref.read(userProfileProvider).value;
+
+    final authorName = profile?.displayName.isNotEmpty == true
+
+        ? profile!.displayName
+
+        : (user.email?.split('@').first ?? 'Киноман');
+
+
+
+    final kpId = widget.kinopoiskId ?? 0;
+
+    final tcMatch = RegExp(r'(\d{1,2}:\d{2}(?::\d{2})?)').firstMatch(text);
+
+    final timecode = tcMatch?.group(1);
+
+
+
+    try {
+
+      await ref.read(reviewRepositoryProvider).addEpisodeComment(
+
+        kinopoiskId: kpId,
+
+        episode: _selectedEpisode,
+
+        season: _selectedSeason,
+
+        timecode: timecode,
+
+        authorName: authorName,
+
+        text: text,
+
+      );
+
+      _commentCtrl.clear();
+
+      ref.invalidate(episodeCommentsProvider((
+
+        kinopoiskId: kpId,
+
+        episode: _selectedEpisode,
+
+        season: _selectedSeason,
+
+      )));
+
+      if (mounted) {
+
+        TopNotification.showSuccess(
+
+          context,
+
+          'Комментарий опубликован! ✨',
+
+          title: 'Обсуждение',
+
+        );
+
+      }
+
+    } catch (e) {
+
+      if (mounted) {
+
+        TopNotification.showError(
+
+          context,
+
+          'Ошибка добавления комментария: $e',
+
+          title: 'Ошибка',
+
+        );
+
+      }
+
+    }
+
+  }
+
+
+
+
+
+
+
+  List<FranchiseStep> _getFranchiseTimeline() {
+
+    final curTitle = widget.title.toLowerCase();
+
+
+
+    if (curTitle.contains('гуль') || curTitle.contains('ghoul')) {
+
+      return [
+
+        const FranchiseStep(
+
+          title: 'Токийский гуль (Сезон 1)',
+
+          typeLabel: 'Сериал',
+
+          year: 2014,
+
+          isCurrent: true,
+
+          kinopoiskId: 841681,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Токийский гуль √A (Сезон 2)',
+
+          typeLabel: 'Сериал',
+
+          year: 2015,
+
+          isCurrent: false,
+
+          kinopoiskId: 841681,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Токийский гуль: Джек (OVA)',
+
+          typeLabel: 'Спецвыпуск',
+
+          year: 2015,
+
+          isCurrent: false,
+
+          kinopoiskId: 841681,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Токийский гуль: Фильм',
+
+          typeLabel: 'Полный метр',
+
+          year: 2017,
+
+          isCurrent: false,
+
+          kinopoiskId: 841681,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Токийский гуль:re (Сезон 3)',
+
+          typeLabel: 'Сериал',
+
+          year: 2018,
+
+          isCurrent: false,
+
+          kinopoiskId: 841681,
+
+        ),
+
+      ];
+
+    } else if (curTitle.contains('тяжк') || curTitle.contains('breaking bad')) {
+
+      return [
+
+        const FranchiseStep(
+
+          title: 'Лучше звоните Солу (Приквел)',
+
+          typeLabel: 'Сериал',
+
+          year: 2015,
+
+          isCurrent: false,
+
+          kinopoiskId: 841681,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Во все тяжкие (Breaking Bad)',
+
+          typeLabel: 'Сериал',
+
+          year: 2008,
+
+          isCurrent: true,
+
+          kinopoiskId: 404900,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'El Camino: Во все тяжкие',
+
+          typeLabel: 'Полнометражный фильм',
+
+          year: 2019,
+
+          isCurrent: false,
+
+          kinopoiskId: 404900,
+
+        ),
+
+      ];
+
+    } else if (curTitle.contains('титан') || curTitle.contains('titan')) {
+
+      return [
+
+        const FranchiseStep(
+
+          title: 'Атака титанов (Сезон 1)',
+
+          typeLabel: 'Сериал',
+
+          year: 2013,
+
+          isCurrent: true,
+
+          kinopoiskId: 749374,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Атака титанов: Выбор без сожалений',
+
+          typeLabel: 'OVA / Приквел',
+
+          year: 2014,
+
+          isCurrent: false,
+
+          kinopoiskId: 749374,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Атака титанов (Сезон 2-3)',
+
+          typeLabel: 'Сериал',
+
+          year: 2017,
+
+          isCurrent: false,
+
+          kinopoiskId: 749374,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Атака титанов: Финал',
+
+          typeLabel: 'Сериал / Кульминация',
+
+          year: 2023,
+
+          isCurrent: false,
+
+          kinopoiskId: 749374,
+
+        ),
+
+      ];
+
+    } else if (curTitle.contains('демон') || curTitle.contains('kimetsu') || curTitle.contains('клинок')) {
+
+      return [
+
+        const FranchiseStep(
+
+          title: 'Клинок, рассекающий демонов (Сезон 1)',
+
+          typeLabel: 'Сериал',
+
+          year: 2019,
+
+          isCurrent: true,
+
+          kinopoiskId: 1220920,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Поезд «Бесконечный» (Фильм)',
+
+          typeLabel: 'Полный метр',
+
+          year: 2020,
+
+          isCurrent: false,
+
+          kinopoiskId: 1347949,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Квартал красных фонарей (Сезон 2)',
+
+          typeLabel: 'Сериал',
+
+          year: 2021,
+
+          isCurrent: false,
+
+          kinopoiskId: 1220920,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Деревня кузнецов (Сезон 3)',
+
+          typeLabel: 'Сериал',
+
+          year: 2023,
+
+          isCurrent: false,
+
+          kinopoiskId: 1220920,
+
+        ),
+
+        const FranchiseStep(
+
+          title: 'Тренировки столпов (Сезон 4)',
+
+          typeLabel: 'Сериал',
+
+          year: 2024,
+
+          isCurrent: false,
+
+          kinopoiskId: 1220920,
+
+        ),
+
+      ];
+
+    }
+
+
+
+    // Only return franchise steps if movie is part of a real franchise!
+
+    return const [];
+
+  }
+
+
+
+  @override
+
+  Widget build(BuildContext context) {
+
+    final typeLabel = AppConstants.mediaTypes[widget.type] ?? 'Фильм';
+
+    final isSeries = widget.type == 'series' ||
+
+        widget.type == 'anime' ||
+
+        widget.title.toLowerCase().contains('сезон') ||
+
+        (widget.genres?.toLowerCase().contains('сериал') ?? false) ||
+
+        (widget.genres?.toLowerCase().contains('аниме') ?? false);
+
+
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDark ? const Color(0xFF0C0C16) : const Color(0xFFF8F9FA);
+
+    final cardBg = isDark ? const Color(0xFF141424) : Colors.white;
+
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE5E7EB);
+
+    final textColor = isDark ? Colors.white : const Color(0xFF111827);
+
+    final subtextColor = isDark ? Colors.white54 : const Color(0xFF6B7280);
+
+
+
+    final franchiseTimeline = _getFranchiseTimeline();
+
+
+
+    // Similar items
+
+    final similar = CuratedCatalog.items.where((ci) {
+
+      if (ci.title == widget.title ||
+
+          (widget.kinopoiskId != null && ci.kinopoiskId == widget.kinopoiskId)) {
+
+        return false;
+
+      }
+
+      return ci.type == widget.type ||
+
+          (widget.genres != null &&
+
+              ci.genres.any((g) => widget.genres!.contains(g)));
+
+    }).take(8).toList();
+
+
+
+    return Scaffold(
+
+      backgroundColor: bgColor,
+
+      body: Column(
+
+        children: [
+
+          const AppHeader(activeRoute: '/library'),
+
+          Expanded(
+
+            child: CustomScrollView(
+
+              slivers: [
+
+                // Top App Header Banner
+
+                SliverToBoxAdapter(
+
+                  child: Container(
+
+                    padding: const EdgeInsets.symmetric(
+
+                        horizontal: 24, vertical: 12),
+
+                    decoration: BoxDecoration(
+
+                      color: cardBg,
+
+                      border: Border(bottom: BorderSide(color: borderColor)),
+
+                    ),
+
+                    child: Row(
+
+                      children: [
+
+                        IconButton(
+
+                          icon: Icon(Icons.arrow_back_rounded, color: textColor),
+
+                          tooltip: 'Назад',
+
+                          onPressed: () {
+
+                            if (Navigator.canPop(context)) {
+
+                              Navigator.pop(context);
+
+                            } else {
+
+                              context.go('/library');
+
+                            }
+
+                          },
+
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        Expanded(
+
+                          child: Column(
+
+                            crossAxisAlignment: CrossAxisAlignment.start,
+
+                            children: [
+
+                              Text(
+
+                                '${widget.title}${widget.year != null ? ' (${widget.year})' : ''}',
+
+                                style: TextStyle(
+
+                                  fontWeight: FontWeight.w800,
+
+                                  fontSize: 16,
+
+                                  color: textColor,
+
+                                ),
+
+                                maxLines: 1,
+
+                                overflow: TextOverflow.ellipsis,
+
+                              ),
+
+                              Text(
+
+                                'Смотреть онлайн $typeLabel в высоком качестве HD 1080p',
+
+                                style: TextStyle(
+
+                                  color: subtextColor,
+
+                                  fontSize: 11.5,
+
+                                ),
+
+                                maxLines: 1,
+
+                                overflow: TextOverflow.ellipsis,
+
+                              ),
+
+                            ],
+
+                          ),
+
+                        ),
+
+                        const SizedBox(width: 12),
+
+
+
+                        // Watch Status Button
+                        Builder(
+                          builder: (context) {
+                            final mediaList = ref.watch(mediaListProvider).value ?? [];
+                            final existing = mediaList.where((m) {
+                              if (widget.kinopoiskId != null && m.kinopoiskId != null) {
+                                return m.kinopoiskId == widget.kinopoiskId;
+                              }
+                              return m.title.trim().toLowerCase() == widget.title.trim().toLowerCase();
+                            }).firstOrNull;
+                            final isWatched = existing?.status == 'watched';
+
+                            return OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isWatched ? const Color(0xFF10B981) : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                                side: BorderSide(
+                                  color: isWatched ? const Color(0xFF10B981) : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
+                                  width: 1.2,
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              icon: Icon(
+                                isWatched ? Icons.check_circle_rounded : Icons.bookmark_add_outlined,
+                                size: 16,
+                                color: isWatched ? const Color(0xFF10B981) : null,
+                              ),
+                              label: Text(
+                                isWatched ? 'Просмотрено ✓' : 'В просмотрено',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isWatched ? FontWeight.w800 : FontWeight.w600,
+                                ),
+                              ),
+                              onPressed: _toggleWatched,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Invite Friends / Watch Together Button
+
+                        ElevatedButton.icon(
+
+                          style: ElevatedButton.styleFrom(
+
+                            backgroundColor: const Color(0xFF7C3AED),
+
+                            foregroundColor: Colors.white,
+
+                            padding: const EdgeInsets.symmetric(
+
+                                horizontal: 14, vertical: 10),
+
+                            shape: RoundedRectangleBorder(
+
+                              borderRadius: BorderRadius.circular(20),
+
+                            ),
+
+                          ),
+
+                          icon: const Icon(Icons.groups_rounded, size: 16),
+
+                          label: Text(
+
+                              MediaQuery.of(context).size.width < 550
+
+                                  ? 'С друзьями 🍿'
+
+                                  : 'Смотреть с друзьями 🍿',
+
+                              style: const TextStyle(
+
+                                  fontSize: 12, fontWeight: FontWeight.bold)),
+
+                          onPressed: _createRoomAndInvite,
+
+                        ),
+
+                      ],
+
+                    ),
+
+                  ),
+
+                ),
+
+
+
+                // Player & Sidebar Area
+
+                SliverToBoxAdapter(
+
+                  child: Padding(
+
+                    padding: EdgeInsets.fromLTRB(
+
+                      MediaQuery.of(context).size.width < 700 ? 10 : 20,
+
+                      12,
+
+                      MediaQuery.of(context).size.width < 700 ? 10 : 20,
+
+                      28,
+
+                    ),
+
+                    child: Center(
+
+                      child: ConstrainedBox(
+
+                        constraints: BoxConstraints(
+
+                          maxWidth: isSeries ? 1380 : 1080,
+
+                        ),
+
+                        child: LayoutBuilder(
+
+                          builder: (context, constraints) {
+
+                            final isWide = constraints.maxWidth >= 960;
+
+
+
+                            final playerColumn = Column(
+
+                              crossAxisAlignment: CrossAxisAlignment.start,
+
+                              children: [
+
+                                _buildPlayerTabs(isDark, isSeries),
+
+                                const SizedBox(height: 12),
+
+                                _buildCinemaPlayer(),
+
+                                if (isSeries) ...[
+
+                                  const SizedBox(height: 10),
+
+                                  _buildQuickEpisodeNav(isDark),
+
+                                ],
+
+                              ],
+
+                            );
+
+
+
+                            final episodesSidebar = isSeries
+
+                                ? _buildEpisodesAndSeasonsSidebar(isDark)
+
+                                : const SizedBox.shrink();
+
+
+
+                            if (isWide && isSeries) {
+
+                              return Column(
+
+                                crossAxisAlignment: CrossAxisAlignment.start,
+
+                                children: [
+
+                                  Row(
+
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                                    children: [
+
+                                      Expanded(
+
+                                        child: playerColumn,
+
+                                      ),
+
+                                      const SizedBox(width: 20),
+
+                                      SizedBox(
+
+                                        width: 350,
+
+                                        child: episodesSidebar,
+
+                                      ),
+
+                                    ],
+
+                                  ),
+
+                                  const SizedBox(height: 24),
+
+                                  _buildMovieDetailsBlock(isDark),
+
+                                  const SizedBox(height: 28),
+
+                                  if (franchiseTimeline.isNotEmpty) ...[
+
+                                    _buildFranchiseTimelineSection(
+
+                                        franchiseTimeline, isDark),
+
+                                    const SizedBox(height: 28),
+
+                                  ],
+
+                                  if (similar.isNotEmpty) ...[
+
+                                    _buildSimilarCarouselSection(
+
+                                        similar, isDark),
+
+                                    const SizedBox(height: 28),
+
+                                  ],
+
+                                  _buildCommentsSection(isDark),
+
+                                  const SizedBox(height: 40),
+
+                                ],
+
+                              );
+
+                            } else {
+
+                              return Column(
+
+                                crossAxisAlignment: CrossAxisAlignment.start,
+
+                                children: [
+
+                                  playerColumn,
+
+                                  if (isSeries) ...[
+
+                                    const SizedBox(height: 16),
+
+                                    episodesSidebar,
+
+                                  ],
+
+                                  const SizedBox(height: 24),
+
+                                  _buildMovieDetailsBlock(isDark),
+
+                                  const SizedBox(height: 28),
+
+                                  if (franchiseTimeline.isNotEmpty) ...[
+
+                                    _buildFranchiseTimelineSection(
+
+                                        franchiseTimeline, isDark),
+
+                                    const SizedBox(height: 28),
+
+                                  ],
+
+                                  if (similar.isNotEmpty) ...[
+
+                                    _buildSimilarCarouselSection(
+
+                                        similar, isDark),
+
+                                    const SizedBox(height: 28),
+
+                                  ],
+
+                                  _buildCommentsSection(isDark),
+
+                                  const SizedBox(height: 40),
+
+                                ],
+
+                              );
+
+                            }
+
+                          },
+
+                        ),
+
+                      ),
+
+                    ),
+
+                  ),
+
+                ),
+
+              ],
+
+            ),
+
+          ),
+
+        ],
+
+      ),
+
+    );
+
+  }
+
+
+
+  Widget _buildPlayerTabs(bool isDark, bool isSeries) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF131324) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        children: [
+          // Live status dot
+          const PulseBadge(
+            glowColor: Color(0xFF10B981),
+            child: SizedBox(
+              width: 8,
+              height: 8,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xFF10B981),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Видеобалансер HD',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
+              ),
+            ),
+            child: const Text(
+              '1080p Ultra',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF9F67FF),
+              ),
+            ),
+          ),
+          const Spacer(),
+
+          // Server toggle pill (Delivembd HD ↔ Namy Mirror)
+          InkWell(
+            onTap: _toggleBalancer,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: _selectedBalancer == 'namy'
+                    ? const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.25 : 0.12)
+                    : (isDark ? Colors.white10 : const Color(0xFFF3F4F6)),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _selectedBalancer == 'namy'
+                      ? const Color(0xFF3B82F6).withValues(alpha: 0.5)
+                      : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.dns_rounded,
+                    size: 13,
+                    color: _selectedBalancer == 'namy'
+                        ? const Color(0xFF60A5FA)
+                        : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _selectedBalancer == 'namy' ? 'Зеркало (Namy)' : 'Сервер: HD',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: _selectedBalancer == 'namy'
+                          ? (isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8))
+                          : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            tooltip: 'Перезагрузить плеер',
+            color: isDark ? Colors.white70 : const Color(0xFF64748B),
+            onPressed: () {
+              setState(() {
+                _initIframe();
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+
+  Widget _buildCinemaPlayer() {
+
+    return AspectRatio(
+
+      aspectRatio: 16 / 9,
+
+      child: Container(
+
+        width: double.infinity,
+
+        decoration: BoxDecoration(
+
+          color: Colors.black,
+
+          borderRadius: BorderRadius.circular(16),
+
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+
+          boxShadow: [
+
+            BoxShadow(
+
+              color: Colors.black.withValues(alpha: 0.7),
+
+              blurRadius: 28,
+
+              spreadRadius: 4,
+
+            ),
+
+          ],
+
+        ),
+
+        child: ClipRRect(
+
+          borderRadius: BorderRadius.circular(15.5),
+
+          child: HtmlElementView(viewType: _viewId),
+
+        ),
+
+      ),
+
+    );
+
+  }
+
+
+
+  Widget _buildQuickEpisodeNav(bool isDark) {
+
+    final cur = _currentSeasonData;
+
+    final totalInSeason = cur?.episodes.length ?? 0;
+
+
+
+    return Container(
+
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+
+      decoration: BoxDecoration(
+
+        color: isDark ? const Color(0xFF141424) : Colors.white,
+
+        borderRadius: BorderRadius.circular(10),
+
+        border: Border.all(
+
+          color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+
+        ),
+
+      ),
+
+      child: Row(
+
+        children: [
+
+          BouncyButton(
+            onTap: _hasPrevEpisode ? _prevEpisode : null,
+            child: TextButton.icon(
+              onPressed: _hasPrevEpisode ? _prevEpisode : null,
+              icon: const Icon(Icons.skip_previous_rounded, size: 16),
+              label: const Text('Предыдущая', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                foregroundColor:
+                    isDark ? Colors.white70 : const Color(0xFF374151),
+                disabledForegroundColor:
+                    isDark ? Colors.white24 : const Color(0xFFD1D5DB),
+              ),
+            ),
+          ),
+
+          const Spacer(),
+
+          Container(
+
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+
+            decoration: BoxDecoration(
+
+              color: const Color(0xFF7C3AED)
+
+                  .withValues(alpha: isDark ? 0.25 : 0.12),
+
+              borderRadius: BorderRadius.circular(8),
+
+              border: Border.all(
+
+                color: const Color(0xFF9F67FF).withValues(alpha: 0.4),
+
+              ),
+
+            ),
+
+            child: Text(
+
+              'Сезон $_selectedSeason • Серия $_selectedEpisode${totalInSeason > 0 ? ' из $totalInSeason' : ''}',
+
+              style: TextStyle(
+
+                fontSize: 12,
+
+                fontWeight: FontWeight.w800,
+
+                color:
+
+                    isDark ? const Color(0xFFD8B4FE) : const Color(0xFF7C3AED),
+
+              ),
+
+            ),
+
+          ),
+
+          const Spacer(),
+
+          BouncyButton(
+            onTap: _hasNextEpisode ? _nextEpisode : null,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: _hasNextEpisode ? _nextEpisode : null,
+              icon: const Icon(Icons.skip_next_rounded, size: 16),
+              label: const Text('Следующая серия ▶',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+
+        ],
+
+      ),
+
+    );
+
+  }
+
+
+
+  Widget _buildEpisodesAndSeasonsSidebar(bool isDark) {
+    final effectiveSeasons = _effectiveSeasons;
+    final curSeason = _viewingSeasonData ?? _currentSeasonData;
+    final allEpisodes = curSeason?.episodes ?? [];
+
+    final cardBg = isDark ? const Color(0xFF141424) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE5E7EB);
+    final textColor = isDark ? Colors.white : const Color(0xFF111827);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
+            blurRadius: 16,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Voiceover Selector Section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.record_voice_over_rounded,
+                    color: Color(0xFF10B981),
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Озвучка и перевод',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              scrollDirection: Axis.horizontal,
+              itemCount: defaultVoiceovers.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, idx) {
+                final vo = defaultVoiceovers[idx];
+                final isSelected = vo.id == _selectedVoiceover;
+                return InkWell(
+                  onTap: () => _selectVoiceover(vo.id),
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF7C3AED)
+                          : (isDark ? const Color(0xFF1B1B30) : const Color(0xFFF3F4F6)),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF9F67FF)
+                            : (isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                        width: isSelected ? 1.4 : 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSelected) ...[
+                          const Icon(Icons.check_rounded, size: 13, color: Colors.white),
+                          const SizedBox(width: 5),
+                        ],
+                        Text(
+                          vo.name,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.white24
+                                : (isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            vo.badge,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? Colors.white54 : const Color(0xFF6B7280)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+          const SizedBox(height: 8),
+
+          // 2. Seasons Selector Tabs
+          if (effectiveSeasons.length > 1) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                'Сезон',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                scrollDirection: Axis.horizontal,
+                itemCount: effectiveSeasons.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, idx) {
+                  final s = effectiveSeasons[idx];
+                  final isSelected = s.number == _viewingSeason;
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _viewingSeason = s.number;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF7C3AED)
+                            : (isDark ? const Color(0xFF1E1E34) : const Color(0xFFF3F4F6)),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF9F67FF)
+                              : (isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                          width: isSelected ? 1.4 : 0.8,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          s.hasUpcoming
+                              ? 'Сезон ${s.number} (${s.airedCount}/${s.totalCount})'
+                              : 'Сезон ${s.number}',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+          ],
+
+          // 3. Episodes Header & Grid/List View Toggle
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            child: Row(
+              children: [
+                Text(
+                  'Серии (${curSeason != null ? curSeason.totalCount : allEpisodes.length})',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                  ),
+                ),
+                if (_isLoadingSeasons) ...[
+                  const SizedBox(width: 8),
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF9F67FF)),
+                  ),
+                ],
+                const Spacer(),
+                // Toggle Grid / List
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 30),
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          Icons.grid_view_rounded,
+                          size: 16,
+                          color: _isGridView
+                              ? const Color(0xFF9F67FF)
+                              : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                        ),
+                        tooltip: 'Сетка серий',
+                        onPressed: () => setState(() => _isGridView = true),
+                      ),
+                      IconButton(
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 30),
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          Icons.view_list_rounded,
+                          size: 18,
+                          color: !_isGridView
+                              ? const Color(0xFF9F67FF)
+                              : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                        ),
+                        tooltip: 'Список серий',
+                        onPressed: () => setState(() => _isGridView = false),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 4. Scrollable episodes area (Grid or List)
+          SizedBox(
+            height: 400,
+            child: allEpisodes.isEmpty
+                ? Center(
+                    child: Text(
+                      'Серии не найдены',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  )
+                : AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: child,
+                    ),
+                    child: _isGridView
+                        ? KeyedSubtree(
+                            key: ValueKey('grid_$_viewingSeason'),
+                            child: _buildEpisodesGrid(allEpisodes, isDark, textColor),
+                          )
+                        : KeyedSubtree(
+                            key: ValueKey('list_$_viewingSeason'),
+                            child: _buildEpisodesList(allEpisodes, isDark, textColor),
+                          ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEpisodesGrid(List<SeriesEpisode> episodes, bool isDark, Color textColor) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 1.15,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: episodes.length,
+      itemBuilder: (context, idx) {
+        final ep = episodes[idx];
+        final isPlaying = ep.episodeNumber == _selectedEpisode && ep.seasonNumber == _selectedSeason;
+        final key = '${ep.seasonNumber}_${ep.episodeNumber}';
+        final isWatched = _watchedEpisodes.contains(key);
+        final isAired = ep.isAired;
+
+        return InkWell(
+          onTap: () => _selectEpisode(ep.seasonNumber, ep.episodeNumber),
+          borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isPlaying
+                  ? const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.35 : 0.18)
+                  : (isDark ? const Color(0xFF1B1B30) : const Color(0xFFF9FAFB)),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isPlaying
+                    ? const Color(0xFF9F67FF)
+                    : (isWatched
+                        ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                        : (isDark ? Colors.white10 : const Color(0xFFE5E7EB))),
+                width: isPlaying ? 1.6 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '№ ${ep.episodeNumber}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: isPlaying
+                            ? const Color(0xFFC084FC)
+                            : (isDark ? Colors.white : const Color(0xFF1F2937)),
+                      ),
+                    ),
+                    // Tap-able Status Badge
+                    InkWell(
+                      onTap: () => _toggleEpisodeWatched(ep.seasonNumber, ep.episodeNumber),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: isPlaying
+                              ? const Color(0xFF7C3AED)
+                              : (isWatched
+                                  ? const Color(0xFF10B981)
+                                  : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isPlaying
+                              ? '▶'
+                              : (isWatched ? '✓' : '—'),
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: isPlaying || isWatched
+                                ? Colors.white
+                                : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isPlaying
+                      ? 'Смотрю'
+                      : (isWatched
+                          ? 'Просмотрено'
+                          : (!isAired ? 'Скоро' : 'Не начато')),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w500,
+                    color: isPlaying
+                        ? const Color(0xFFC084FC)
+                        : (isWatched
+                            ? const Color(0xFF10B981)
+                            : (isDark ? Colors.white38 : const Color(0xFF94A3B8))),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEpisodesList(List<SeriesEpisode> episodes, bool isDark, Color textColor) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(10),
+      itemCount: episodes.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      itemBuilder: (context, idx) {
+        final ep = episodes[idx];
+        final isPlaying = ep.episodeNumber == _selectedEpisode && ep.seasonNumber == _selectedSeason;
+        final key = '${ep.seasonNumber}_${ep.episodeNumber}';
+        final isWatched = _watchedEpisodes.contains(key);
+        final isAired = ep.isAired;
+
+        return InkWell(
+          onTap: () => _selectEpisode(ep.seasonNumber, ep.episodeNumber),
+          borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isPlaying
+                  ? const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.25 : 0.12)
+                  : (isDark ? const Color(0xFF1B1B30) : const Color(0xFFF9FAFB)),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isPlaying
+                    ? const Color(0xFF9F67FF)
+                    : (isWatched
+                        ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                        : (isDark ? Colors.white10 : const Color(0xFFE5E7EB))),
+                width: isPlaying ? 1.5 : 0.8,
+              ),
+            ),
+            child: Row(
+              children: [
+                // Episode Number Icon
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: isPlaying
+                        ? const Color(0xFF7C3AED)
+                        : (isWatched
+                            ? const Color(0xFF10B981)
+                            : (isDark ? Colors.white10 : const Color(0xFFE5E7EB))),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: isPlaying
+                        ? const Icon(Icons.play_arrow_rounded, size: 16, color: Colors.white)
+                        : (isWatched
+                            ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                            : Text(
+                                '${ep.episodeNumber}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white70 : const Color(0xFF374151),
+                                ),
+                              )),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Episode Title & Subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ep.displayTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isPlaying ? FontWeight.w800 : FontWeight.w600,
+                          color: isPlaying ? const Color(0xFFC084FC) : textColor,
+                        ),
+                      ),
+                      if (ep.releaseDate != null && ep.releaseDate!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          ep.formattedReleaseDate ?? ep.releaseDate!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Status Badge Button
+                InkWell(
+                  onTap: () => _toggleEpisodeWatched(ep.seasonNumber, ep.episodeNumber),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: isPlaying
+                          ? const Color(0xFF7C3AED)
+                          : (isWatched
+                              ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                              : (isDark ? Colors.white10 : const Color(0xFFF1F5F9))),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isPlaying
+                            ? const Color(0xFF9F67FF)
+                            : (isWatched
+                                ? const Color(0xFF10B981)
+                                : (isDark ? Colors.white24 : const Color(0xFFD1D5DB))),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPlaying
+                              ? Icons.play_arrow_rounded
+                              : (isWatched ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded),
+                          size: 11,
+                          color: isPlaying
+                              ? Colors.white
+                              : (isWatched
+                                  ? const Color(0xFF10B981)
+                                  : (isDark ? Colors.white54 : const Color(0xFF6B7280))),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isPlaying
+                              ? 'Смотрю'
+                              : (isWatched
+                                  ? 'Просмотрено'
+                                  : (!isAired ? 'Скоро' : 'Не начато')),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: isPlaying
+                                ? Colors.white
+                                : (isWatched
+                                    ? const Color(0xFF10B981)
+                                    : (isDark ? Colors.white70 : const Color(0xFF4B5563))),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMovieDetailsBlock(bool isDark) {
+
+    return Container(
+
+      padding: const EdgeInsets.all(20),
+
+      decoration: BoxDecoration(
+
+        color: isDark ? const Color(0xFF141424) : Colors.white,
+
+        borderRadius: BorderRadius.circular(16),
+
+        border: Border.all(
+
+          color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+
+        ),
+
+      ),
+
+      child: Column(
+
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+
+          Row(
+
+            children: [
+
+              const Icon(Icons.info_outline_rounded,
+
+                  color: Color(0xFF9F67FF), size: 20),
+
+              const SizedBox(width: 8),
+
+              Text(
+
+                'О фильме / Сериале',
+
+                style: TextStyle(
+
+                  fontWeight: FontWeight.w800,
+
+                  fontSize: 15,
+
+                  color: isDark ? Colors.white : const Color(0xFF111827),
+
+                ),
+
+              ),
+
+              const Spacer(),
+
+              if (widget.genres != null && widget.genres!.isNotEmpty)
+
+                Container(
+
+                  padding:
+
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+
+                  decoration: BoxDecoration(
+
+                    color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
+
+                    borderRadius: BorderRadius.circular(6),
+
+                  ),
+
+                  child: Text(
+
+                    widget.genres!,
+
+                    style: TextStyle(
+
+                      fontSize: 11,
+
+                      color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+
+                    ),
+
+                  ),
+
+                ),
+
+            ],
+
+          ),
+
+          const SizedBox(height: 10),
+
+          Text(
+
+            widget.description ??
+
+                'Приятного просмотра! Вы можете выбрать плеер или серию справа, либо создать синхронную комнату с друзьями.',
+
+            style: TextStyle(
+
+              color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+
+              fontSize: 13,
+
+              height: 1.5,
+
+            ),
+
+          ),
+
+        ],
+
+      ),
+
+    );
+
+  }
+
+
+
+
+
+
+  // Franchise Chronology Timeline Widget ("сериал, фильм, фильм - вы тут, сериал...")
+
+  Widget _buildFranchiseTimelineSection(List<FranchiseStep> steps, bool isDark) {
+
+    return Container(
+
+      padding: const EdgeInsets.all(20),
+
+      decoration: BoxDecoration(
+
+        color: isDark ? const Color(0xFF141424) : Colors.white,
+
+        borderRadius: BorderRadius.circular(16),
+
+        border: Border.all(
+
+          color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+
+        ),
+
+      ),
+
+      child: Column(
+
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+
+          Row(
+
+            children: [
+
+              const Icon(Icons.timeline_rounded,
+
+                  color: Color(0xFFF59E0B), size: 20),
+
+              const SizedBox(width: 8),
+
+              Text(
+
+                'Хронология франшизы и порядок просмотра',
+
+                style: TextStyle(
+
+                  fontWeight: FontWeight.w800,
+
+                  fontSize: 15,
+
+                  color: isDark ? Colors.white : const Color(0xFF111827),
+
+                ),
+
+              ),
+
+              const Spacer(),
+
+              Container(
+
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+
+                decoration: BoxDecoration(
+
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+
+                  borderRadius: BorderRadius.circular(6),
+
+                ),
+
+                child: const Text(
+
+                  'Сюжетный порядок',
+
+                  style: TextStyle(
+
+                    fontSize: 10.5,
+
+                    fontWeight: FontWeight.bold,
+
+                    color: Color(0xFFF59E0B),
+
+                  ),
+
+                ),
+
+              ),
+
+            ],
+
+          ),
+
+          const SizedBox(height: 16),
+
+
+
+          // Horizontal Timeline Sequence
+
+          SizedBox(
+
+            height: 115,
+
+            child: ListView.separated(
+
+              scrollDirection: Axis.horizontal,
+
+              itemCount: steps.length,
+
+              separatorBuilder: (_, __) => Center(
+
+                child: Padding(
+
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+
+                  child: Icon(Icons.arrow_forward_rounded,
+
+                      size: 16,
+
+                      color: isDark
+
+                          ? Colors.white.withValues(alpha: 0.3)
+
+                          : const Color(0xFF9CA3AF)),
+
+                ),
+
+              ),
+
+              itemBuilder: (context, idx) {
+
+                final step = steps[idx];
+
+                final isCur = step.isCurrent;
+
+
+
+                return InkWell(
+
+                  onTap: () {
+
+                    if (!step.isCurrent && step.kinopoiskId != null) {
+
+                      context.push(
+
+                        '/movie/${step.kinopoiskId}',
+
+                        extra: CatalogItem(
+
+                          kinopoiskId: step.kinopoiskId,
+
+                          title: step.title,
+
+                          type: 'movie',
+
+                          genres: const ['Франшиза'],
+
+                          year: step.year,
+
+                          director: '',
+
+                          actors: '',
+
+                          description: '',
+
+                          posterUrl: '',
+
+                          rating: 8.0,
+
+                        ),
+
+                      );
+
+                    }
+
+                  },
+
+                  borderRadius: BorderRadius.circular(12),
+
+                  child: Container(
+
+                    width: 175,
+
+                    padding: const EdgeInsets.all(12),
+
+                    decoration: BoxDecoration(
+
+                      color: isCur
+
+                          ? const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.25 : 0.12)
+
+                          : (isDark ? const Color(0xFF1B1B32) : const Color(0xFFF9FAFB)),
+
+                      borderRadius: BorderRadius.circular(12),
+
+                      border: Border.all(
+
+                        color: isCur
+
+                            ? const Color(0xFF9F67FF)
+
+                            : (isDark
+
+                                ? Colors.white.withValues(alpha: 0.1)
+
+                                : const Color(0xFFE5E7EB)),
+
+                        width: isCur ? 1.5 : 0.8,
+
+                      ),
+
+                      boxShadow: isCur
+
+                          ? [
+
+                              BoxShadow(
+
+                                color: const Color(0xFF7C3AED)
+
+                                    .withValues(alpha: 0.3),
+
+                                blurRadius: 10,
+
+                              ),
+
+                            ]
+
+                          : null,
+
+                    ),
+
+                    child: Column(
+
+                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                      mainAxisAlignment: MainAxisAlignment.center,
+
+                      children: [
+
+                        Row(
+
+                          children: [
+
+                            Container(
+
+                              padding: const EdgeInsets.symmetric(
+
+                                  horizontal: 6, vertical: 2),
+
+                              decoration: BoxDecoration(
+
+                                color: isCur
+
+                                    ? const Color(0xFF7C3AED)
+
+                                    : (isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+
+                                borderRadius: BorderRadius.circular(4),
+
+                              ),
+
+                              child: Text(
+
+                                step.typeLabel,
+
+                                style: TextStyle(
+
+                                  fontSize: 9.5,
+
+                                  fontWeight: FontWeight.bold,
+
+                                  color: isCur ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+
+                                ),
+
+                              ),
+
+                            ),
+
+                            const Spacer(),
+
+                            Text(
+
+                              '${step.year}',
+
+                              style: TextStyle(
+
+                                fontSize: 10.5,
+
+                                color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+
+                                fontWeight: FontWeight.bold,
+
+                              ),
+
+                            ),
+
+                          ],
+
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        Text(
+
+                          step.title,
+
+                          maxLines: 2,
+
+                          overflow: TextOverflow.ellipsis,
+
+                          style: TextStyle(
+
+                            fontSize: 12,
+
+                            fontWeight:
+
+                                isCur ? FontWeight.w900 : FontWeight.w600,
+
+                            color: isCur
+
+                                ? (isDark ? Colors.white : const Color(0xFF7C3AED))
+
+                                : (isDark ? Colors.white70 : const Color(0xFF111827)),
+
+                          ),
+
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        if (isCur)
+
+                          Row(
+
+                            children: [
+
+                              Container(
+
+                                width: 6,
+
+                                height: 6,
+
+                                decoration: const BoxDecoration(
+
+                                  color: Color(0xFF10B981),
+
+                                  shape: BoxShape.circle,
+
+                                ),
+
+                              ),
+
+                              const SizedBox(width: 4),
+
+                              const Text(
+
+                                'Вы тут 📍',
+
+                                style: TextStyle(
+
+                                  fontSize: 10,
+
+                                  fontWeight: FontWeight.w800,
+
+                                  color: Color(0xFF10B981),
+
+                                ),
+
+                              ),
+
+                            ],
+
+                          )
+
+                        else
+
+                          const Text(
+
+                            'Перейти →',
+
+                            style: TextStyle(
+
+                              fontSize: 10,
+
+                              color: Color(0xFF7C3AED),
+
+                              fontWeight: FontWeight.w600,
+
+                            ),
+
+                          ),
+
+                      ],
+
+                    ),
+
+                  ),
+
+                );
+
+              },
+
+            ),
+
+          ),
+
+        ],
+
+      ),
+
+    );
+
+  }
+
+
+
+  // Similar Titles Section
+
+  Widget _buildSimilarCarouselSection(List<CatalogItem> items, bool isDark) {
+
+    return Column(
+
+      crossAxisAlignment: CrossAxisAlignment.start,
+
+      children: [
+
+        Row(
+
+          children: [
+
+            const Icon(Icons.auto_awesome_rounded,
+
+                size: 18, color: Color(0xFFFFCA28)),
+
+            const SizedBox(width: 8),
+
+            Text(
+
+              'Похожие фильмы и сериалы',
+
+              style: TextStyle(
+
+                fontSize: 16,
+
+                fontWeight: FontWeight.w800,
+
+                color: isDark ? Colors.white : const Color(0xFF111827),
+
+              ),
+
+            ),
+
+          ],
+
+        ),
+
+        const SizedBox(height: 14),
+
+        SizedBox(
+
+          height: 220,
+
+          child: ListView.separated(
+
+            scrollDirection: Axis.horizontal,
+
+            itemCount: items.length,
+
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+
+            itemBuilder: (context, i) {
+
+              final sim = items[i];
+
+              final poster = CatalogItem.fixPosterUrl(sim.posterUrl,
+
+                  kpId: sim.kinopoiskId);
+
+
+
+              return InkWell(
+
+                onTap: () => context.push(
+
+                  '/movie/${sim.kinopoiskId ?? sim.title}',
+
+                  extra: sim,
+
+                ),
+
+                borderRadius: BorderRadius.circular(14),
+
+                child: Container(
+
+                  width: 130,
+
+                  decoration: BoxDecoration(
+
+                    color: isDark ? const Color(0xFF141424) : Colors.white,
+
+                    borderRadius: BorderRadius.circular(14),
+
+                    border: Border.all(
+
+                      color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+
+                    ),
+
+                  ),
+
+                  clipBehavior: Clip.antiAlias,
+
+                  child: Column(
+
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+
+                    children: [
+
+                      Expanded(
+
+                        child: Stack(
+
+                          fit: StackFit.expand,
+
+                          children: [
+
+                            Image.network(
+
+                              poster,
+
+                              fit: BoxFit.cover,
+
+                              errorBuilder: (_, __, ___) => Container(
+
+                                color: isDark ? const Color(0xFF1E2230) : const Color(0xFFF3F4F6),
+
+                                child: Icon(Icons.movie_outlined,
+
+                                    color: isDark ? Colors.white24 : const Color(0xFF9CA3AF)),
+
+                              ),
+
+                            ),
+
+                            Positioned(
+
+                              top: 6,
+
+                              right: 6,
+
+                              child: Container(
+
+                                padding: const EdgeInsets.symmetric(
+
+                                    horizontal: 6, vertical: 2),
+
+                                decoration: BoxDecoration(
+
+                                  color: Colors.black87,
+
+                                  borderRadius: BorderRadius.circular(5),
+
+                                  border: Border.all(
+
+                                      color: const Color(0xFFFFCA28),
+
+                                      width: 0.8),
+
+                                ),
+
+                                child: Text(
+
+                                  '★ ${sim.rating.toStringAsFixed(1)}',
+
+                                  style: const TextStyle(
+
+                                    fontSize: 10,
+
+                                    fontWeight: FontWeight.w800,
+
+                                    color: Color(0xFFFFCA28),
+
+                                  ),
+
+                                ),
+
+                              ),
+
+                            ),
+
+                          ],
+
+                        ),
+
+                      ),
+
+                      Padding(
+
+                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+
+                        child: Text(
+
+                          sim.title,
+
+                          maxLines: 1,
+
+                          overflow: TextOverflow.ellipsis,
+
+                          style: TextStyle(
+
+                            fontSize: 12,
+
+                            fontWeight: FontWeight.w700,
+
+                            color: isDark ? Colors.white : const Color(0xFF111827),
+
+                          ),
+
+                        ),
+
+                      ),
+
+                    ],
+
+                  ),
+
+                ),
+
+              );
+
+            },
+
+          ),
+
+        ),
+
+      ],
+
+    );
+
+  }
+
+
+
+  // Interactive Comments Section with Clickable Timestamp Support
+
+  Widget _buildCommentsSection(bool isDark) {
+
+    final kpId = widget.kinopoiskId ?? 0;
+
+    final commentsAsync = ref.watch(episodeCommentsProvider((
+
+      kinopoiskId: kpId,
+
+      episode: _selectedEpisode,
+
+      season: _selectedSeason,
+
+    )));
+
+    final comments = commentsAsync.value ?? [];
+
+
+
+    return Container(
+
+      padding: const EdgeInsets.all(22),
+
+      decoration: BoxDecoration(
+
+        color: isDark ? const Color(0xFF141424) : Colors.white,
+
+        borderRadius: BorderRadius.circular(16),
+
+        border: Border.all(
+
+          color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+
+        ),
+
+      ),
+
+      child: Column(
+
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+
+          Wrap(
+
+            alignment: WrapAlignment.spaceBetween,
+
+            crossAxisAlignment: WrapCrossAlignment.center,
+
+            spacing: 12,
+
+            runSpacing: 6,
+
+            children: [
+
+              Row(
+
+                mainAxisSize: MainAxisSize.min,
+
+                children: [
+
+                  const Icon(Icons.chat_bubble_outline_rounded,
+
+                      color: Color(0xFF9F67FF), size: 20),
+
+                  const SizedBox(width: 8),
+
+                  Text(
+
+                    'Обсуждение & таймкоды (${comments.length})',
+
+                    style: TextStyle(
+
+                      fontWeight: FontWeight.w800,
+
+                      fontSize: 16,
+
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+
+                    ),
+
+                  ),
+
+                ],
+
+              ),
+
+              Text(
+
+                'Нажимайте на таймкоды для перехода',
+
+                style: TextStyle(
+
+                  fontSize: 11,
+
+                  color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+
+                ),
+
+              ),
+
+            ],
+
+          ),
+
+          const SizedBox(height: 16),
+
+
+
+          // Comment Input Box with Quick Timestamp Insert Button
+
+          Container(
+
+            decoration: BoxDecoration(
+
+              color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF3F4F6),
+
+              borderRadius: BorderRadius.circular(14),
+
+              border: Border.all(
+
+                color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+
+              ),
+
+            ),
+
+            padding: const EdgeInsets.all(12),
+
+            child: Column(
+
+              crossAxisAlignment: CrossAxisAlignment.start,
+
+              children: [
+
+                TextField(
+
+                  controller: _commentCtrl,
+
+                  style: TextStyle(
+
+                    fontSize: 13,
+
+                    color: isDark ? Colors.white : const Color(0xFF111827),
+
+                  ),
+
+                  maxLines: 3,
+
+                  minLines: 1,
+
+                  decoration: InputDecoration(
+
+                    border: InputBorder.none,
+
+                    hintText:
+
+                        'Оставить комментарий к серии... (можно с таймкодом)',
+
+                    hintStyle: TextStyle(
+
+                      fontSize: 12.5,
+
+                      color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+
+                    ),
+
+                  ),
+
+                ),
+
+                const SizedBox(height: 10),
+
+                Row(
+
+                  children: [
+
+                    Text(
+
+                      '💡 Чтобы добавить таймкод, просто напишите его в тексте: 12:45 или 01:20:10',
+
+                      style: TextStyle(
+
+                        fontSize: 11,
+
+                        color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+
+                      ),
+
+                    ),
+
+                    const Spacer(),
+
+
+
+                    ElevatedButton.icon(
+
+                      style: ElevatedButton.styleFrom(
+
+                        backgroundColor: const Color(0xFF7C3AED),
+
+                        foregroundColor: Colors.white,
+
+                        padding: const EdgeInsets.symmetric(
+
+                            horizontal: 16, vertical: 10),
+
+                        shape: RoundedRectangleBorder(
+
+                          borderRadius: BorderRadius.circular(10),
+
+                        ),
+
+                      ),
+
+                      icon: const Icon(Icons.send_rounded, size: 14),
+
+                      label: const Text('Отправить',
+
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+
+                      onPressed: _addComment,
+
+                    ),
+
+                  ],
+
+                ),
+
+              ],
+
+            ),
+
+          ),
+
+          const SizedBox(height: 20),
+
+
+
+          if (comments.isEmpty)
+
+            Padding(
+
+              padding: const EdgeInsets.symmetric(vertical: 28),
+
+              child: Center(
+
+                child: Text(
+
+                  'Пока нет комментариев к этой серии. Будьте первым!',
+
+                  style: TextStyle(
+
+                    fontSize: 13,
+
+                    color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+
+                  ),
+
+                  textAlign: TextAlign.center,
+
+                ),
+
+              ),
+
+            )
+
+          else
+
+            ListView.separated(
+
+              shrinkWrap: true,
+
+              physics: const NeverScrollableScrollPhysics(),
+
+              itemCount: comments.length,
+
+              separatorBuilder: (_, __) => Divider(
+
+                color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+
+                height: 24,
+
+              ),
+
+              itemBuilder: (context, idx) {
+
+                final c = comments[idx];
+
+                return _buildCommentTile(c, isDark);
+
+              },
+
+            ),
+
+        ],
+
+      ),
+
+    );
+
+  }
+
+
+
+  Widget _buildCommentTile(EpisodeComment c, bool isDark) {
+
+    final user = ref.watch(currentUserProvider);
+
+    final profile = ref.watch(userProfileProvider).value;
+
+    final canDelete = (user != null && c.userId == user.id) ||
+
+        (profile != null && (profile.isAdmin || profile.isModerator));
+
+
+
+    return Row(
+
+      crossAxisAlignment: CrossAxisAlignment.start,
+
+      children: [
+
+        // Avatar
+
+        CircleAvatar(
+
+          radius: 18,
+
+          backgroundColor: const Color(0xFF7C3AED),
+
+          child: Text(
+
+            c.authorName.isNotEmpty ? c.authorName[0].toUpperCase() : 'U',
+
+            style: const TextStyle(
+
+                color: Colors.white,
+
+                fontSize: 14,
+
+                fontWeight: FontWeight.bold),
+
+          ),
+
+        ),
+
+        const SizedBox(width: 12),
+
+
+
+        // Text Content
+
+        Expanded(
+
+          child: Column(
+
+            crossAxisAlignment: CrossAxisAlignment.start,
+
+            children: [
+
+              Row(
+
+                children: [
+
+                  Text(
+
+                    c.authorName,
+
+                    style: TextStyle(
+
+                      fontWeight: FontWeight.w700,
+
+                      fontSize: 13,
+
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+
+                    ),
+
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  Text(
+
+                    c.timeAgo,
+
+                    style: TextStyle(
+
+                      fontSize: 11,
+
+                      color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+
+                    ),
+
+                  ),
+
+                  const Spacer(),
+
+                  if (canDelete)
+
+                    IconButton(
+
+                      icon: const Icon(Icons.delete_outline_rounded,
+
+                          size: 16, color: Colors.redAccent),
+
+                      tooltip: 'Удалить комментарий',
+
+                      onPressed: () async {
+
+                        final confirm = await showDialog<bool>(
+
+                          context: context,
+
+                          builder: (ctx) => AlertDialog(
+
+                            backgroundColor:
+
+                                isDark ? const Color(0xFF1E1E34) : Colors.white,
+
+                            title: const Text('Удаление комментария'),
+
+                            content: const Text(
+
+                                'Вы уверены, что хотите удалить этот комментарий?'),
+
+                            actions: [
+
+                              TextButton(
+
+                                onPressed: () => Navigator.of(ctx).pop(false),
+
+                                child: const Text('Отмена'),
+
+                              ),
+
+                              ElevatedButton(
+
+                                style: ElevatedButton.styleFrom(
+
+                                    backgroundColor: Colors.redAccent),
+
+                                onPressed: () => Navigator.of(ctx).pop(true),
+
+                                child: const Text('Удалить',
+
+                                    style: TextStyle(color: Colors.white)),
+
+                              ),
+
+                            ],
+
+                          ),
+
+                        );
+
+                        if (confirm == true) {
+
+                          try {
+
+                            final kpId = widget.kinopoiskId ?? 0;
+
+                            await ref
+
+                                .read(reviewRepositoryProvider)
+
+                                .deleteEpisodeComment(c.id);
+
+                            ref.invalidate(episodeCommentsProvider((
+
+                              kinopoiskId: kpId,
+
+                              episode: _selectedEpisode,
+
+                              season: _selectedSeason,
+
+                            )));
+
+                            if (mounted) {
+
+                              TopNotification.showSuccess(
+
+                                context,
+
+                                'Комментарий удален',
+
+                                title: 'Успешно',
+
+                              );
+
+                            }
+
+                          } catch (e) {
+
+                            if (mounted) {
+
+                              TopNotification.showError(
+
+                                context,
+
+                                'Ошибка удаления: $e',
+
+                                title: 'Ошибка',
+
+                              );
+
+                            }
+
+                          }
+
+                        }
+
+                      },
+
+                    ),
+
+                ],
+
+              ),
+
+              const SizedBox(height: 6),
+
+
+
+              // Rich Text with highlighted clickable timestamps
+
+              _buildCommentTextWithTimestamps(c.text, isDark),
+
+
+
+              const SizedBox(height: 8),
+
+              // Like action
+
+              InkWell(
+
+                onTap: () {
+
+                  setState(() {
+
+                    c.isLiked = !c.isLiked;
+
+                    c.likes += c.isLiked ? 1 : -1;
+
+                  });
+
+                },
+
+                borderRadius: BorderRadius.circular(6),
+
+                child: Padding(
+
+                  padding: const EdgeInsets.symmetric(
+
+                      horizontal: 6, vertical: 2),
+
+                  child: Row(
+
+                    mainAxisSize: MainAxisSize.min,
+
+                    children: [
+
+                      Icon(
+
+                        c.isLiked
+
+                            ? Icons.thumb_up_rounded
+
+                            : Icons.thumb_up_alt_outlined,
+
+                        size: 13,
+
+                        color: c.isLiked
+
+                            ? const Color(0xFF7C3AED)
+
+                            : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+
+                      ),
+
+                      const SizedBox(width: 4),
+
+                      Text(
+
+                        '${c.likes}',
+
+                        style: TextStyle(
+
+                          fontSize: 11,
+
+                          fontWeight: FontWeight.w600,
+
+                          color: c.isLiked
+
+                              ? const Color(0xFF9F67FF)
+
+                              : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+
+                        ),
+
+                      ),
+
+                    ],
+
+                  ),
+
+                ),
+
+              ),
+
+            ],
+
+          ),
+
+        ),
+
+      ],
+
+    );
+
+  }
+
+  // Parses timestamps like 01:23:45 or 12:34 and turns them into clickable pills
+
+  Widget _buildCommentTextWithTimestamps(String text, bool isDark) {
+
+    final regex = RegExp(r'\b(?:\d{1,2}:)?\d{2}:\d{2}\b');
+
+    final matches = regex.allMatches(text);
+
+
+
+    if (matches.isEmpty) {
+
+      return Text(
+
+        text,
+
+        style: TextStyle(
+
+          color: isDark ? Colors.white70 : const Color(0xFF374151),
+
+          fontSize: 12.5,
+
+          height: 1.4,
+
+        ),
+
+      );
+
+    }
+
+
+
+    final spans = <InlineSpan>[];
+
+    int lastEnd = 0;
+
+
+
+    for (final match in matches) {
+
+      if (match.start > lastEnd) {
+
+        spans.add(TextSpan(
+
+          text: text.substring(lastEnd, match.start),
+
+          style: TextStyle(
+
+            color: isDark ? Colors.white70 : const Color(0xFF374151),
+
+            fontSize: 12.5,
+
+            height: 1.4,
+
+          ),
+
+        ));
+
+      }
+
+
+
+      final ts = match.group(0)!;
+
+      spans.add(
+
+        WidgetSpan(
+
+          alignment: PlaceholderAlignment.middle,
+
+          child: InkWell(
+
+            onTap: () {
+
+              TopNotification.showSuccess(
+
+                context,
+
+                'Переход к тайм-коду $ts ⏱️',
+
+                title: 'Таймкод',
+
+              );
+
+            },
+
+            borderRadius: BorderRadius.circular(4),
+
+            child: Container(
+
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
+              decoration: BoxDecoration(
+
+                color: const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.35 : 0.15),
+
+                borderRadius: BorderRadius.circular(4),
+
+                border: Border.all(
+
+                  color: const Color(0xFF9F67FF).withValues(alpha: 0.6),
+
+                  width: 0.8,
+
+                ),
+
+              ),
+
+              child: Row(
+
+                mainAxisSize: MainAxisSize.min,
+
+                children: [
+
+                  const Icon(Icons.play_arrow_rounded,
+
+                      size: 11, color: Color(0xFF7C3AED)),
+
+                  const SizedBox(width: 2),
+
+                  Text(
+
+                    ts,
+
+                    style: TextStyle(
+
+                      fontSize: 11,
+
+                      fontWeight: FontWeight.w800,
+
+                      color: isDark ? const Color(0xFFE9D5FF) : const Color(0xFF7C3AED),
+
+                    ),
+
+                  ),
+
+                ],
+
+              ),
+
+            ),
+
+          ),
+
+        ),
+
+      );
+
+
+
+      lastEnd = match.end;
+
+    }
+
+
+
+    if (lastEnd < text.length) {
+
+      spans.add(TextSpan(
+
+        text: text.substring(lastEnd),
+
+        style: TextStyle(
+
+          color: isDark ? Colors.white70 : const Color(0xFF374151),
+
+          fontSize: 12.5,
+
+          height: 1.4,
+
+        ),
+
+      ));
+
+    }
+
+
+
+    return RichText(
+
+      text: TextSpan(children: spans),
+
+    );
+
+  }
+
+}
+

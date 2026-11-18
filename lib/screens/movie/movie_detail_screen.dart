@@ -1,0 +1,2723 @@
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/constants.dart';
+import '../../data/curated_catalog.dart';
+import '../../models/catalog_item.dart';
+import '../../models/media_item.dart';
+import '../../models/movie_review.dart';
+import '../../repositories/review_repository.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/kinopoisk_provider.dart';
+import '../../providers/media_provider.dart';
+import '../../providers/room_provider.dart';
+import '../../providers/stats_provider.dart';
+import '../../services/kinopoisk_service.dart';
+import '../../platform/platform.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/top_notification.dart';
+import '../../widgets/animations/app_animations.dart';
+
+class MovieDetailScreen extends ConsumerStatefulWidget {
+  final CatalogItem? initialItem;
+  final String? movieId;
+
+  const MovieDetailScreen({
+    super.key,
+    this.initialItem,
+    this.movieId,
+  });
+
+  @override
+  ConsumerState<MovieDetailScreen> createState() => _MovieDetailScreenState();
+}
+
+class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
+  CatalogItem? _item;
+  bool _isLoading = false;
+  List<String> _filmImages = [];
+  List<Map<String, dynamic>> _filmVideos = [];
+  bool _isSavedToCollection = false;
+
+  // Reviews state
+  String _reviewSort = 'popular'; // 'popular' | 'date' | 'rating'
+  bool _reviewSortAsc = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialItem != null) {
+      _item = widget.initialItem;
+      _loadExtendedData();
+    } else {
+      _isLoading = true;
+      _loadFromId();
+    }
+  }
+
+  Future<void> _loadFromId() async {
+    final rawId = widget.movieId;
+    if (rawId == null || rawId.isEmpty) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    final lower = rawId.toLowerCase();
+
+    // Check curated master catalog first for instant response
+    final curated = CuratedCatalog.items.where((c) {
+      if (c.kinopoiskId != null && c.kinopoiskId.toString() == rawId) return true;
+      if ((rawId == '395646' || rawId == '406148') &&
+          (c.kinopoiskId == 406148 || c.nameOriginal == 'Death Note' || c.title == 'Тетрадь смерти')) {
+        return true;
+      }
+      final t = c.title.toLowerCase();
+      final o = c.nameOriginal?.toLowerCase() ?? '';
+      return t == lower || o == lower || lower.contains(t) || t.contains(lower);
+    }).firstOrNull;
+
+    if (curated != null) {
+      setState(() {
+        _item = curated;
+        _isLoading = false;
+      });
+      _loadExtendedData();
+      return;
+    }
+
+    if (rawId == '258687' || lower.contains('интерстеллар') || lower.contains('interstellar')) {
+      setState(() {
+        _item = const CatalogItem(
+          kinopoiskId: 258687,
+          title: 'Интерстеллар',
+          nameOriginal: 'Interstellar',
+          type: 'movie',
+          typeLabel: 'Фильм',
+          genres: ['Фантастика', 'Драма', 'Приключения'],
+          countries: ['США', 'Великобритания'],
+          year: 2014,
+          director: 'Кристофер Нолан',
+          actors: 'Мэттью Макконахи, Энн Хэтэуэй, Джессика Честейн, Майкл Кейн, Мэтт Дэймон',
+          description:
+              'Когда засуха, пыльные бури и вымирание растений приводят человечество к продовольственному кризису, коллектив исследователей и учёных отправляется сквозь червоточину в поисках планеты с подходящими условиями для жизни.',
+          posterUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/430042eb-ee69-4818-aed0-a312400a26bf/x1000',
+          coverUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/430042eb-ee69-4818-aed0-a312400a26bf/x1000',
+          rating: 8.7,
+          ratingImdb: 8.7,
+          filmLength: 169,
+          slogan: 'Следующий шаг человечества станет величайшим',
+        );
+        _isLoading = false;
+      });
+      _loadExtendedData();
+      return;
+    }
+
+    if (rawId == '841681' || lower.contains('токийский') || lower.contains('гуль') || lower.contains('tokyo ghoul')) {
+      setState(() {
+        _item = const CatalogItem(
+          kinopoiskId: 841681,
+          title: 'Токийский гуль',
+          nameOriginal: 'Tokyo Ghoul',
+          type: 'anime',
+          typeLabel: 'Аниме-сериал',
+          genres: ['Аниме', 'Ужасы', 'Боевик', 'Фэнтези', 'Драма'],
+          countries: ['Япония'],
+          year: 2014,
+          director: 'Сюхэй Морита',
+          actors: 'Нацуки Ханаэ, Сора Амамия, Синтаро Асанума, Мамору Мияно',
+          description:
+              'С обычным студентом Кэном Канэки случается беда, парень попадает в больницу. Но на этом неприятности не заканчиваются: ему пересаживают органы гулей – существ, питающихся человеческой плотью. Канэки становится полугулем и вынужден искать баланс между миром людей и монстров.',
+          posterUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/1900788/e5d98938-605a-4c8a-b0d6-5f93d926aa0c/x1000',
+          coverUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/1900788/e5d98938-605a-4c8a-b0d6-5f93d926aa0c/x1000',
+          rating: 7.1,
+          ratingImdb: 7.8,
+          filmLength: 24,
+          slogan: 'В мире, где правят монстры, легко забыть, что ты человек',
+        );
+        _isLoading = false;
+      });
+      _loadExtendedData();
+      return;
+    }
+
+    if (rawId == '1143242' || lower.contains('джентльмен') || lower.contains('gentlemen')) {
+      setState(() {
+        _item = const CatalogItem(
+          kinopoiskId: 1143242,
+          title: 'Джентльмены',
+          nameOriginal: 'The Gentlemen',
+          type: 'movie',
+          typeLabel: 'Фильм',
+          genres: ['Криминал', 'Комедия', 'Боевик'],
+          countries: ['Великобритания', 'США'],
+          year: 2019,
+          director: 'Гай Ричи',
+          actors: 'Мэттью Макконахи, Чарли Ханнэм, Генри Голдинг, Хью Грант, Колин Фаррелл',
+          description:
+              'Один ушлый американец ещё со студенческих лет приторговывал наркотиками, а теперь решил продать свой бизнес крупному миллиардеру.',
+          posterUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/637271d5-61b4-4e46-ac83-6d07494c7645/x1000',
+          coverUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/637271d5-61b4-4e46-ac83-6d07494c7645/x1000',
+          rating: 8.6,
+          ratingImdb: 7.8,
+          filmLength: 113,
+          slogan: 'Преступный мир ждёт короля',
+        );
+        _isLoading = false;
+      });
+      _loadExtendedData();
+      return;
+    }
+
+    if (rawId == '535341' || rawId == '1+1' || lower.contains('intouchables')) {
+      setState(() {
+        _item = const CatalogItem(
+          kinopoiskId: 535341,
+          title: '1+1',
+          nameOriginal: 'Intouchables',
+          type: 'movie',
+          typeLabel: 'Фильм',
+          genres: ['Драма', 'Комедия', 'Биография'],
+          countries: ['Франция'],
+          year: 2011,
+          director: 'Оливье Накаш, Эрик Толедано',
+          actors: 'Франсуа Клюзе, Омар Си, Анн Ле Ни, Одри Флеро',
+          description:
+              'Пострадав в результате несчастного случая, богатый аристократ Филипп нанимает в качестве сиделки человека, который менее всего подходит для этой работы.',
+          posterUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/10900341/caf9f155-1a19-42f1-a0f3-9c8773e9083e/x1000',
+          coverUrl:
+              'https://avatars.mds.yandex.net/get-kinopoisk-image/10900341/caf9f155-1a19-42f1-a0f3-9c8773e9083e/x1000',
+          rating: 8.8,
+          ratingImdb: 8.5,
+          filmLength: 112,
+          slogan: 'Иногда нужно заглянуть в чужой мир, чтобы узнать, чего не хватает в твоем',
+        );
+        _isLoading = false;
+      });
+      _loadExtendedData();
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final id = int.tryParse(rawId);
+      if (id != null) {
+        final full = await KinopoiskService().getFilmById(id);
+        if (full != null && mounted) {
+          setState(() {
+            _item = full;
+            _isLoading = false;
+          });
+          _loadExtendedData();
+          return;
+        }
+      } else {
+        final decodedKeyword = Uri.decodeComponent(rawId);
+        final results = await KinopoiskService().search(decodedKeyword);
+        if (results.isNotEmpty && mounted) {
+          setState(() {
+            _item = results.first;
+            _isLoading = false;
+          });
+          _loadExtendedData();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching movie by title: $e');
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadExtendedData() async {
+    if (_item == null || _item!.kinopoiskId == null) return;
+    final kpId = _item!.kinopoiskId!;
+
+    // Fetch full details if synopsis was truncated or placeholder
+    if (_item!.description.contains('временно отсутствует') ||
+        _item!.description.contains('эксклюзивной коллекции') ||
+        _item!.director == 'Мировой кинематограф' ||
+        _item!.coverUrl == null) {
+      try {
+        final full = await KinopoiskService().getFilmById(kpId);
+        if (full != null && mounted) {
+          setState(() => _item = full);
+        }
+      } catch (e) {
+        debugPrint('Error fetching full film details: $e');
+      }
+    }
+
+    // Fetch stills and backstage photos
+    try {
+      final images = await KinopoiskService().getFilmImages(kpId);
+      if (images.isNotEmpty && mounted) {
+        setState(() => _filmImages = images);
+      }
+    } catch (e) {
+      debugPrint('Error fetching film images: $e');
+    }
+
+    // Fetch trailers
+    try {
+      final videos = await KinopoiskService().getFilmVideos(kpId);
+      if (videos.isNotEmpty && mounted) {
+        setState(() => _filmVideos = videos);
+      }
+    } catch (e) {
+      debugPrint('Error fetching film videos: $e');
+    }
+  }
+
+  void _startSoloWatch() {
+    if (_item == null) return;
+    final uri = Uri(
+      path: '/watch',
+      queryParameters: {
+        'title': _item!.title,
+        'year': _item!.year.toString(),
+        if (_item!.kinopoiskId != null) 'kpId': _item!.kinopoiskId.toString(),
+        'poster': _item!.posterUrl,
+        'type': _item!.type,
+        'desc': _item!.description,
+        'genres': _item!.genres.join(', '),
+      },
+    );
+    context.go(uri.toString());
+  }
+
+  void _openTrailerModal(CatalogItem item) {
+    final kpId = item.kinopoiskId ?? 258687;
+    final viewId = 'cinetrack-detail-trailer-$kpId-${DateTime.now().millisecondsSinceEpoch}';
+    final trailerUrl = 'https://api.delivembd.ws/embed/trailer-kp/$kpId';
+
+    PlatformHelper.registerIFrameView(viewId, trailerUrl);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Container(
+          width: 960,
+          height: 560,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F0F1A),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFF7C3AED), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
+                blurRadius: 36,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                color: const Color(0xFF16162A),
+                child: Row(
+                  children: [
+                    const Icon(Icons.play_circle_fill_rounded,
+                        color: Color(0xFF9F67FF), size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Официальный трейлер: ${item.title} (${item.year})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          fontSize: 14.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                      onPressed: () => Navigator.pop(ctx),
+                      tooltip: 'Закрыть',
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: HtmlElementView(viewType: viewId),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) {
+      PlatformHelper.destroyIFrame(viewId);
+    });
+  }
+
+  Future<void> _startPartyWatch() async {
+    if (_item == null) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для создания комнаты необходимо войти в аккаунт',
+        title: 'Требуется авторизация',
+      );
+      context.push('/login');
+      return;
+    }
+    final customProf = ref.read(profileCustomizationProvider);
+    final dbProf = ref.read(userProfileProvider).value;
+    final ownerName = (customProf?.username.isNotEmpty == true
+            ? '@${customProf!.username.replaceAll('@', '')}'
+            : null) ??
+        (dbProf?.username.isNotEmpty == true
+            ? '@${dbProf!.username.replaceAll('@', '')}'
+            : null) ??
+        (user.userMetadata?['username'] != null
+            ? '@${user.userMetadata!['username']}'
+            : null) ??
+        (user.email?.split('@').first ?? 'Организатор');
+    final ownerId = user.id;
+
+    final room = await ref.read(roomsProvider.notifier).createRoom(
+          title: 'Совместный просмотр: ${_item!.title} 🍿',
+          movieTitle: _item!.title,
+          movieType: _item!.type,
+          moviePoster: _item!.posterUrl,
+          movieYear: _item!.year,
+          kinopoiskId: _item!.kinopoiskId,
+          videoSourceType: 'catalog',
+          videoUrl: _item!.kinopoiskId != null
+              ? 'https://kinobox.tv/embed/kinopoisk/${_item!.kinopoiskId}'
+              : 'https://kinobox.tv/embed/kinopoisk/258687',
+          scheduledAt: DateTime.now(),
+          ownerName: ownerName,
+          ownerId: ownerId,
+        );
+
+    if (room == null || !mounted) return;
+    TopNotification.showSuccess(
+      context,
+      'Комната «${_item!.title}» создана! Подключаемся...',
+      title: 'Комната создана 🍿',
+    );
+
+    context.go('/rooms/${room.id}');
+  }
+
+  Future<void> _setCollectionStatus(String status) async {
+    if (_item == null) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      context.go('/login');
+      return;
+    }
+
+    final mediaList = ref.read(mediaListProvider).value ?? [];
+    final existing = mediaList.where((m) {
+      if (_item!.kinopoiskId != null && m.kinopoiskId != null) {
+        return m.kinopoiskId == _item!.kinopoiskId;
+      }
+      return m.title.trim().toLowerCase() == _item!.title.trim().toLowerCase();
+    }).firstOrNull;
+
+    if (status == 'delete') {
+      if (existing != null) {
+        try {
+          await ref.read(mediaNotifierProvider.notifier).delete(existing.id);
+          ref.invalidate(mediaListProvider);
+          ref.invalidate(statsDataProvider);
+          setState(() => _isSavedToCollection = false);
+          if (!mounted) return;
+          TopNotification.showSuccess(
+            context,
+            '«${_item!.title}» удалён из вашей коллекции 🗑️',
+            title: 'Коллекция',
+          );
+        } catch (e) {
+          if (!mounted) return;
+          TopNotification.showError(context, 'Ошибка удаления: $e');
+        }
+      }
+      return;
+    }
+
+    if (existing != null) {
+      try {
+        final updated = existing.copyWith(status: status);
+        await ref.read(mediaNotifierProvider.notifier).update(existing.id, updated);
+        ref.invalidate(mediaListProvider);
+        ref.invalidate(statsDataProvider);
+        setState(() => _isSavedToCollection = true);
+        if (!mounted) return;
+        final label = AppConstants.statuses[status] ?? status;
+        TopNotification.showSuccess(
+          context,
+          'Статус фильма «${_item!.title}» изменён на «$label» ⭐',
+          title: 'Коллекция обновлена',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        TopNotification.showError(context, 'Ошибка обновления статуса: $e');
+      }
+      return;
+    }
+
+    final now = DateTime.now();
+    var normType = _item!.type.toLowerCase();
+    if (normType.contains('series') || normType.contains('show')) {
+      normType = 'series';
+    } else if (normType.contains('anime')) {
+      normType = 'anime';
+    } else if (normType.contains('cartoon') || normType.contains('мульт')) {
+      normType = 'cartoon';
+    } else {
+      normType = 'movie';
+    }
+
+    final mediaItem = MediaItem(
+      id: '',
+      userId: user.id,
+      title: _item!.title,
+      type: normType,
+      genres: _item!.genres,
+      year: _item!.year,
+      director: _item!.director,
+      actors: _item!.actors,
+      description: _item!.description,
+      posterUrl: _item!.posterUrl,
+      kinopoiskId: _item!.kinopoiskId,
+      status: status,
+      watchedAt: status == 'watched' ? now : null,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    try {
+      await ref.read(mediaNotifierProvider.notifier).create(mediaItem);
+      ref.invalidate(mediaListProvider);
+      ref.invalidate(statsDataProvider);
+      setState(() => _isSavedToCollection = true);
+      if (!mounted) return;
+      final label = AppConstants.statuses[status] ?? status;
+      TopNotification.showSuccess(
+        context,
+        '«${_item!.title}» добавлен в коллекцию: «$label» ⭐',
+        title: 'Коллекция',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopNotification.showError(context, 'Ошибка добавления: $e');
+    }
+  }
+
+  void _openImageLightbox(List<String> images, int initialIndex) {
+    if (images.isEmpty) return;
+    int currentIndex = initialIndex;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final currentUrl = images[currentIndex];
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 720),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: InteractiveViewer(
+                      child: Image.network(
+                        CatalogItem.fixPosterUrl(currentUrl),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Container(
+                          padding: const EdgeInsets.all(40),
+                          color: const Color(0xFF16162A),
+                          child: const Icon(Icons.broken_image_rounded, size: 64, color: Colors.white30),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                    style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ),
+                Positioned(
+                  top: 14,
+                  left: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Text(
+                      '${currentIndex + 1} / ${images.length}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+                if (images.length > 1)
+                  Positioned(
+                    left: 12,
+                    child: IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 36),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                      onPressed: () {
+                        setDialogState(() {
+                          currentIndex = (currentIndex - 1 + images.length) % images.length;
+                        });
+                      },
+                    ),
+                  ),
+                if (images.length > 1)
+                  Positioned(
+                    right: 12,
+                    child: IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 36),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                      onPressed: () {
+                        setDialogState(() {
+                          currentIndex = (currentIndex + 1) % images.length;
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_isLoading || _item == null) {
+      return Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF1F5F9),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: Color(0xFF7C3AED)),
+              const SizedBox(height: 16),
+              Text(
+                'Загрузка информации о фильме...',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => context.go('/library'),
+                icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                label: const Text('Вернуться в каталог'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final item = _item!;
+    final user = ref.watch(currentUserProvider);
+    final userDisplayName =
+        user?.email?.split('@').first ?? 'Зритель';
+
+    final mediaListAsync = ref.watch(mediaListProvider);
+    final savedMediaItem = mediaListAsync.maybeWhen(
+      data: (list) => list.where((m) {
+        if (item.kinopoiskId != null && m.kinopoiskId != null) {
+          return m.kinopoiskId == item.kinopoiskId;
+        }
+        return m.title.trim().toLowerCase() == item.title.trim().toLowerCase();
+      }).firstOrNull,
+      orElse: () => null,
+    );
+    final isSaved = savedMediaItem != null || _isSavedToCollection;
+    final savedStatus = savedMediaItem?.status;
+
+    final heroImageUrl = item.coverUrl ?? item.posterUrl;
+    final ratingKp = item.rating;
+    final ratingImdb = item.ratingImdb ?? (item.rating > 0.5 ? item.rating - 0.2 : 8.1);
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF1F5F9),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Ambient blurred cover backdrop to remove empty dark dead space
+          Positioned.fill(
+            child: Opacity(
+              opacity: isDark ? 0.18 : 0.08,
+              child: Image.network(
+                CatalogItem.fixPosterUrl(heroImageUrl, kpId: item.kinopoiskId),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox(),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isDark
+                        ? const [
+                            Color(0xEE0C0C16),
+                            Color(0xF50C0C16),
+                            Color(0xFF0C0C16),
+                          ]
+                        : const [
+                            Color(0xEEF1F5F9),
+                            Color(0xF5F1F5F9),
+                            Color(0xFFF1F5F9),
+                          ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Column(
+            children: [
+              const AppHeader(activeRoute: '/library'),
+              Expanded(
+                child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.of(context).size.width < 700 ? 12 : 28,
+                14,
+                MediaQuery.of(context).size.width < 700 ? 12 : 28,
+                28,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1280),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Top Navigation Bar above the hero card (never overlaps title or poster)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                } else {
+                                  context.go('/library');
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(30),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF1E1E34)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                      color: isDark
+                                          ? Colors.white12
+                                          : const Color(0xFFCBD5E1)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                          alpha: isDark ? 0.3 : 0.05),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.arrow_back_rounded,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'В каталог',
+                                      style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Main Hero Card
+                      Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF141424) : Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.15)
+                                : const Color(0xFFE2E8F0),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.08),
+                              blurRadius: 32,
+                              offset: const Offset(0, 16),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(26.5),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isWide = constraints.maxWidth > 900;
+
+                              if (isWide) {
+                                return IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      // Left Column: Details, Badges, Synopsis, Actions & Carousel
+                                      Expanded(
+                                        flex: 7,
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(36, 28, 24, 28),
+                                          child: _buildDetailsColumn(
+                                              item, ratingKp, ratingImdb, isSaved, savedStatus, isDark),
+                                        ),
+                                      ),
+
+                                      // Right Column: Huge Hero Poster Cutout with Soft Blend
+                                      Expanded(
+                                        flex: 5,
+                                        child: _buildHeroPoster(heroImageUrl, isDark),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              } else {
+                                // Mobile / Compact Layout
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    SizedBox(
+                                      height: 380,
+                                      child: _buildHeroPoster(heroImageUrl, isDark),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: _buildDetailsColumn(
+                                          item, ratingKp, ratingImdb, isSaved, savedStatus, isDark),
+                                    ),
+                                  ],
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      _buildSimilarMoviesSection(item, isDark),
+                      const SizedBox(height: 28),
+                      _buildSocialSection(item, userDisplayName, isDark),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+  }
+
+  // Large Hero Poster on the Right with Soft Vignette
+  Widget _buildHeroPoster(String imageUrl, [bool isDark = true]) {
+    final vignetteColor = isDark ? const Color(0xFF141424) : Colors.white;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(
+          CatalogItem.fixPosterUrl(imageUrl),
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          errorBuilder: (_, __, ___) => Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? const [Color(0xFF261042), Color(0xFF1B1B36), Color(0xFF0F172A)]
+                    : const [Color(0xFFEDE9FE), Color(0xFFF1F5F9), Color(0xFFCBD5E1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Center(
+              child: Icon(Icons.movie_filter_rounded,
+                  size: 72,
+                  color: (isDark ? Colors.white : const Color(0xFF64748B)).withValues(alpha: 0.15)),
+            ),
+          ),
+        ),
+
+        // Gradient Left Shadow to smoothly melt into the UI card
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  vignetteColor,
+                  Colors.transparent,
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.45, 1.0],
+              ),
+            ),
+          ),
+        ),
+
+        // Gradient Bottom Shadow
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  vignetteColor.withValues(alpha: 0.85),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.35],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getBestVoiceover(CatalogItem item) {
+    if (item.type == 'anime') {
+      return 'AniLibria (9.8 ★) • Выбор зрителей';
+    } else if (item.type == 'series') {
+      return 'LostFilm / HDRezka (9.6 ★) • Выбор зрителей';
+    }
+    return 'Дублированный перевод (9.7 ★) • Выбор зрителей';
+  }
+
+  Map<String, dynamic> _getContentAdvisory(CatalogItem item) {
+    final lowerGenres = item.genres.map((g) => g.toLowerCase()).toSet();
+    final lowerDesc = item.description.toLowerCase();
+    final isKidOrFamily = item.type == 'cartoon' ||
+        lowerGenres.contains('мультфильм') ||
+        lowerGenres.contains('семейный') ||
+        lowerGenres.contains('детский') ||
+        item.title.toLowerCase().contains('райя') ||
+        item.title.toLowerCase().contains('зверополис') ||
+        item.title.toLowerCase().contains('коко');
+
+    if (isKidOrFamily) {
+      return {
+        'badge': '6+ 🟢 Для любой аудитории',
+        'desc': 'Подходит для семейного и детского просмотра, без жестокости',
+        'isWarning': false,
+      };
+    }
+
+    final isExtremeGore = lowerGenres.contains('ужасы') ||
+        lowerGenres.contains('слэшер') ||
+        lowerDesc.contains('расчленен') ||
+        lowerDesc.contains('пытки') ||
+        item.title.contains('Пила') ||
+        item.title.contains('Токийский гуль');
+
+    if (isExtremeGore) {
+      return {
+        'badge': '18+ ⚠️ Сцены насилия & кровь',
+        'desc': 'Присутствуют напряжённые сцены, жестокость и кровь',
+        'isWarning': true,
+      };
+    }
+
+    final isTeenAdvisory = lowerGenres.contains('криминал') ||
+        lowerGenres.contains('триллер') ||
+        lowerGenres.contains('боевик');
+
+    if (isTeenAdvisory) {
+      return {
+        'badge': '16+ ⚠️ Возрастные ограничения',
+        'desc': 'Присутствуют динамичные сцены экшена и напряжения',
+        'isWarning': false,
+      };
+    }
+
+    return {
+      'badge': '12+ 🟢 Без жестоких сцен',
+      'desc': 'Подходит для широкого просмотра, без сцен крови и насилия',
+      'isWarning': false,
+    };
+  }
+
+  Widget _buildItemMetadataRow(CatalogItem item, bool isDark) {
+    if (!item.isSeries) {
+      // Movie metadata row (Year and duration)
+      return Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.calendar_today_rounded, size: 12, color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5)),
+                const SizedBox(width: 6),
+                Text(
+                  '${item.year} год',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (item.filmLength != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule_rounded, size: 13, color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${item.filmLength} мин (${(item.filmLength! / 60).toStringAsFixed(1)} ч)',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+
+    // Series metadata row: Seasons count, Episodes count, Duration info
+    return Consumer(
+      builder: (context, ref, _) {
+        final kpId = item.kinopoiskId;
+        final seasonsAsync = kpId != null ? ref.watch(seasonsProvider(kpId)) : null;
+        final seasons = seasonsAsync?.valueOrNull ?? [];
+
+        int totalSeasons = seasons.isNotEmpty ? seasons.length : 1;
+        int totalEpisodes = 0;
+        int airedEpisodes = 0;
+        for (final s in seasons) {
+          totalEpisodes += s.totalCount;
+          airedEpisodes += s.airedCount;
+        }
+
+        final epDuration = item.filmLength ?? 45;
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // Year
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.calendar_today_rounded, size: 12, color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${item.year} год',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Seasons count
+            if (seasons.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.layers_rounded, size: 13, color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$totalSeasons ${_pluralize(totalSeasons, 'сезон', 'сезона', 'сезонов')}',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Episodes count
+            if (totalEpisodes > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.playlist_play_rounded, size: 15, color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
+                    const SizedBox(width: 5),
+                    Text(
+                      airedEpisodes < totalEpisodes
+                          ? '$airedEpisodes из $totalEpisodes сер. (вышло)'
+                          : '$totalEpisodes ${_pluralize(totalEpisodes, 'серия', 'серии', 'серий')}',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Average episode duration
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule_rounded, size: 13, color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7)),
+                  const SizedBox(width: 6),
+                  Text(
+                    totalEpisodes > 0
+                        ? '~$epDuration мин / сер. (общая: ${(totalEpisodes * epDuration / 60).round()} ч)'
+                        : '~$epDuration мин / серия',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _pluralize(int count, String one, String few, String many) {
+    final mod10 = count % 10;
+    final mod100 = count % 100;
+    if (mod100 >= 11 && mod100 <= 19) return many;
+    if (mod10 == 1) return one;
+    if (mod10 >= 2 && mod10 <= 4) return few;
+    return many;
+  }
+
+  PopupMenuItem<String> _buildStatusMenuItem(
+      String value, String icon, String title, bool isSelected, [bool isDark = true]) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 15)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: isSelected
+                    ? const Color(0xFF9F67FF)
+                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          if (isSelected)
+            const Icon(Icons.check_rounded, size: 16, color: Color(0xFF9F67FF)),
+        ],
+      ),
+    );
+  }
+
+  // Left Details Column (Typography, Badges, Ratings, Buttons & Bottom Photos)
+  Widget _buildDetailsColumn(
+      CatalogItem item, double ratingKp, double ratingImdb, bool isSaved,
+      [String? savedStatus, bool isDark = true]) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(height: 12),
+
+        // Big Movie Title (Stylized bold typography like MONSTERS, INC.)
+        Text(
+          item.title.toUpperCase(),
+          style: TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w900,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            letterSpacing: 0.8,
+            height: 1.1,
+          ),
+        ),
+
+        // Original Name (e.g. Monsters, Inc. / Death Note)
+        if (item.nameOriginal != null && item.nameOriginal!.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            item.nameOriginal!,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              fontWeight: FontWeight.w500,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+        const SizedBox(height: 14),
+
+        // Studio & Genre Badges Row
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            // Studio / Format Badge (e.g. Disney / Pixar / Аниме-сериал)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF282845) : const Color(0xFFEEF2F6),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    width: 0.8),
+              ),
+              child: Text(
+                item.displayTypeLabel.toUpperCase(),
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+
+            // Genres
+            ...item.genres.take(4).map((g) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1B1B2E) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      width: 0.8),
+                ),
+                child: Text(
+                  g,
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Ratings & Accolades Row (IMDb + Кинопоиск + Rotten Tomatoes + Metacritic + Letterboxd + MPA)
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // Star IMDb
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.15 : 0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star_rounded,
+                      size: 14, color: Color(0xFFFFCA28)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'IMDb ${item.effectiveImdb.toStringAsFixed(1)}',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF92400E),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Кинопоиск
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6600).withValues(alpha: isDark ? 0.15 : 0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFFF6600), width: 0.8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('⭐️', style: TextStyle(fontSize: 10)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'КП ${ratingKp.toStringAsFixed(1)}',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF9A3412),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Content advisory (Triggers / Violence / Family)
+            Builder(builder: (context) {
+              final advisory = _getContentAdvisory(item);
+              final isWarning = advisory['isWarning'] as bool;
+              return Tooltip(
+                message: advisory['desc'] as String,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isWarning
+                        ? const Color(0xFFEF4444).withValues(alpha: isDark ? 0.15 : 0.2)
+                        : const Color(0xFF10B981).withValues(alpha: isDark ? 0.15 : 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isWarning
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF10B981),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    advisory['badge'] as String,
+                    style: TextStyle(
+                      color: isWarning
+                          ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626))
+                          : (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669)),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ),
+              );
+            }),
+
+            // Community voiceover recommendation
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.15 : 0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF7C3AED), width: 0.8),
+              ),
+              child: Text(
+                '🎧 ${_getBestVoiceover(item)}',
+                style: TextStyle(
+                  color: isDark ? const Color(0xFFDDD6FE) : const Color(0xFF6D28D9),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Dedicated Metadata Line (Year, Runtime, Series info: Seasons, Episodes, Average duration)
+        _buildItemMetadataRow(item, isDark),
+        const SizedBox(height: 16),
+
+        // Synopsis (Description)
+        Text(
+          item.description,
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF334155),
+            fontSize: 13.5,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: 22),
+
+        // Action Buttons Row (Matching mockup: [▶ Watch] [🎬 Трейлер] [🍿 Совместный] [🔖 В коллекцию])
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // 1. Button: [ 🎬 Трейлер ▶ ]
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+                backgroundColor: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFFF1F5F9),
+                side: BorderSide(
+                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    width: 1.2),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              icon: const Icon(Icons.play_circle_outline_rounded,
+                  size: 18, color: Color(0xFFF59E0B)),
+              label: const Text(
+                'Трейлер ▶',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+              onPressed: () => _openTrailerModal(item),
+            ),
+
+            // 2. Button: [ ▶ Смотреть онлайн (1) ]
+            BouncyButton(
+              onTap: _startSoloWatch,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? Colors.white : const Color(0xFF7C3AED),
+                  foregroundColor: isDark ? Colors.black : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: 4,
+                ),
+                icon: Icon(Icons.play_arrow_rounded,
+                    size: 20, color: isDark ? Colors.black : Colors.white),
+                label: Text(
+                  'Смотреть онлайн',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.black : Colors.white,
+                  ),
+                ),
+                onPressed: _startSoloWatch,
+              ),
+            ),
+
+            // Secondary Button: [ 🍿 Совместный просмотр ]
+            BouncyButton(
+              onTap: _startPartyWatch,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? Colors.white : const Color(0xFF6D28D9),
+                  backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                  side: const BorderSide(color: Color(0xFF7C3AED), width: 1.2),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                icon: const Icon(Icons.groups_rounded,
+                    size: 18, color: Color(0xFF9F67FF)),
+                label: const Text(
+                  'Смотреть с друзьями 🍿',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                onPressed: _startPartyWatch,
+              ),
+            ),
+
+            // Add to Collection & Status Category Selector
+            Theme(
+              data: Theme.of(context).copyWith(
+                popupMenuTheme: PopupMenuThemeData(
+                  color: isDark ? const Color(0xFF1E1E34) : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                ),
+              ),
+              child: PopupMenuButton<String>(
+                tooltip: 'Выбрать категорию для фильма',
+                onSelected: _setCollectionStatus,
+                itemBuilder: (ctx) => [
+                  _buildStatusMenuItem('want_to_watch', '🕒', 'Хочу посмотреть', savedStatus == 'want_to_watch', isDark),
+                  _buildStatusMenuItem('watching', '🍿', 'Смотрю', savedStatus == 'watching', isDark),
+                  _buildStatusMenuItem('watched', '✅', 'Просмотрено', savedStatus == 'watched', isDark),
+                  if (isSaved) ...[
+                    const PopupMenuDivider(height: 1),
+                    const PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                          SizedBox(width: 8),
+                          Text('Удалить из коллекции', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSaved
+                        ? const Color(0xFF10B981)
+                        : (isDark ? const Color(0xFF222238) : const Color(0xFFF1F5F9)),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: isSaved
+                          ? const Color(0xFF10B981)
+                          : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSaved
+                            ? Icons.bookmark_added_rounded
+                            : Icons.bookmark_add_outlined,
+                        size: 16,
+                        color: isSaved
+                            ? Colors.white
+                            : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isSaved
+                            ? (savedStatus == 'want_to_watch'
+                                ? 'Хочу посмотреть 🕒'
+                                : (savedStatus == 'watching'
+                                    ? 'Смотрю 🍿'
+                                    : (savedStatus == 'watched' ? 'Просмотрено ✅' : 'В коллекции')))
+                            : 'В коллекцию',
+                        style: TextStyle(
+                          color: isSaved
+                              ? Colors.white
+                              : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_drop_down_rounded,
+                          size: 16,
+                          color: isSaved
+                              ? Colors.white70
+                              : (isDark ? Colors.white70 : const Color(0xFF64748B))),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 28),
+
+        // Bottom Carousel Header: "Кадры и видео (Videos & Photos) >"
+        Row(
+          children: [
+            Text(
+              'Кадры и видео (${_filmImages.length + 1})',
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: isDark ? Colors.white54 : const Color(0xFF94A3B8)),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Horizontal Carousel of Stills and Trailer Card
+        SizedBox(
+          height: 82,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // Trailer Thumbnail Card (Play icon + duration badge)
+              InkWell(
+                onTap: () => _openTrailerModal(item),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 130,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A2E),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF7C3AED), width: 1.2),
+                    image: DecorationImage(
+                      image: NetworkImage(CatalogItem.fixPosterUrl(item.posterUrl)),
+                      fit: BoxFit.cover,
+                      colorFilter: ColorFilter.mode(
+                        Colors.black.withValues(alpha: 0.45),
+                        BlendMode.darken,
+                      ),
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      const Center(
+                        child: Icon(Icons.play_circle_fill_rounded,
+                            size: 28, color: Colors.white),
+                      ),
+                      Positioned(
+                        bottom: 6,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _filmVideos.isNotEmpty
+                                ? '▶ ${_filmVideos.first['name'] ?? 'Трейлер'}'
+                                : '▶ Трейлер',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Stills and backstage photos with interactive Lightbox zoom viewer
+              ...(() {
+                final allStills = _filmImages.isNotEmpty
+                    ? _filmImages
+                    : [
+                        if (item.coverUrl != null) item.coverUrl!,
+                        item.posterUrl,
+                      ];
+                return allStills.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final imgUrl = entry.value;
+                  return InkWell(
+                    onTap: () => _openImageLightbox(allStills, idx),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 130,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A2E),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            CatalogItem.fixPosterUrl(imgUrl),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.white10,
+                              child: const Icon(Icons.photo_rounded,
+                                  size: 24, color: Colors.white30),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.zoom_in_rounded,
+                                  size: 14, color: Colors.white70),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                });
+              })(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildSpecsSection(item),
+      ],
+    );
+  }
+
+  Widget _buildSpecsSection(CatalogItem item) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B1B30),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF9F67FF)),
+              const SizedBox(width: 8),
+              Text(
+                'О ${item.isSeries ? 'сериале' : 'фильме'}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 24,
+            runSpacing: 12,
+            children: [
+              if (item.countries.isNotEmpty)
+                _buildSpecItem('Страна', item.countries.join(', ')),
+              _buildSpecItem('Год производства', '${item.year}'),
+              if (item.director.isNotEmpty)
+                _buildSpecItem('Режиссёр', item.director),
+              if (item.actors.isNotEmpty)
+                _buildSpecItem('В главных ролях', item.actors),
+              if (item.slogan != null && item.slogan!.isNotEmpty)
+                _buildSpecItem('Слоган', '«${item.slogan}»'),
+              _buildSpecItem('Возраст', item.effectiveMpa),
+              _buildSpecItem('Качество', '4K Ultra HD • HDR10 • 5.1 Surround'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpecItem(String label, String value) {
+    return SizedBox(
+      width: 250,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.white54,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimilarMoviesSection(CatalogItem currentItem, [bool isDark = true]) {
+    // Select similar items based on matching genres or same format
+    final matches = CuratedCatalog.items.where((ci) {
+      if (ci.title == currentItem.title ||
+          (ci.kinopoiskId != null && ci.kinopoiskId == currentItem.kinopoiskId)) {
+        return false;
+      }
+      final shareGenre = ci.genres.any((g) => currentItem.genres.contains(g));
+      final shareType = ci.type == currentItem.type;
+      return shareGenre || shareType;
+    }).toList();
+
+    // Fallback if not enough matches
+    if (matches.length < 6) {
+      for (final item in CuratedCatalog.items) {
+        if (!matches.contains(item) &&
+            item.title != currentItem.title &&
+            item.kinopoiskId != currentItem.kinopoiskId) {
+          matches.add(item);
+        }
+      }
+    }
+    final similar = matches.take(10).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.auto_awesome_rounded,
+                size: 18, color: Color(0xFFFFCA28)),
+            const SizedBox(width: 8),
+            Text(
+              'Похожие фильмы и сериалы',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${similar.length} рекомендаций',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFFC084FC) : const Color(0xFF7C3AED),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 235,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: similar.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, i) {
+              final sim = similar[i];
+              final poster = CatalogItem.fixPosterUrl(sim.posterUrl,
+                  kpId: sim.kinopoiskId);
+
+              return InkWell(
+                onTap: () => context.push(
+                  '/movie/${sim.kinopoiskId ?? sim.title}',
+                  extra: sim,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 135,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF16162A) : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                    boxShadow: [
+                      if (!isDark)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Poster with standard 2:3 ratio
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              poster,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: isDark ? const Color(0xFF1E2230) : const Color(0xFFF1F5F9),
+                                child: Center(
+                                  child: Icon(Icons.movie_outlined,
+                                      color: isDark ? Colors.white24 : const Color(0xFF94A3B8)),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                      color: const Color(0xFFFFCA28),
+                                      width: 0.8),
+                                ),
+                                child: Text(
+                                  '★ ${sim.rating.toStringAsFixed(1)}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFFFCA28),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Title & Meta info below poster
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              sim.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${sim.year} • ${sim.genres.take(1).join('')}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialSection(CatalogItem item, String userDisplayName, [bool isDark = true]) {
+    final kpId = item.kinopoiskId ?? 0;
+    final reviewsAsync = ref.watch(movieReviewsProvider(kpId));
+    final reviews = reviewsAsync.value ?? [];
+    final sortedReviews = _getSortedReviews(reviews);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF141424) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
+          width: 1.5,
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '💬 Отзывы и рецензии (${reviews.length})',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.rate_review_rounded, size: 16),
+                label: const Text('Написать рецензию',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                onPressed: () => _showAddReviewDialog(item, userDisplayName),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildReviewFilterBar(isDark),
+          const SizedBox(height: 16),
+          if (reviewsAsync.isLoading && reviews.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else
+            _buildReviewsList(item, sortedReviews, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewFilterBar([bool isDark = true]) {
+    return Row(
+      children: [
+        Text(
+          'Сортировка:',
+          style: TextStyle(
+            color: isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF64748B),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 12),
+        _buildReviewSortChip(
+          label: 'Популярные',
+          type: 'popular',
+          icon: Icons.trending_up_rounded,
+          isDark: isDark,
+        ),
+        const SizedBox(width: 8),
+        _buildReviewSortChip(
+          label: 'По дате',
+          type: 'date',
+          hasArrow: true,
+          isDark: isDark,
+        ),
+        const SizedBox(width: 8),
+        _buildReviewSortChip(
+          label: 'По оценке',
+          type: 'rating',
+          hasArrow: true,
+          isDark: isDark,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReviewSortChip({
+    required String label,
+    required String type,
+    IconData? icon,
+    bool hasArrow = false,
+    bool isDark = true,
+  }) {
+    final isSelected = _reviewSort == type;
+    IconData? arrowIcon;
+    if (isSelected && hasArrow) {
+      arrowIcon =
+          _reviewSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+    } else if (hasArrow) {
+      arrowIcon = Icons.unfold_more_rounded;
+    }
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (_reviewSort == type) {
+            _reviewSortAsc = !_reviewSortAsc;
+          } else {
+            _reviewSort = type;
+            _reviewSortAsc = false;
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF7C3AED).withValues(alpha: 0.25)
+              : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF9F67FF)
+                : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon,
+                  size: 14,
+                  color: isSelected
+                      ? const Color(0xFFA78BFA)
+                      : (isDark ? Colors.white60 : const Color(0xFF64748B))),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? (isDark ? Colors.white : const Color(0xFF7C3AED))
+                    : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            if (arrowIcon != null) ...[
+              const SizedBox(width: 4),
+              Icon(arrowIcon,
+                  size: 14,
+                  color: isSelected
+                      ? const Color(0xFFA78BFA)
+                      : (isDark ? Colors.white38 : const Color(0xFF94A3B8))),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<MovieReview> _getSortedReviews(List<MovieReview> reviews) {
+    final list = List<MovieReview>.from(reviews);
+    if (_reviewSort == 'popular') {
+      list.sort((a, b) => _reviewSortAsc
+          ? a.likes.compareTo(b.likes)
+          : b.likes.compareTo(a.likes));
+    } else if (_reviewSort == 'rating') {
+      list.sort((a, b) => _reviewSortAsc
+          ? a.rating.compareTo(b.rating)
+          : b.rating.compareTo(a.rating));
+    } else if (_reviewSort == 'date') {
+      list.sort((a, b) => _reviewSortAsc
+          ? a.createdAt.compareTo(b.createdAt)
+          : b.createdAt.compareTo(a.createdAt));
+    }
+    return list;
+  }
+
+  Widget _buildReviewsList(CatalogItem item, List<MovieReview> sorted, [bool isDark = true]) {
+    if (sorted.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Text(
+            'Пока нет рецензий. Будьте первым!',
+            style: TextStyle(
+                color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF94A3B8),
+                fontSize: 14),
+          ),
+        ),
+      );
+    }
+    final user = ref.watch(currentUserProvider);
+    final profile = ref.watch(userProfileProvider).value;
+
+    return Column(
+      children: sorted.map((rev) {
+        final canDelete = (user != null && rev.userId == user.id) ||
+            (profile != null && (profile.isAdmin || profile.isModerator));
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1B1B2F) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: Author Avatar, Name, Title, Rating, Date, Delete button
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFF7C3AED),
+                    child: Text(
+                      rev.authorName.isNotEmpty
+                          ? rev.authorName[0].toUpperCase()
+                          : 'U',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              rev.authorName,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                rev.authorTitle,
+                                style: TextStyle(
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                    fontSize: 10),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          rev.date,
+                          style: TextStyle(
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                              fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            size: 14, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${rev.rating.toStringAsFixed(1)} / 10',
+                          style: const TextStyle(
+                              color: Color(0xFFF59E0B),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (canDelete) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 18, color: Colors.redAccent),
+                      tooltip: 'Удалить рецензию',
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            backgroundColor:
+                                isDark ? const Color(0xFF1E1E34) : Colors.white,
+                            title: const Text('Удаление рецензии'),
+                            content: const Text(
+                                'Вы уверены, что хотите удалить эту рецензию?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(c).pop(false),
+                                child: const Text('Отмена'),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent),
+                                onPressed: () => Navigator.of(c).pop(true),
+                                child: const Text('Удалить',
+                                    style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          try {
+                            await ref
+                                .read(reviewRepositoryProvider)
+                                .deleteReview(rev.id);
+                            ref.invalidate(
+                                movieReviewsProvider(item.kinopoiskId ?? 0));
+                            if (mounted) {
+                              TopNotification.showSuccess(
+                                context,
+                                'Рецензия удалена',
+                                title: 'Успешно',
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              TopNotification.showError(
+                                context,
+                                'Ошибка удаления: $e',
+                                title: 'Ошибка',
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Title
+              Text(
+                rev.title,
+                style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 8),
+
+              // Body text
+              Text(
+                rev.text,
+                style: TextStyle(
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+                    fontSize: 13,
+                    height: 1.5),
+              ),
+              const SizedBox(height: 14),
+
+              // Action Bar (Thumbs Up / Like)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (rev.isLiked) {
+                          rev.likes--;
+                          rev.isLiked = false;
+                        } else {
+                          rev.likes++;
+                          rev.isLiked = true;
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: rev.isLiked
+                            ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                            : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: rev.isLiked
+                              ? const Color(0xFF10B981)
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            rev.isLiked
+                                ? Icons.thumb_up_rounded
+                                : Icons.thumb_up_outlined,
+                            size: 14,
+                            color: rev.isLiked
+                                ? const Color(0xFF10B981)
+                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Полезно (${rev.likes})',
+                            style: TextStyle(
+                              color: rev.isLiked
+                                  ? const Color(0xFF10B981)
+                                  : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _showAddReviewDialog(CatalogItem item, String userDisplayName) {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      TopNotification.showWarning(
+        context,
+        'Для публикации рецензии необходимо войти в аккаунт',
+        title: 'Авторизация',
+      );
+      return;
+    }
+    final profile = ref.read(userProfileProvider).value;
+    final effectiveTitle = profile?.effectiveTitle ?? 'Зритель CineTrack 🍿';
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    double ratingVal = 9.0;
+    final titleCtrl = TextEditingController();
+    final textCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E1E34) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: BorderSide(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
+              ),
+              title: Row(
+                children: [
+                  const Icon(Icons.rate_review_rounded, color: Color(0xFF9F67FF)),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Написать рецензию',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Ваша оценка:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B)
+                                  .withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '★ ${ratingVal.toStringAsFixed(1)} / 10',
+                              style: const TextStyle(
+                                  color: Color(0xFFF59E0B),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(10, (idx) {
+                              final starNum = idx + 1;
+                              IconData icon;
+                              if (ratingVal >= starNum) {
+                                icon = Icons.star_rounded;
+                              } else if (ratingVal >= starNum - 0.5) {
+                                icon = Icons.star_half_rounded;
+                              } else {
+                                icon = Icons.star_outline_rounded;
+                              }
+
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTapDown: (details) {
+                                  final isLeft = details.localPosition.dx < 16;
+                                  setDlgState(() {
+                                    ratingVal = isLeft ? starNum - 0.5 : starNum.toDouble();
+                                  });
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                                  child: Icon(
+                                    icon,
+                                    size: 30,
+                                    color: const Color(0xFFFFCA28),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      Text('Заголовок рецензии:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: titleCtrl,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 13,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Коротко о главном...',
+                          hintStyle: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      Text('Текст вашей рецензии:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: textCtrl,
+                        maxLines: 4,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 13,
+                        ),
+                        decoration: InputDecoration(
+                          hintText:
+                              'Поделитесь подробными впечатлениями от сюжета, актерской игры и визуала...',
+                          hintStyle: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text('Отмена',
+                      style: TextStyle(
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B))),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C3AED)),
+                  onPressed: () async {
+                    final t = titleCtrl.text.trim();
+                    final b = textCtrl.text.trim();
+                    if (t.isEmpty || b.isEmpty) return;
+
+                    try {
+                      await ref.read(reviewRepositoryProvider).addReview(
+                        kinopoiskId: item.kinopoiskId ?? 0,
+                        movieTitle: item.title,
+                        authorName: userDisplayName,
+                        authorTitle: effectiveTitle,
+                        rating: ratingVal,
+                        type: ratingVal >= 7.0
+                            ? 'positive'
+                            : (ratingVal >= 5.0 ? 'neutral' : 'negative'),
+                        title: t,
+                        text: b,
+                      );
+                      ref.invalidate(movieReviewsProvider(item.kinopoiskId ?? 0));
+                      if (ctx.mounted) Navigator.of(ctx).pop();
+                      if (context.mounted) {
+                        TopNotification.showSuccess(
+                          context,
+                          'Рецензия успешно опубликована! ⭐',
+                          title: 'Рецензия добавлена',
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        TopNotification.showError(
+                          context,
+                          'Не удалось опубликовать рецензию: $e',
+                          title: 'Ошибка',
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Опубликовать',
+                      style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
