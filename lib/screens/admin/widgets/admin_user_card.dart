@@ -251,7 +251,7 @@ class AdminUserCard extends ConsumerWidget {
                           border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
                         ),
                         child: Text(
-                          '🚫 Заблокирован бессрочно: ${user.blockReason ?? "Нарушение правил"}',
+                          'Заблокирован бессрочно: ${user.blockReason ?? "Нарушение правил"}',
                           style: TextStyle(
                               color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
                               fontSize: 11,
@@ -270,7 +270,7 @@ class AdminUserCard extends ConsumerWidget {
                           border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
                         ),
                         child: Text(
-                          '❄️ Заморожен до ${user.blockUntil != null ? "${user.blockUntil!.day.toString().padLeft(2, '0')}.${user.blockUntil!.month.toString().padLeft(2, '0')}.${user.blockUntil!.year}" : "срока"}: ${user.blockReason ?? "Нарушение правил"}',
+                          'Заморожен до ${user.blockUntil != null ? "${user.blockUntil!.day.toString().padLeft(2, '0')}.${user.blockUntil!.month.toString().padLeft(2, '0')}.${user.blockUntil!.year}" : "срока"}: ${user.blockReason ?? "Нарушение правил"}',
                           style: TextStyle(
                               color: isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
                               fontSize: 11,
@@ -286,7 +286,7 @@ class AdminUserCard extends ConsumerWidget {
             // 1. Edit @username Button
             Tooltip(
               message: canManage || isSelf
-                  ? 'Изменить @юзернейм ✏️'
+                  ? 'Изменить @юзернейм'
                   : 'Недостаточно прав для изменения юзернейма',
               child: IconButton(
                 icon: const Icon(Icons.alternate_email_rounded, size: 20),
@@ -303,7 +303,7 @@ class AdminUserCard extends ConsumerWidget {
             // 2. Grant Titles & Perks Button
             Tooltip(
               message: canManage || isSelf
-                  ? 'Выдать титул или плюшки 🎁'
+                  ? 'Выдать титул или награды'
                   : 'Недостаточно прав для выдачи титулов этому рангу',
               child: IconButton(
                 icon: const Icon(Icons.card_giftcard_rounded, size: 20),

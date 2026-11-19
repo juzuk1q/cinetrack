@@ -81,43 +81,7 @@ class AuthRepository {
       await prefs.setBool('cinetrack_pwd_set_${user.id}', true);
     } catch (_) {}
 
-    // Check account restriction (ban / freeze)
-    await _checkAccountRestrictions(user.id);
-
     return user;
-  }
-
-  Future<void> _checkAccountRestrictions(String userId) async {
-    try {
-      final res = await supabase
-          .from('profiles')
-          .select('is_blocked, is_frozen, block_reason, block_until')
-          .eq('id', userId)
-          .maybeSingle();
-
-      if (res != null) {
-        final isBlocked = res['is_blocked'] as bool? ?? false;
-        final isFrozen = res['is_frozen'] as bool? ?? false;
-        final reason = res['block_reason'] as String?;
-        final untilStr = res['block_until'] as String?;
-        DateTime? until = untilStr != null ? DateTime.tryParse(untilStr) : null;
-
-        final isCurrentlyFrozen =
-            isFrozen && (until == null || DateTime.now().isBefore(until));
-
-        if (isBlocked || isCurrentlyFrozen) {
-          await supabase.auth.signOut();
-          if (isBlocked) {
-            throw 'Ваш аккаунт заблокирован администрацией.${reason != null && reason.isNotEmpty ? " Причина: $reason" : ""}';
-          } else {
-            throw 'Ваш аккаунт временно заморожен.${reason != null && reason.isNotEmpty ? " Причина: $reason" : ""}';
-          }
-        }
-      }
-    } catch (e) {
-      if (e is String) rethrow;
-      debugPrint('Account restriction check note: $e');
-    }
   }
 
   Future<User> signUp({

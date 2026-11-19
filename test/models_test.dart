@@ -35,7 +35,7 @@ void main() {
       expect(profile.isFrozen, false);
       expect(profile.isRestricted, false);
       expect(profile.unlockedTitles, contains('welcome'));
-      expect(profile.roleLabel, 'Модератор 🛡️');
+      expect(profile.roleLabel, 'Модератор');
 
       final serialized = profile.toJson();
       expect(serialized['id'], 'user-123');

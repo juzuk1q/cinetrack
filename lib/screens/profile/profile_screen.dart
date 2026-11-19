@@ -333,13 +333,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? dbProfile!.customTitle!
         : (customProfile?.customTitle?.isNotEmpty == true
             ? customProfile!.customTitle!
-            : (dbProfile?.effectiveTitle ?? 'Новичок стримов 🍿'));
+            : (dbProfile?.effectiveTitle ?? 'Новичок стримов'));
 
     final myRole =
         dbProfile?.role ?? (user?.userMetadata?['role'] as String? ?? 'user');
 
     final myRoleLabel =
-        dbProfile?.roleLabel ?? (isAdmin ? 'Администратор ⭐' : null);
+        dbProfile?.roleLabel ?? (isAdmin ? 'Администратор' : null);
 
     final myBanner = customProfile?.bannerUrl?.isNotEmpty == true
         ? customProfile!.bannerUrl!
@@ -531,7 +531,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final effectiveTitle = isViewingSelf
         ? myTitle
-        : (otherProfile?.effectiveTitle ?? 'Новичок стримов 🍿');
+        : (otherProfile?.effectiveTitle ?? 'Новичок стримов');
 
     final String? effectiveRoleLabel =
         isViewingSelf ? myRoleLabel : otherProfile?.roleLabel;
@@ -686,7 +686,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                                         if (context.mounted) {
                                           TopNotification.showSuccess(context,
-                                              'Аватар успешно загружен и сохранен! ✨');
+                                              'Аватар успешно загружен и сохранен!');
                                         }
                                       }
                                     }
@@ -754,10 +754,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     width: 1,
                                   ),
                                 ),
-                                child: Text(
-                                  _getRoleIcon(effectiveRole),
-                                  style: const TextStyle(
-                                      fontSize: 13, height: 1.1),
+                                child: Icon(
+                                  _getRoleIconData(effectiveRole),
+                                  size: 14,
+                                  color: effectiveRole == 'admin'
+                                      ? const Color(0xFFF59E0B)
+                                      : const Color(0xFF6366F1),
                                 ),
                               ),
                             ),
@@ -779,14 +781,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     width: 0.9,
                                   ),
                                 ),
-                                child: Text(
-                                  _getTitleIcon(effectiveTitle),
-                                  style: const TextStyle(
-                                    color: Color(0xFFD8B4FE),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.1,
-                                  ),
+                                child: Icon(
+                                  _getTitleIconData(effectiveTitle),
+                                  size: 14,
+                                  color: const Color(0xFFD8B4FE),
                                 ),
                               ),
                             ),
@@ -819,7 +817,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                                 TopNotification.showSuccess(
                                   context,
-                                  'Ссылка на профиль скопирована! 📋',
+                                  'Ссылка на профиль скопирована!',
                                 );
                               },
                               borderRadius: BorderRadius.circular(4),
@@ -942,8 +940,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           label: Text(
                             currentThemeMode == ThemeMode.dark
-                                ? 'Светлая тема ☀️'
-                                : 'Тёмная тема 🌙',
+                                ? 'Светлая тема'
+                                : 'Тёмная тема',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 12.5),
                           ),
@@ -1007,7 +1005,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                                 TopNotification.showSuccess(
                                   context,
-                                  'Ссылка на профиль скопирована! 📋',
+                                  'Ссылка на профиль скопирована!',
                                 );
                               },
                             ),
@@ -1330,7 +1328,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             )
           else ...[
-            // 3. Tab Switcher Bar: [ 🔖 Коллекция ] vs [ 📊 Статистика ] vs [ 👥 Друзья ]
+            // 3. Tab Switcher Bar: [ Коллекция ] vs [ Статистика ] vs [ Друзья ]
 
             SliverToBoxAdapter(
               child: Center(
@@ -1488,7 +1486,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           icon: const Icon(Icons.check_rounded, size: 16),
-          label: const Text('В друзьях ✓', style: TextStyle(fontWeight: FontWeight.w700)),
+          label: const Text('В друзьях', style: TextStyle(fontWeight: FontWeight.w700)),
           onPressed: () => _confirmRemoveFriend(otherProfile),
         );
 
@@ -1501,7 +1499,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           icon: const Icon(Icons.access_time_rounded, size: 16),
-          label: const Text('Заявка отправлена 🕒', style: TextStyle(fontWeight: FontWeight.w700)),
+          label: const Text('Заявка отправлена', style: TextStyle(fontWeight: FontWeight.w700)),
           onPressed: () => _confirmCancelFriendRequest(otherProfile),
         );
 
@@ -1541,7 +1539,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               if (mounted) {
                 TopNotification.showSuccess(
                   context,
-                  'Заявка в друзья отправлена пользователю @${otherProfile.handle}! 📩',
+                  'Заявка в друзья отправлена пользователю @${otherProfile.handle}!',
                 );
               }
             } catch (e) {
@@ -1569,7 +1567,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           if (mounted) {
             TopNotification.showSuccess(
               context,
-              'Вы приняли заявку в друзья от @${otherProfile.handle}! 🤝',
+              'Вы приняли заявку в друзья от @${otherProfile.handle}!',
             );
           }
         } catch (e) {
@@ -2121,7 +2119,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onPressed: () {
                         TopNotification.showSuccess(
                           context,
-                          'Приглашение отправлено пользователю @$handle! 🍿',
+                          'Приглашение отправлено пользователю @$handle!',
                           title: 'Приглашение в комнату',
                         );
                       },
@@ -2143,7 +2141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onPressed: () {
                         TopNotification.showSuccess(
                           context,
-                          'Приглашение отправлено пользователю @$handle! 🍿',
+                          'Приглашение отправлено пользователю @$handle!',
                           title: 'Приглашение в комнату',
                         );
                       },
@@ -2210,7 +2208,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         final name = sender?.displayName ?? 'Пользователь';
         final handle = sender?.handle ?? req.senderId;
         final avatar = sender?.avatarUrl;
-        final title = sender?.effectiveTitle ?? 'Новичок 🍿';
+        final title = sender?.effectiveTitle ?? 'Новичок';
 
         return Card(
           color: isDark ? const Color(0xFF16162A) : Colors.white,
@@ -2308,7 +2306,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         if (mounted) {
                           TopNotification.showSuccess(
                             context,
-                            'Вы приняли заявку в друзья от @$handle! 🤝',
+                            'Вы приняли заявку в друзья от @$handle!',
                           );
                         }
                       } catch (e) {
@@ -2348,7 +2346,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         if (mounted) {
                           TopNotification.showSuccess(
                             context,
-                            'Вы приняли заявку в друзья от @$handle! 🤝',
+                            'Вы приняли заявку в друзья от @$handle!',
                           );
                         }
                       } catch (e) {
@@ -2501,7 +2499,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Заявка отправлена • Ожидает подтверждения 🕒',
+                        'Заявка отправлена • Ожидает подтверждения',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -2749,47 +2747,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       },
     );
   }
-  String _getRoleIcon(String role) {
+  IconData _getRoleIconData(String role) {
     switch (role.toLowerCase()) {
       case 'creator':
-        return '👑';
+        return Icons.star_rounded;
 
       case 'developer':
       case 'coder':
-        return '💻';
+        return Icons.terminal_rounded;
 
       case 'admin':
-        return '⭐';
+        return Icons.admin_panel_settings_rounded;
 
       case 'moderator':
-        return '🛡️';
+        return Icons.shield_rounded;
 
       default:
-        return '⭐';
+        return Icons.person_rounded;
     }
   }
 
-  String _getTitleIcon(String title) {
+  IconData _getTitleIconData(String title) {
     for (final ach in UserAchievementsCatalog.list) {
       if (ach.id == title || ach.title == title) {
         return ach.icon;
       }
     }
-
-    final emojiRegex = RegExp(
-        r'(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])');
-
-    final match = emojiRegex.firstMatch(title);
-
-    if (match != null) {
-      return match.group(0)!;
-    }
-
-    if (title.length <= 4) {
-      return title;
-    }
-
-    return '🎖️';
+    return Icons.military_tech_rounded;
   }
 
   Future<void> _handleAddFriend(String handle) async {
@@ -2845,12 +2829,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (status == FriendshipStatus.friends) {
           TopNotification.showSuccess(
             context,
-            'Пользователь @${targetProfile.handle} добавлен в друзья! 🤝',
+            'Пользователь @${targetProfile.handle} добавлен в друзья!',
           );
         } else {
           TopNotification.showSuccess(
             context,
-            'Заявка в друзья отправлена пользователю @${targetProfile.handle}! 📩',
+            'Заявка в друзья отправлена пользователю @${targetProfile.handle}!',
           );
         }
       }
@@ -3180,7 +3164,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _buildKpiCard(
                   title: 'Средняя оценка',
                   value: stats.averageRating > 0
-                      ? '${stats.averageRating.toStringAsFixed(1)} ★'
+                      ? stats.averageRating.toStringAsFixed(1)
                       : '—',
                   icon: Icons.star_rounded,
                   color: const Color(0xFFFFCA28),
@@ -3646,7 +3630,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     icon: const Icon(Icons.upload_file_rounded,
                                         size: 14),
                                     label: const Text(
-                                        'Загрузить баннер (ПК / Телефон 📱)',
+                                        'Загрузить баннер (ПК / Телефон)',
                                         style: TextStyle(fontSize: 11)),
                                     onPressed: () async {
                                       final rawImg = await PlatformHelper.pickImageRaw();
@@ -4029,14 +4013,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           borderRadius:
                                               BorderRadius.circular(4),
                                         ),
-                                        child: const Text('Надет 👑',
+                                        child: const Text('Надет',
                                             style: TextStyle(
                                                 fontSize: 9,
                                                 color: Colors.white)),
                                       )
                                     else
-                                      const Text('✅',
-                                          style: TextStyle(fontSize: 11)),
+                                      const Icon(Icons.check_circle_rounded,
+                                          size: 14, color: Color(0xFF10B981)),
                                   ],
                                 ),
                                 subtitle: Text(
@@ -4067,8 +4051,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             for (final ach in UserAchievementsCatalog.list) ...[
                               ListTile(
                                 dense: true,
-                                leading: Text(ach.icon,
-                                    style: const TextStyle(fontSize: 22)),
+                                leading: Icon(ach.icon,
+                                    size: 22, color: const Color(0xFF9F67FF)),
                                 title: Row(
                                   children: [
                                     Text(
@@ -4097,7 +4081,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           borderRadius:
                                               BorderRadius.circular(4),
                                         ),
-                                        child: const Text('Надет 👑',
+                                        child: const Text('Надет',
                                             style: TextStyle(
                                                 fontSize: 9,
                                                 color: Colors.white)),
@@ -4105,11 +4089,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     else if (availableUnlocked
                                             .contains(ach.id) ||
                                         availableUnlocked.contains(ach.title))
-                                      const Text('✅',
-                                          style: TextStyle(fontSize: 11))
+                                      const Icon(Icons.check_circle_rounded,
+                                          size: 14, color: Color(0xFF10B981))
                                     else
-                                      const Text('🔒',
-                                          style: TextStyle(fontSize: 11)),
+                                      const Icon(Icons.lock_rounded,
+                                          size: 14, color: Colors.grey),
                                   ],
                                 ),
                                 subtitle: Text(
@@ -4409,7 +4393,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                             ),
                                             child: Text(
                                               hasPassword
-                                                  ? 'Установлен ✅'
+                                                  ? 'Установлен'
                                                   : 'Не задан',
                                               style: TextStyle(
                                                 fontSize: 10,
@@ -4680,7 +4664,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     if (context.mounted) {
                       TopNotification.showSuccess(
                         context,
-                        'Профиль успешно обновлен и синхронизирован! ✨',
+                        'Профиль успешно обновлен и синхронизирован!',
                         title: 'Изменения сохранены',
                       );
                     }
@@ -4923,8 +4907,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             TopNotification.showSuccess(
                               context,
                               isChanging
-                                  ? 'Пароль успешно обновлён! ✅ Теперь вы можете входить с новым паролем.'
-                                  : 'Пароль успешно сохранён! ✅ Теперь вы можете безопасно входить с новым паролем.',
+                                  ? 'Пароль успешно обновлён! Теперь вы можете входить с новым паролем.'
+                                  : 'Пароль успешно сохранён! Теперь вы можете безопасно входить с новым паролем.',
                               title: 'Пароль сохранён',
                             );
                           }
@@ -4962,7 +4946,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                               TopNotification.showSuccess(
                                 context,
-                                'Этот пароль уже установлен и активен для вашей учетной записи! ✅',
+                                'Этот пароль уже установлен и активен для вашей учетной записи!',
                                 title: 'Пароль подтверждён',
                               );
                             }

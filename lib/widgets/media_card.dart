@@ -254,9 +254,21 @@ class _MediaCardState extends ConsumerState<MediaCard> {
     );
   }
 
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'want_to_watch':
+        return Icons.bookmark_border_rounded;
+      case 'watching':
+        return Icons.play_circle_outline_rounded;
+      case 'watched':
+        return Icons.check_circle_outline_rounded;
+      default:
+        return Icons.bookmark_border_rounded;
+    }
+  }
+
   Widget _buildInteractiveStatusMenu(String currentStatus) {
     final color = AppTheme.statusColor(currentStatus);
-    final icon = AppConstants.statusIcons[currentStatus] ?? '📋';
     final label = AppConstants.statuses[currentStatus] ?? currentStatus;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -277,19 +289,22 @@ class _MediaCardState extends ConsumerState<MediaCard> {
         itemBuilder: (ctx) => [
           _buildStatusPopupItem(
             value: 'want_to_watch',
-            icon: '🕒',
+            icon: Icons.bookmark_border_rounded,
+            iconColor: const Color(0xFFF59E0B),
             text: 'Хочу посмотреть',
             isSelected: currentStatus == 'want_to_watch',
           ),
           _buildStatusPopupItem(
             value: 'watching',
-            icon: '🍿',
+            icon: Icons.play_circle_outline_rounded,
+            iconColor: const Color(0xFF3B82F6),
             text: 'Смотрю',
             isSelected: currentStatus == 'watching',
           ),
           _buildStatusPopupItem(
             value: 'watched',
-            icon: '✅',
+            icon: Icons.check_circle_outline_rounded,
+            iconColor: const Color(0xFF10B981),
             text: 'Просмотрено',
             isSelected: currentStatus == 'watched',
           ),
@@ -318,7 +333,7 @@ class _MediaCardState extends ConsumerState<MediaCard> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(icon, style: const TextStyle(fontSize: 12)),
+              Icon(_getStatusIcon(currentStatus), size: 13, color: color),
               const SizedBox(width: 3),
               const Icon(Icons.arrow_drop_down_rounded, size: 14, color: Colors.white70),
             ],
@@ -330,7 +345,8 @@ class _MediaCardState extends ConsumerState<MediaCard> {
 
   PopupMenuItem<String> _buildStatusPopupItem({
     required String value,
-    required String icon,
+    required IconData icon,
+    required Color iconColor,
     required String text,
     required bool isSelected,
   }) {
@@ -339,7 +355,7 @@ class _MediaCardState extends ConsumerState<MediaCard> {
       value: value,
       child: Row(
         children: [
-          Text(icon, style: const TextStyle(fontSize: 15)),
+          Icon(icon, size: 16, color: iconColor),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

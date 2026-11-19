@@ -27,7 +27,7 @@ class ReviewRepository {
     required int kinopoiskId,
     required String movieTitle,
     required String authorName,
-    String authorTitle = 'Зритель CineTrack 🍿',
+    String authorTitle = 'Зритель CineTrack',
     required double rating,
     required String type,
     required String title,

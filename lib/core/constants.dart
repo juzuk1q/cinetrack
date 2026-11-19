@@ -37,11 +37,14 @@ class AppConstants {
   };
 
   static const Map<String, String> statusIcons = {
-    'want_to_watch': '📋',
-    'watching': '▶️',
-    'watched': '✅',
+    'want_to_watch': '',
+    'watching': '',
+    'watched': '',
   };
 
   static const int currentYear = 2026;
   static const int minYear = 1888;
+
+  static const String supportTelegramUrl = 'https://t.me/x1wws';
+  static const String supportHandle = 't.me/x1wws';
 }

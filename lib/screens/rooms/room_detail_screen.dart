@@ -197,7 +197,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 );
           }
           _addNotification(
-            title: 'Смена видео 🎬',
+            title: 'Смена видео',
             subtitle: mTitle ?? fName ?? u ?? 'Выбрано новое видео',
             icon: Icons.swap_horiz_rounded,
             iconColor: const Color(0xFF8B5CF6),
@@ -211,7 +211,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 newHostName: newHostName,
               );
           _addNotification(
-            title: 'Смена организатора 👑',
+            title: 'Смена организатора',
             subtitle: 'Права управления переданы: $newHostName',
             icon: Icons.admin_panel_settings_rounded,
             iconColor: const Color(0xFFF59E0B),
@@ -219,7 +219,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         } else if (action == 'USER_LEFT') {
           final uName = payload['userName'] as String? ?? 'Участник';
           _addNotification(
-            title: 'Участник вышел 🚪',
+            title: 'Участник вышел',
             subtitle: '$uName покинул комнату',
             icon: Icons.logout_rounded,
             iconColor: Colors.white60,
@@ -244,7 +244,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
         // Top toast notification for incoming chat message
         _addNotification(
-          title: '$senderName 💬',
+          title: senderName,
           subtitle: msgText,
           icon: Icons.chat_bubble_rounded,
           iconColor: const Color(0xFF9F67FF),
@@ -661,7 +661,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                             ),
                             child: Text(
                               sliderVal >= 50
-                                  ? '♾ Без лимита'
+                                  ? 'Без лимита'
                                   : '${sliderVal.round()} чел.',
                               style: TextStyle(
                                 fontSize: 11,
@@ -739,7 +739,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       ),
                       Text(
                         sliderVal >= 50
-                            ? '♾ Ползунок справа: количество участников неограниченно'
+                            ? 'Ползунок справа: количество участников неограниченно'
                             : 'Точная настройка: максимум ${sliderVal.round()} зрителей одновременно',
                         style: const TextStyle(fontSize: 11, color: Colors.white54),
                       ),
@@ -760,7 +760,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         value: 0,
                         // ignore: deprecated_member_use
                         groupValue: controlMode,
-                        title: const Text('🔒 Только организатор (рекомендуется)'),
+                        title: const Text('Только организатор (рекомендуется)'),
                         subtitle: const Text(
                           'Зрители смотрят синхронно, паузой и перемоткой управляете только вы',
                           style: TextStyle(fontSize: 11, color: Colors.white60),
@@ -777,7 +777,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         value: 1,
                         // ignore: deprecated_member_use
                         groupValue: controlMode,
-                        title: const Text('👥 Все участники'),
+                        title: const Text('Все участники'),
                         subtitle: const Text(
                           'Любой зритель в комнате может ставить на паузу и перематывать видео',
                           style: TextStyle(fontSize: 11, color: Colors.white60),
@@ -794,7 +794,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         value: 2,
                         // ignore: deprecated_member_use
                         groupValue: controlMode,
-                        title: const Text('🎯 Точечная настройка участников'),
+                        title: const Text('Точечная настройка участников'),
                         subtitle: const Text(
                           'Разрешить ставить на паузу и перематывать только выбранным зрителям',
                           style: TextStyle(fontSize: 11, color: Colors.white60),
@@ -1323,13 +1323,20 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                           borderRadius:
                                               BorderRadius.circular(6),
                                         ),
-                                        child: Text(
-                                          '★ ${item.rating.toStringAsFixed(1)}',
-                                          style: const TextStyle(
-                                            color: Color(0xFFF59E0B),
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 11,
-                                          ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
+                                            const SizedBox(width: 2),
+                                            Text(
+                                              item.rating.toStringAsFixed(1),
+                                              style: const TextStyle(
+                                                color: Color(0xFFF59E0B),
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                       onTap: () {
@@ -1381,7 +1388,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final searchCtrl = TextEditingController();
     final linkCtrl = TextEditingController();
     int currentTab = 0; // 0: Browse/Search, 1: Direct link
-    String selectedCategory = '🔥 В тренде';
+    String selectedCategory = 'В тренде';
     List<YouTubeVideoItem> videos = YouTubeService.curatedPopular;
     bool isLoading = false;
 
@@ -1558,12 +1565,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            '🔥 В тренде',
-                            '🎬 Трейлеры',
-                            '🎮 Игры',
-                            '🎵 Музыка',
-                            '💡 Подкасты & Шоу',
-                            '🍿 Аниме',
+                            'В тренде',
+                            'Трейлеры',
+                            'Игры',
+                            'Музыка',
+                            'Подкасты & Шоу',
+                            'Аниме',
                           ].map((cat) {
                             final isSel = selectedCategory == cat;
                             return Padding(
@@ -1573,11 +1580,10 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                 selected: isSel,
                                 onSelected: (_) {
                                   setDlgState(() => selectedCategory = cat);
-                                  if (cat == '🔥 В тренде') {
+                                  if (cat == 'В тренде') {
                                     performSearch('');
                                   } else {
-                                    performSearch(
-                                        cat.replaceAll(RegExp(r'[^\w\sа-яА-ЯёЁ]'), '').trim());
+                                    performSearch(cat.trim());
                                   }
                                 },
                               ),
@@ -2607,7 +2613,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Text('🍿', style: TextStyle(fontSize: 40)),
+                child: const Icon(Icons.movie_rounded, size: 40, color: Color(0xFF9F67FF)),
               ),
               const SizedBox(height: 20),
               const Text(
@@ -2656,7 +2662,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Выберите, что вы будете смотреть вместе 🍿',
+                        'Выберите, что вы будете смотреть вместе',
                         style: TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w800),
                       ),

@@ -1,11 +1,11 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AchievementTitle {
   final String id;
   final String title;
   final String description;
-  final String icon;
+  final IconData icon;
   final String category;
 
   const AchievementTitle({
@@ -23,93 +23,93 @@ class UserAchievementsCatalog {
   static const List<AchievementTitle> list = [
     AchievementTitle(
       id: 'welcome',
-      title: 'Новичок стримов 🍿',
+      title: 'Новичок стримов',
       description: 'Регистрация в CineTrack. Первый шаг в мир совместных просмотров!',
-      icon: '🍿',
+      icon: Icons.play_circle_outline_rounded,
       category: 'Начало',
     ),
     AchievementTitle(
       id: 'collector_3',
-      title: 'Киноман 🎬',
+      title: 'Киноман',
       description: 'Собрать в личной коллекции 3 или более фильмов или сериалов',
-      icon: '🎬',
+      icon: Icons.video_library_rounded,
       category: 'Коллекция',
     ),
     AchievementTitle(
       id: 'collector_10',
-      title: 'Хранитель кинозала 🏛️',
+      title: 'Хранитель кинозала',
       description: 'Добавить 10 или более фильмов в свою персональную коллекцию',
-      icon: '🏛️',
+      icon: Icons.account_balance_rounded,
       category: 'Коллекция',
     ),
     AchievementTitle(
       id: 'popcorn_master',
-      title: 'Мастер попкорна 🍿',
+      title: 'Мастер попкорна',
       description: 'Отметить фильм или эпизод как полностью просмотренный',
-      icon: '🍿',
+      icon: Icons.check_circle_outline_rounded,
       category: 'Просмотры',
     ),
     AchievementTitle(
       id: 'party_host',
-      title: 'Создатель комнат 👑',
+      title: 'Создатель комнат',
       description: 'Создать комнату для совместного синхронного просмотра с друзьями',
-      icon: '👑',
+      icon: Icons.meeting_room_rounded,
       category: 'Совместные',
     ),
     AchievementTitle(
       id: 'night_owl',
-      title: 'Полуночник 🦉',
+      title: 'Полуночник',
       description: 'Смотреть кино после 23:00 или собрать 5 любимых картин в избранное',
-      icon: '🦉',
+      icon: Icons.nightlight_round,
       category: 'Особые',
     ),
     AchievementTitle(
       id: 'critic',
-      title: 'Кинокритик 💬',
+      title: 'Кинокритик',
       description: 'Поставить пользовательскую оценку или написать рецензию фильму',
-      icon: '💬',
+      icon: Icons.rate_review_rounded,
       category: 'Активность',
     ),
     AchievementTitle(
       id: 'social',
-      title: 'Душа компании 🤝',
+      title: 'Душа компании',
       description: 'Добавить первого друга в CineTrack для быстрых приглашений',
-      icon: '🤝',
+      icon: Icons.people_alt_rounded,
       category: 'Друзья',
     ),
     AchievementTitle(
       id: 'anime_guru',
-      title: 'Аниме-гуру ⚡',
+      title: 'Аниме-гуру',
       description: 'Добавить аниме или мультипликационный сериал в коллекцию',
-      icon: '⚡',
+      icon: Icons.auto_awesome_rounded,
       category: 'Жанры',
     ),
     AchievementTitle(
       id: 'veteran',
-      title: 'Ветеран CineTrack 🛡️',
+      title: 'Ветеран CineTrack',
       description: 'Постоянный активный участник киносообщества CineTrack',
-      icon: '🛡️',
+      icon: Icons.verified_user_rounded,
       category: 'Особые',
     ),
     AchievementTitle(
       id: 'legend',
-      title: 'Легенда платформы 🌟',
+      title: 'Легенда платформы',
       description: 'Выдающийся статус создателя или активнейшего участника CineTrack',
-      icon: '🌟',
+      icon: Icons.star_rounded,
       category: 'Особые',
     ),
     AchievementTitle(
       id: 'vip_streamer',
-      title: 'VIP Киноман 💎',
+      title: 'VIP Киноман',
       description: 'Премиальный статус кинолюбителя CineTrack',
-      icon: '💎',
+      icon: Icons.diamond_rounded,
       category: 'Особые',
     ),
     AchievementTitle(
       id: 'coder_badge',
-      title: 'Архитектор кода 💻',
+      title: 'Архитектор кода',
       description: 'Создатель и разработчик архитектуры платформы',
-      icon: '💻',
+      icon: Icons.terminal_rounded,
       category: 'Особые',
     ),
   ];
@@ -122,7 +122,7 @@ class UserProfile {
   final String username;
   final String role; // 'user', 'moderator', 'admin'
   final DateTime createdAt;
-  final String? customTitle; // e.g. 'Мастер попкорна 🍿', 'Кинокритик 💬', 'Легенда платформы 🌟', etc.
+  final String? customTitle; // e.g. 'Мастер попкорна', 'Кинокритик', 'Легенда платформы', etc.
   final String? bannerUrl;
   final String? avatarUrl;
   final bool isPrivate;
@@ -205,34 +205,21 @@ class UserProfile {
     }
   }
 
-  String? get roleIcon {
-    switch (role.toLowerCase()) {
-      case 'admin':
-        return '⭐';
-      case 'moderator':
-        return '🛡️';
-      case 'user':
-      default:
-        return null;
-    }
-  }
+  String? get roleIcon => null;
 
   String? get roleLabel {
-    final name = roleDisplayName;
-    final icon = roleIcon;
-    if (name == null || icon == null) return null;
-    return '$name $icon';
+    return roleDisplayName;
   }
 
   String get fullRoleTitle {
     switch (role.toLowerCase()) {
       case 'admin':
-        return 'Администратор ⭐';
+        return 'Администратор';
       case 'moderator':
-        return 'Модератор 🛡️';
+        return 'Модератор';
       case 'user':
       default:
-        return 'Пользователь 👤';
+        return 'Пользователь';
     }
   }
 
@@ -270,7 +257,7 @@ class UserProfile {
     if (customTitle != null && customTitle!.trim().isNotEmpty) {
       return customTitle!.trim();
     }
-    return 'Новичок стримов 🍿';
+    return 'Новичок стримов';
   }
 
   const UserProfile({

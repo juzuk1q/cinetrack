@@ -597,7 +597,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final ownerId = user.id;
 
     final room = await ref.read(roomsProvider.notifier).createRoom(
-          title: 'Совместный сеанс: ${item.title} 🍿',
+          title: 'Совместный сеанс: ${item.title}',
           movieTitle: item.title,
           movieType: item.type,
           moviePoster: item.posterUrl,
@@ -612,7 +612,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     TopNotification.showSuccess(
       context,
       'Комната создана! Подключаемся...',
-      title: 'Комната совместного просмотра 🍿',
+      title: 'Комната совместного просмотра',
     );
     context.go('/rooms/${room.id}');
   }
@@ -1046,7 +1046,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 border: Border.all(color: const Color(0xFF7C3AED), width: 0.8),
                               ),
                               child: const Text(
-                                '★ В ТРЕНДЕ',
+                                'В ТРЕНДЕ',
                                 style: TextStyle(
                                   color: Color(0xFF7C3AED),
                                   fontSize: 9.5,
@@ -1187,7 +1187,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Action Buttons: [ ▶ Смотреть онлайн ] [ 🍿 С друзьями ] [ 🎬 Трейлер ] [ 🔖 В избранное ] [ ℹ️ О фильме ]
+                        // Action Buttons: [ Смотреть онлайн ] [ С друзьями ] [ Трейлер ] [ В избранное ] [ О фильме ]
                         Wrap(
                           spacing: 10,
                           runSpacing: 10,
@@ -1221,7 +1221,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                               icon: const Icon(Icons.groups_rounded, size: 17),
                               label: const Text(
-                                'Смотреть с друзьями 🍿',
+                                'Смотреть с друзьями',
                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                               ),
                               onPressed: () => _startSlidePartyWatch(slide),
@@ -1236,9 +1236,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 padding: EdgeInsets.symmetric(horizontal: btnHorizPad, vertical: btnVertPad),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
-                              icon: const Icon(Icons.movie_filter_rounded, size: 17, color: Color(0xFFD97706)),
+                              icon: const Icon(Icons.play_circle_outline_rounded, size: 17, color: Color(0xFFD97706)),
                               label: const Text(
-                                'Трейлер ▶',
+                                'Трейлер',
                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
                               ),
                               onPressed: () => _openTrailerModal(context, slide),
@@ -1377,13 +1377,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(color: const Color(0xFFFFCA28), width: 0.8),
                                     ),
-                                    child: Text(
-                                      '★ ${slide.rating.toStringAsFixed(1)}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFFFFCA28),
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFFFCA28)),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          slide.rating.toStringAsFixed(1),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFFFFCA28),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -1721,13 +1728,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(color: const Color(0xFFFFCA28), width: 0.8),
                         ),
-                        child: Text(
-                          '★ ${rating.toStringAsFixed(1)}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFFFFCA28),
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFCA28)),
+                            const SizedBox(width: 2),
+                            Text(
+                              rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFFFCA28),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1840,13 +1854,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: const Color(0xFFFFCA28), width: 0.8),
                       ),
-                      child: Text(
-                        '★ ${rating.toStringAsFixed(1)}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFFFFCA28),
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFCA28)),
+                          const SizedBox(width: 2),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFFFCA28),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

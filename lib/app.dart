@@ -55,6 +55,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.read(authStateProvider);
   final authRepo = ref.read(authRepositoryProvider);
 
+  // Automatically refresh GoRouter when user profile loads or changes status
+  ref.listen(userProfileProvider, (previous, next) {
+    authNotifier.triggerUpdate();
+  });
+
   return GoRouter(
     initialLocation: '/home',
     redirect: (context, state) {

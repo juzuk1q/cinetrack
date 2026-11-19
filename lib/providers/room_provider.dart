@@ -97,7 +97,7 @@ class RoomRepository {
         await _insertMessage(
           roomId: roomId,
           userName: ownerName,
-          text: 'Комната создана! Ждём зрителей к просмотру 🍿',
+          text: 'Комната создана! Ждём зрителей к просмотру',
           userId: effectiveOwnerId,
         );
         return room;
@@ -133,7 +133,7 @@ class RoomRepository {
         await _insertMessage(
           roomId: roomId,
           userName: ownerName,
-          text: 'Комната создана! Ждём зрителей к просмотру 🍿',
+          text: 'Комната создана! Ждём зрителей к просмотру',
           userId: effectiveOwnerId,
         );
         return room;

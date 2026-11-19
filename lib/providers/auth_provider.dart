@@ -220,8 +220,7 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
 
       // Check restrictions (ban / active freeze)
       if (prof.isRestricted) {
-        debugPrint('Active user account is restricted (${prof.isBlocked ? "blocked" : "frozen"}). Enforcing sign out.');
-        Future.microtask(() => ref.read(authRepositoryProvider).signOut());
+        debugPrint('Active user account is restricted (${prof.isBlocked ? "blocked" : "frozen"}).');
       }
 
       // Automatically sync missing avatar or display name from Google

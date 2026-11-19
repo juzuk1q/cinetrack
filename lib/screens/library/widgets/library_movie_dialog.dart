@@ -238,8 +238,8 @@ class _MovieDetailDialogState extends State<LibraryMovieDetailDialog> {
                                   Expanded(
                                     child: Text(
                                       _item.isSeries
-                                          ? '📺 В плеере доступен выбор всех серий (1, 2, 3...), сезонов и озвучек (Дубляж, AniLibria, Студийная банда, SHIZA Project и др.)'
-                                          : '🎬 В плеере доступно качество Full HD / 4K с выбором профессионального дубляжа и субтитров',
+                                          ? 'В плеере доступен выбор всех серий (1, 2, 3...), сезонов и озвучек (Дубляж, AniLibria, Студийная банда, SHIZA Project и др.)'
+                                          : 'В плеере доступно качество Full HD / 4K с выбором профессионального дубляжа и субтитров',
                                       style: TextStyle(
                                         color: _item.isSeries
                                             ? const Color(0xFFC7D2FE)
@@ -356,7 +356,7 @@ class _MovieDetailDialogState extends State<LibraryMovieDetailDialog> {
                           horizontal: 16, vertical: 12),
                     ),
                     icon: const Icon(Icons.groups_rounded, size: 18),
-                    label: const Text('Смотреть с друзьями 🍿'),
+                    label: const Text('Смотреть с друзьями'),
                     onPressed: widget.onPartyWatch,
                   ),
                   ElevatedButton.icon(

@@ -187,7 +187,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         if (!mounted) return;
         TopNotification.showSuccess(
           context,
-          '«${catalogItem.title}» удалён из вашей коллекции 🗑️',
+          '«${catalogItem.title}» удалён из вашей коллекции',
           title: 'Коллекция',
         );
       } catch (e) {
@@ -368,7 +368,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                               const SizedBox(width: 24),
                               _buildZetaTab('cartoon', 'Мультфильмы'),
                               const SizedBox(width: 24),
-                              _buildZetaTab('anime', 'Аниме 🌸'),
+                              _buildZetaTab('anime', 'Аниме'),
                             ],
                           ),
                         ),
@@ -435,7 +435,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                       padding: EdgeInsets.symmetric(vertical: 28),
                       child: Center(
                         child: Text(
-                          'Вы просмотрели всю подборку шедевров! 🍿',
+                          'Вы просмотрели всю подборку шедевров!',
                           style: TextStyle(
                             color: Colors.white38,
                             fontSize: 12,

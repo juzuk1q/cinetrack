@@ -1,3 +1,4 @@
+import 'dart:ui';
 import '../../models/media_item.dart';
 import '../../providers/media_provider.dart';
 import '../../providers/stats_provider.dart';
@@ -160,6 +161,19 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   bool _isLoadingSeasons = false;
 
   final TextEditingController _commentCtrl = TextEditingController();
+  final ScrollController _seasonsScrollCtrl = ScrollController();
+
+  void _scrollToSeason(int seasonNum, List<SeriesSeason> seasons) {
+    final idx = seasons.indexWhere((s) => s.number == seasonNum);
+    if (idx != -1 && _seasonsScrollCtrl.hasClients) {
+      final target = (idx * 115.0) - 40.0;
+      _seasonsScrollCtrl.animateTo(
+        target.clamp(0.0, _seasonsScrollCtrl.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -181,6 +195,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
   void dispose() {
     _iframeController.dispose();
     _commentCtrl.dispose();
+    _seasonsScrollCtrl.dispose();
     super.dispose();
   }
 
@@ -593,7 +608,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       TopNotification.showSuccess(
         context,
         newStatus == 'watched'
-            ? '«${widget.title}» отмечен как просмотренный! 🎉'
+            ? '«${widget.title}» отмечен как просмотренный'
             : '«${widget.title}» перемещён в «Хочу посмотреть»',
         title: 'Коллекция обновлена',
       );
@@ -621,8 +636,8 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
       if (!mounted) return;
       TopNotification.showSuccess(
         context,
-        '«${widget.title}» добавлен в просмотренные! 🎉',
-        title: 'Просмотрено ✓',
+        '«${widget.title}» добавлен в просмотренные',
+        title: 'Просмотрено',
       );
     }
   }
@@ -657,7 +672,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
     final room = await ref.read(roomsProvider.notifier).createRoom(
 
-      title: 'Смотрим: ${widget.title} 🍿',
+      title: 'Смотрим: ${widget.title}',
 
       movieTitle: widget.title,
 
@@ -773,7 +788,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
           context,
 
-          'Комментарий опубликован! ✨',
+          'Комментарий опубликован',
 
           title: 'Обсуждение',
 
@@ -1291,7 +1306,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                                 color: isWatched ? const Color(0xFF10B981) : null,
                               ),
                               label: Text(
-                                isWatched ? 'Просмотрено ✓' : 'В просмотрено',
+                                isWatched ? 'Просмотрено' : 'В просмотрено',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: isWatched ? FontWeight.w800 : FontWeight.w600,
@@ -1331,9 +1346,9 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
                               MediaQuery.of(context).size.width < 550
 
-                                  ? 'С друзьями 🍿'
+                                  ? 'С друзьями'
 
-                                  : 'Смотреть с друзьями 🍿',
+                                  : 'Смотреть с друзьями',
 
                               style: const TextStyle(
 
@@ -2003,64 +2018,196 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
           if (effectiveSeasons.length > 1) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(
-                'Сезон',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white54 : const Color(0xFF6B7280),
-                ),
+              child: Row(
+                children: [
+                  Text(
+                    'Сезон',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Quick Season Picker Dropdown (impossible to miss or get stuck)
+                  PopupMenuButton<int>(
+                    tooltip: 'Выбрать сезон из списка',
+                    color: isDark ? const Color(0xFF1E1E34) : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                    ),
+                    itemBuilder: (context) => effectiveSeasons.map((s) {
+                      final isCur = s.number == _viewingSeason;
+                      return PopupMenuItem<int>(
+                        value: s.number,
+                        child: Row(
+                          children: [
+                            Icon(
+                              isCur ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                              size: 16,
+                              color: isCur ? const Color(0xFF9F67FF) : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Сезон ${s.number}${s.airedCount > 0 ? " (${s.airedCount} сер.)" : ""}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isCur ? FontWeight.w700 : FontWeight.w500,
+                                color: isCur
+                                    ? const Color(0xFF9F67FF)
+                                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onSelected: (seasonNum) {
+                      setState(() {
+                        _viewingSeason = seasonNum;
+                      });
+                      _scrollToSeason(seasonNum, effectiveSeasons);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Сезон $_viewingSeason из ${effectiveSeasons.length}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? const Color(0xFFC084FC) : const Color(0xFF7C3AED),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_drop_down_rounded,
+                            size: 16,
+                            color: isDark ? const Color(0xFFC084FC) : const Color(0xFF7C3AED),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Left / Right Scroll Buttons (for PC mouse users & small screens)
+                  InkWell(
+                    onTap: () {
+                      if (_seasonsScrollCtrl.hasClients) {
+                        _seasonsScrollCtrl.animateTo(
+                          (_seasonsScrollCtrl.offset - 140).clamp(0.0, _seasonsScrollCtrl.position.maxScrollExtent),
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutCubic,
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                      ),
+                      child: Icon(Icons.chevron_left_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: () {
+                      if (_seasonsScrollCtrl.hasClients) {
+                        _seasonsScrollCtrl.animateTo(
+                          (_seasonsScrollCtrl.offset + 140).clamp(0.0, _seasonsScrollCtrl.position.maxScrollExtent),
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutCubic,
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E34) : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                      ),
+                      child: Icon(Icons.chevron_right_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                    ),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 4),
             SizedBox(
-              height: 36,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                scrollDirection: Axis.horizontal,
-                itemCount: effectiveSeasons.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (context, idx) {
-                  final s = effectiveSeasons[idx];
-                  final isSelected = s.number == _viewingSeason;
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        _viewingSeason = s.number;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFF7C3AED)
-                            : (isDark ? const Color(0xFF1E1E34) : const Color(0xFFF3F4F6)),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
+              height: 38,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                    PointerDeviceKind.stylus,
+                  },
+                ),
+                child: ListView.separated(
+                  controller: _seasonsScrollCtrl,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: effectiveSeasons.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, idx) {
+                    final s = effectiveSeasons[idx];
+                    final isSelected = s.number == _viewingSeason;
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          _viewingSeason = s.number;
+                        });
+                        _scrollToSeason(s.number, effectiveSeasons);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                        decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF9F67FF)
-                              : (isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
-                          width: isSelected ? 1.4 : 0.8,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          s.hasUpcoming
-                              ? 'Сезон ${s.number} (${s.airedCount}/${s.totalCount})'
-                              : 'Сезон ${s.number}',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              ? const Color(0xFF7C3AED)
+                              : (isDark ? const Color(0xFF1E1E34) : const Color(0xFFF3F4F6)),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
                             color: isSelected
-                                ? Colors.white
-                                : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                                ? const Color(0xFF9F67FF)
+                                : (isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                            width: isSelected ? 1.4 : 0.8,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            s.hasUpcoming
+                                ? 'Сезон ${s.number} (${s.airedCount}/${s.totalCount})'
+                                : 'Сезон ${s.number}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -2234,18 +2381,18 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
                                   : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(
-                          isPlaying
-                              ? '▶'
-                              : (isWatched ? '✓' : '—'),
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: isPlaying || isWatched
-                                ? Colors.white
-                                : (isDark ? Colors.white54 : const Color(0xFF64748B)),
-                          ),
-                        ),
+                        child: isPlaying
+                            ? const Icon(Icons.play_arrow_rounded, size: 10, color: Colors.white)
+                            : (isWatched
+                                ? const Icon(Icons.check_rounded, size: 10, color: Colors.white)
+                                : Text(
+                                    '—',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                    ),
+                                  )),
                       ),
                     ),
                   ],
@@ -2910,7 +3057,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
                               const Text(
 
-                                'Вы тут 📍',
+                                'Вы тут',
 
                                 style: TextStyle(
 
@@ -3126,7 +3273,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
                                 child: Text(
 
-                                  '★ ${sim.rating.toStringAsFixed(1)}',
+                                  sim.rating.toStringAsFixed(1),
 
                                   style: const TextStyle(
 
@@ -3378,7 +3525,7 @@ class _SoloWatchScreenState extends ConsumerState<SoloWatchScreen> {
 
                     Text(
 
-                      '💡 Чтобы добавить таймкод, просто напишите его в тексте: 12:45 или 01:20:10',
+                      'Чтобы добавить таймкод, просто напишите его в тексте: 12:45 или 01:20:10',
 
                       style: TextStyle(
 

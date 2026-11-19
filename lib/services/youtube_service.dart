@@ -203,7 +203,7 @@ class YouTubeService {
     ),
     YouTubeVideoItem(
       videoId: 'jfKfPfyJRdk',
-      title: 'lofi hip hop radio 📚 - beats to relax/study to',
+      title: 'lofi hip hop radio - beats to relax/study to',
       author: 'Lofi Girl',
       thumbnailUrl: 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg',
       duration: 'LIVE',

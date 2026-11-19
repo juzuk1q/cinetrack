@@ -1173,7 +1173,7 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    widget.isFullscreen ? 'Свернуть' : 'На весь экран ⛶',
+                    widget.isFullscreen ? 'Свернуть' : 'На весь экран',
                     style: const TextStyle(
                         fontSize: 11,
                         color: Colors.white,
@@ -1297,8 +1297,8 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
               const SizedBox(width: 6),
               Text(
                 widget.isHost
-                    ? '👑 Пульт у вас'
-                    : (canControl ? '👥 Пульт у всех' : '🔒 Синхронизировано'),
+                    ? 'Пульт у вас'
+                    : (canControl ? 'Пульт у всех' : 'Синхронизировано'),
                 style: TextStyle(
                   color: widget.isHost
                       ? const Color(0xFF9F67FF)
@@ -1339,7 +1339,7 @@ class RoomSyncPlayerState extends State<RoomSyncPlayer> {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  widget.isFullscreen ? 'Обычный' : 'Во весь экран ⛶',
+                  widget.isFullscreen ? 'Обычный' : 'Во весь экран',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,

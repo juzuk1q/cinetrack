@@ -153,7 +153,7 @@ class AppSidebar extends ConsumerWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Tooltip(
-          message: isAdmin ? '$displayName 👑' : displayName,
+          message: displayName,
           child: InkWell(
             onTap: () => context.go('/profile'),
             borderRadius: BorderRadius.circular(20),
@@ -176,9 +176,9 @@ class AppSidebar extends ConsumerWidget {
                 ),
                 if (isAdmin)
                   const Positioned(
-                    right: -4,
-                    bottom: -4,
-                    child: Text('👑', style: TextStyle(fontSize: 11)),
+                    right: -2,
+                    bottom: -2,
+                    child: Icon(Icons.shield_rounded, size: 12, color: Color(0xFFF59E0B)),
                   ),
               ],
             ),
@@ -235,8 +235,10 @@ class AppSidebar extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          if (isAdmin)
-                            const Text(' 👑', style: TextStyle(fontSize: 12)),
+                          if (isAdmin) ...[
+                            const SizedBox(width: 4),
+                            const Icon(Icons.shield_rounded, size: 13, color: Color(0xFFF59E0B)),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 1),

@@ -392,7 +392,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     final ownerId = user.id;
 
     final room = await ref.read(roomsProvider.notifier).createRoom(
-          title: 'Совместный просмотр: ${_item!.title} 🍿',
+          title: 'Совместный просмотр: ${_item!.title}',
           movieTitle: _item!.title,
           movieType: _item!.type,
           moviePoster: _item!.posterUrl,
@@ -411,7 +411,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
     TopNotification.showSuccess(
       context,
       'Комната «${_item!.title}» создана! Подключаемся...',
-      title: 'Комната создана 🍿',
+      title: 'Комната создана',
     );
 
     context.go('/rooms/${room.id}');
@@ -443,7 +443,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           if (!mounted) return;
           TopNotification.showSuccess(
             context,
-            '«${_item!.title}» удалён из вашей коллекции 🗑️',
+            '«${_item!.title}» удалён из вашей коллекции',
             title: 'Коллекция',
           );
         } catch (e) {
@@ -940,11 +940,11 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
   String _getBestVoiceover(CatalogItem item) {
     if (item.type == 'anime') {
-      return 'AniLibria (9.8 ★) • Выбор зрителей';
+      return 'AniLibria (9.8/10) • Выбор зрителей';
     } else if (item.type == 'series') {
-      return 'LostFilm / HDRezka (9.6 ★) • Выбор зрителей';
+      return 'LostFilm / HDRezka (9.6/10) • Выбор зрителей';
     }
-    return 'Дублированный перевод (9.7 ★) • Выбор зрителей';
+    return 'Дублированный перевод (9.7/10) • Выбор зрителей';
   }
 
   Map<String, dynamic> _getContentAdvisory(CatalogItem item) {
@@ -960,7 +960,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
     if (isKidOrFamily) {
       return {
-        'badge': '6+ 🟢 Для любой аудитории',
+        'badge': '6+ Для любой аудитории',
         'desc': 'Подходит для семейного и детского просмотра, без жестокости',
         'isWarning': false,
       };
@@ -975,7 +975,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
     if (isExtremeGore) {
       return {
-        'badge': '18+ ⚠️ Сцены насилия & кровь',
+        'badge': '18+ Сцены насилия и кровь',
         'desc': 'Присутствуют напряжённые сцены, жестокость и кровь',
         'isWarning': true,
       };
@@ -987,14 +987,14 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
 
     if (isTeenAdvisory) {
       return {
-        'badge': '16+ ⚠️ Возрастные ограничения',
+        'badge': '16+ Возрастные ограничения',
         'desc': 'Присутствуют динамичные сцены экшена и напряжения',
         'isWarning': false,
       };
     }
 
     return {
-      'badge': '12+ 🟢 Без жестоких сцен',
+      'badge': '12+ Без жестоких сцен',
       'desc': 'Подходит для широкого просмотра, без сцен крови и насилия',
       'isWarning': false,
     };
@@ -1202,12 +1202,12 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
   }
 
   PopupMenuItem<String> _buildStatusMenuItem(
-      String value, String icon, String title, bool isSelected, [bool isDark = true]) {
+      String value, IconData icon, String title, bool isSelected, [bool isDark = true]) {
     return PopupMenuItem<String>(
       value: value,
       child: Row(
         children: [
-          Text(icon, style: const TextStyle(fontSize: 15)),
+          Icon(icon, size: 16, color: isSelected ? const Color(0xFF9F67FF) : (isDark ? Colors.white60 : const Color(0xFF64748B))),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -1416,7 +1416,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 border: Border.all(color: const Color(0xFF7C3AED), width: 0.8),
               ),
               child: Text(
-                '🎧 ${_getBestVoiceover(item)}',
+                _getBestVoiceover(item),
                 style: TextStyle(
                   color: isDark ? const Color(0xFFDDD6FE) : const Color(0xFF6D28D9),
                   fontWeight: FontWeight.w700,
@@ -1443,13 +1443,13 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
         ),
         const SizedBox(height: 22),
 
-        // Action Buttons Row (Matching mockup: [▶ Watch] [🎬 Трейлер] [🍿 Совместный] [🔖 В коллекцию])
+        // Action Buttons Row (Matching mockup: [Watch] [Трейлер] [Совместный] [В коллекцию])
         Wrap(
           spacing: 12,
           runSpacing: 10,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            // 1. Button: [ 🎬 Трейлер ▶ ]
+            // 1. Button: [ Трейлер ]
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -1467,7 +1467,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               icon: const Icon(Icons.play_circle_outline_rounded,
                   size: 18, color: Color(0xFFF59E0B)),
               label: const Text(
-                'Трейлер ▶',
+                'Трейлер',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
               ),
               onPressed: () => _openTrailerModal(item),
@@ -1500,7 +1500,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
               ),
             ),
 
-            // Secondary Button: [ 🍿 Совместный просмотр ]
+            // Secondary Button: [ Совместный просмотр ]
             BouncyButton(
               onTap: _startPartyWatch,
               child: OutlinedButton.icon(
@@ -1516,7 +1516,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 icon: const Icon(Icons.groups_rounded,
                     size: 18, color: Color(0xFF9F67FF)),
                 label: const Text(
-                  'Смотреть с друзьями 🍿',
+                  'Смотреть с друзьями',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                 ),
                 onPressed: _startPartyWatch,
@@ -1540,9 +1540,9 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                 tooltip: 'Выбрать категорию для фильма',
                 onSelected: _setCollectionStatus,
                 itemBuilder: (ctx) => [
-                  _buildStatusMenuItem('want_to_watch', '🕒', 'Хочу посмотреть', savedStatus == 'want_to_watch', isDark),
-                  _buildStatusMenuItem('watching', '🍿', 'Смотрю', savedStatus == 'watching', isDark),
-                  _buildStatusMenuItem('watched', '✅', 'Просмотрено', savedStatus == 'watched', isDark),
+                  _buildStatusMenuItem('want_to_watch', Icons.schedule_rounded, 'Хочу посмотреть', savedStatus == 'want_to_watch', isDark),
+                  _buildStatusMenuItem('watching', Icons.play_circle_outline_rounded, 'Смотрю', savedStatus == 'watching', isDark),
+                  _buildStatusMenuItem('watched', Icons.check_circle_outline_rounded, 'Просмотрено', savedStatus == 'watched', isDark),
                   if (isSaved) ...[
                     const PopupMenuDivider(height: 1),
                     const PopupMenuItem<String>(
@@ -1586,10 +1586,10 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                       Text(
                         isSaved
                             ? (savedStatus == 'want_to_watch'
-                                ? 'Хочу посмотреть 🕒'
+                                ? 'Хочу посмотреть'
                                 : (savedStatus == 'watching'
-                                    ? 'Смотрю 🍿'
-                                    : (savedStatus == 'watched' ? 'Просмотрено ✅' : 'В коллекции')))
+                                    ? 'Смотрю'
+                                    : (savedStatus == 'watched' ? 'Просмотрено' : 'В коллекции')))
                             : 'В коллекцию',
                         style: TextStyle(
                           color: isSaved
@@ -1954,13 +1954,20 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                       color: const Color(0xFFFFCA28),
                                       width: 0.8),
                                 ),
-                                child: Text(
-                                  '★ ${sim.rating.toStringAsFixed(1)}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFFFFCA28),
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.star_rounded, size: 11, color: Color(0xFFFFCA28)),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      sim.rating.toStringAsFixed(1),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFFFFCA28),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -2037,7 +2044,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
           Row(
             children: [
               Text(
-                '💬 Отзывы и рецензии (${reviews.length})',
+                'Отзывы и рецензии (${reviews.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 18,
@@ -2483,7 +2490,7 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
       return;
     }
     final profile = ref.read(userProfileProvider).value;
-    final effectiveTitle = profile?.effectiveTitle ?? 'Зритель CineTrack 🍿';
+    final effectiveTitle = profile?.effectiveTitle ?? 'Зритель CineTrack';
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     double ratingVal = 9.0;
@@ -2539,12 +2546,19 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen> {
                                   .withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(
-                              '★ ${ratingVal.toStringAsFixed(1)} / 10',
-                              style: const TextStyle(
-                                  color: Color(0xFFF59E0B),
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${ratingVal.toStringAsFixed(1)} / 10',
+                                  style: const TextStyle(
+                                      color: Color(0xFFF59E0B),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13),
+                                ),
+                              ],
                             ),
                           ),
                         ],

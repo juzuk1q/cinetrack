@@ -159,7 +159,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                             ),
                             child: Text(
                               sliderVal >= 50
-                                  ? '♾ Без лимита'
+                                  ? 'Без лимита'
                                   : '${sliderVal.round()} чел.',
                               style: TextStyle(
                                 fontSize: 11,
@@ -237,7 +237,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                       ),
                       Text(
                         sliderVal >= 50
-                            ? '♾ Ползунок справа: количество участников неограниченно'
+                            ? 'Ползунок справа: количество участников неограниченно'
                             : 'Точная настройка: максимум ${sliderVal.round()} зрителей одновременно',
                         style: const TextStyle(fontSize: 11, color: Colors.white54),
                       ),
@@ -431,14 +431,14 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                                           setState(() => _filter = 'all'),
                                     ),
                                     ChoiceChip(
-                                      avatar: const Text('🍿'),
+                                      avatar: const Icon(Icons.play_circle_outline_rounded, size: 16),
                                       label: const Text('Смотрят прямо сейчас'),
                                       selected: _filter == 'watching',
                                       onSelected: (_) =>
                                           setState(() => _filter = 'watching'),
                                     ),
                                     ChoiceChip(
-                                      avatar: const Text('⏳'),
+                                      avatar: const Icon(Icons.schedule_rounded, size: 16),
                                       label: const Text('Запланированные'),
                                       selected: _filter == 'preparing',
                                       onSelected: (_) =>
@@ -489,7 +489,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
                                   icon: const Icon(Icons.add_rounded, size: 20),
-                                  label: const Text('Создать комнату 🍿', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  label: const Text('Создать комнату', style: TextStyle(fontWeight: FontWeight.bold)),
                                   onPressed: _showCreateRoomDialog,
                                 ),
                               ],

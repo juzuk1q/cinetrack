@@ -331,7 +331,7 @@ class _CatalogCardWidgetState extends State<CatalogCardWidget> {
                                 color: const Color(0xFF7C3AED), width: 1),
                           ),
                           child: const Tooltip(
-                            message: 'Смотреть с друзьями 🍿',
+                            message: 'Смотреть с друзьями',
                             child: Icon(Icons.groups_rounded,
                                 size: 18, color: Color(0xFFC084FC)),
                           ),

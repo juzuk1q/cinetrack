@@ -261,7 +261,6 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
             ? userProf!.avatarUrl
             : googleAvatar);
 
-    final roleIcon = userProf?.roleIcon ?? (isAdmin ? '⭐' : '🍿');
     final liveRoomsCount = rooms.where((r) => r.status != 'finished').length;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -344,7 +343,7 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
               const SizedBox(width: 8),
               _buildNavLink(
                 icon: Icons.tv_rounded,
-                label: 'Комнаты 🍿',
+                label: 'Комнаты',
                 badgeCount: liveRoomsCount > 0 ? liveRoomsCount : null,
                 isSelected: currentRoute.startsWith('/rooms'),
                 onTap: () {
@@ -435,9 +434,9 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
 
         Widget buildRandomBtn() {
           return Tooltip(
-            message: 'Случайный фильм 🎲',
+            message: 'Случайный фильм',
             child: IconButton(
-              icon: const Text('🎲', style: TextStyle(fontSize: 18)),
+              icon: const Icon(Icons.casino_rounded, size: 20),
               onPressed: _openRandomMovie,
             ),
           );
@@ -500,7 +499,15 @@ class _AppHeaderState extends ConsumerState<AppHeader> {
                   ),
                   if (isAdmin || userProf?.isModerator == true) ...[
                     const SizedBox(width: 4),
-                    Text(roleIcon, style: const TextStyle(fontSize: 12)),
+                    Icon(
+                      isAdmin
+                          ? Icons.shield_rounded
+                          : Icons.verified_user_rounded,
+                      size: 14,
+                      color: isAdmin
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF3B82F6),
+                    ),
                   ],
                   const SizedBox(width: 4),
                 ],

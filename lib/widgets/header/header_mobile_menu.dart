@@ -216,13 +216,20 @@ class HeaderMobileMenu extends StatelessWidget {
                           color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(
-                          '★ ${movie.rating.toStringAsFixed(1)}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFFF59E0B),
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
+                            const SizedBox(width: 2),
+                            Text(
+                              movie.rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFF59E0B),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       onTap: () {
@@ -290,7 +297,7 @@ class HeaderMobileMenu extends StatelessWidget {
                 },
               ),
               _buildMobileNavCard(
-                label: 'Комнаты 🍿',
+                label: 'Комнаты',
                 icon: Icons.live_tv_rounded,
                 badgeCount: liveRoomsCount > 0 ? liveRoomsCount : null,
                 isSelected: currentRoute.startsWith('/rooms'),
@@ -330,7 +337,7 @@ class HeaderMobileMenu extends StatelessWidget {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('🎲', style: TextStyle(fontSize: 16)),
+                  Icon(Icons.casino_rounded, size: 16, color: Color(0xFFC084FC)),
                   SizedBox(width: 8),
                   Text(
                     'Случайный фильм',

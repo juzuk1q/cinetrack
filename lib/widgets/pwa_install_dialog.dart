@@ -131,7 +131,7 @@ class _PwaInstallDialogState extends State<PwaInstallDialog> {
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            '🍏 iPhone / Safari',
+                            'iPhone / Safari',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -156,7 +156,7 @@ class _PwaInstallDialogState extends State<PwaInstallDialog> {
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            '🤖 Android / Chrome',
+                            'Android / Chrome',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,

@@ -64,8 +64,8 @@ class AdminRoomCard extends ConsumerWidget {
                         ),
                         child: Text(
                           (room.password != null && room.password!.isNotEmpty)
-                              ? 'С паролем 🔒'
-                              : 'Открытая 🌐',
+                              ? 'С паролем'
+                              : 'Открытая',
                           style: TextStyle(
                             color: (room.password != null && room.password!.isNotEmpty)
                                 ? Colors.orangeAccent

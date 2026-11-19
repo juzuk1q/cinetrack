@@ -64,7 +64,7 @@ class AdminUserDialogs {
                     controller: titleCtrl,
                     style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     decoration: InputDecoration(
-                      hintText: 'Введите любой титул (например: Кинокритик 👑, VIP 💎)...',
+                      hintText: 'Введите любой титул (например: Кинокритик, VIP)...',
                       filled: true,
                       fillColor: isDark ? const Color(0xFF141424) : const Color(0xFFF1F5F9),
                       border: OutlineInputBorder(
@@ -102,7 +102,7 @@ class AdminUserDialogs {
                     children: UserAchievementsCatalog.list.map((ach) {
                       final isSelected = titleCtrl.text.trim() == ach.title;
                       return ActionChip(
-                        avatar: Text(ach.icon, style: const TextStyle(fontSize: 14)),
+                        avatar: Icon(ach.icon, size: 14, color: isSelected ? Colors.white : const Color(0xFF9F67FF)),
                         label: Text(
                           ach.title,
                           style: TextStyle(
@@ -156,7 +156,7 @@ class AdminUserDialogs {
                           activeColor: const Color(0xFF7C3AED),
                           title: Row(
                             children: [
-                              Text(ach.icon, style: const TextStyle(fontSize: 18)),
+                              Icon(ach.icon, size: 18, color: const Color(0xFF9F67FF)),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -216,7 +216,7 @@ class AdminUserDialogs {
                 if (!context.mounted) return;
                 TopNotification.showSuccess(
                   context,
-                  'Титул «${newTitle.isNotEmpty ? newTitle : "Сброшен"}» успешно сохранен для ${targetUser.displayName} ✨',
+                  'Титул «${newTitle.isNotEmpty ? newTitle : "Сброшен"}» успешно сохранен для ${targetUser.displayName}',
                   title: 'Титул обновлен',
                 );
               },
@@ -299,7 +299,7 @@ class AdminUserDialogs {
                           children: [
                             Icon(Icons.ac_unit_rounded, size: 16),
                             SizedBox(width: 6),
-                            Text('Заморозка ❄️'),
+                            Text('Заморозка'),
                           ],
                         ),
                         selected: isFreeze,
@@ -317,7 +317,7 @@ class AdminUserDialogs {
                           children: [
                             Icon(Icons.block_rounded, size: 16),
                             SizedBox(width: 6),
-                            Text('Блокировка 🚫'),
+                            Text('Блокировка'),
                           ],
                         ),
                         selected: !isFreeze,
@@ -427,7 +427,7 @@ class AdminUserDialogs {
                   isFreeze
                       ? 'Аккаунт «${targetUser.displayName}» заморожен'
                       : 'Аккаунт «${targetUser.displayName}» заблокирован',
-                  title: isFreeze ? 'Заморозка аккаунта ❄️' : 'Блокировка аккаунта 🚫',
+                  title: isFreeze ? 'Заморозка аккаунта' : 'Блокировка аккаунта',
                 );
               },
               child: Text(isFreeze ? 'Заморозить' : 'Заблокировать'),
@@ -568,7 +568,7 @@ class AdminUserDialogs {
                     TopNotification.showSuccess(
                       context,
                       'Юзернейм для ${targetUser.displayName} изменен на @$clean! Теперь заявки в друзья отправляются по этому нику.',
-                      title: 'Юзернейм обновлен ✨',
+                      title: 'Юзернейм обновлен',
                     );
                   }
                 } catch (e) {

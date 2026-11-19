@@ -149,7 +149,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final ownerId = user.id;
 
     final room = await ref.read(roomsProvider.notifier).createRoom(
-          title: 'Совместный просмотр: ${item.title} 🍿',
+          title: 'Совместный просмотр: ${item.title}',
           movieTitle: item.title,
           movieType: item.type,
           moviePoster: item.posterUrl,
@@ -166,7 +166,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     TopNotification.showSuccess(
       context,
       'Комната «${item.title}» создана! Подключаем к показу...',
-      title: 'Комната совместного просмотра 🍿',
+      title: 'Комната совместного просмотра',
     );
 
     context.go('/rooms/${room.id}');
@@ -201,7 +201,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         if (!mounted) return;
         TopNotification.showSuccess(
           context,
-          '«${catalogItem.title}» удалён из вашей коллекции 🗑️',
+          '«${catalogItem.title}» удалён из вашей коллекции',
           title: 'Коллекция',
         );
       } catch (e) {
@@ -451,7 +451,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             _buildCategoryBtn('movie', 'ФИЛЬМЫ'),
                             _buildCategoryBtn('series', 'СЕРИАЛЫ'),
                             _buildCategoryBtn('cartoon', 'МУЛЬТФИЛЬМЫ'),
-                            _buildCategoryBtn('anime', 'АНИМЕ 🌸'),
+                            _buildCategoryBtn('anime', 'АНИМЕ'),
                           ],
                         ),
 
@@ -487,11 +487,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   ],
                                 ),
                               ),
-                              _buildAnimeSubFilterChip('all', '🍿 Все аниме'),
+                              _buildAnimeSubFilterChip('all', 'Все аниме'),
                               _buildAnimeSubFilterChip(
-                                  'series', '📺 Аниме-сериалы (по сериям)'),
+                                  'series', 'Аниме-сериалы (по сериям)'),
                               _buildAnimeSubFilterChip(
-                                  'movies', '🎬 Полнометражные фильмы'),
+                                  'movies', 'Полнометражные фильмы'),
                             ],
                           ),
                         ],
