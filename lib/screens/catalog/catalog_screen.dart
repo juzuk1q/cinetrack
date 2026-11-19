@@ -367,6 +367,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final filtered = _getFilteredItems();
     final displayedItems = filtered.take(_displayLimit).toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Exactly matches the centered constrained layout (maxWidth: 1200) of Profile and Library
+    final horizontalMargin = screenWidth > 1264
+        ? (screenWidth - 1200) / 2
+        : (screenWidth < 600 ? 16.0 : 28.0);
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF8FAFC),
@@ -377,12 +382,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             child: CustomScrollView(
               controller: _scrollCtrl,
               slivers: [
-                // Top banner & filters (Clean background, search & full-width stretched genre tabs)
+                // Top banner & filters (Clean background, search & Zeta tabs with profile-like side margins)
                 SliverToBoxAdapter(
                   child: Container(
                     width: double.infinity,
                     color: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF8FAFC),
-                    padding: const EdgeInsets.fromLTRB(32, 28, 32, 20),
+                    padding: EdgeInsets.fromLTRB(horizontalMargin, 28, horizontalMargin, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -458,7 +463,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        // Tabs: Все | Фильмы | Сериалы | Мультфильмы | Аниме (Zeta style, stretched across full width)
+                        // Tabs: Все | Фильмы | Сериалы | Мультфильмы | Аниме (Zeta style, spaced across 1200px column)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: LayoutBuilder(
@@ -502,7 +507,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 // Grid of items
                 SliverPadding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+                      EdgeInsets.symmetric(horizontal: horizontalMargin, vertical: 8),
                   sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -530,7 +535,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 if (_displayLimit < filtered.length || _isLoadingCategoryRemote)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      padding: EdgeInsets.symmetric(vertical: 24, horizontal: horizontalMargin),
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -557,7 +562,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 else
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                      padding: EdgeInsets.symmetric(vertical: 36, horizontal: horizontalMargin),
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -636,18 +641,18 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () => _onTabChanged(type),
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 30 : 16,
-          vertical: 8,
+          horizontal: isSelected ? 42 : 18,
+          vertical: 9,
         ),
         decoration: BoxDecoration(
           color: isSelected
               ? (isDark ? const Color(0xFF040406) : const Color(0xFFE2E8F0))
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(24),
           border: isSelected
               ? Border.all(
                   color: isDark
