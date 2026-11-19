@@ -526,7 +526,7 @@ CREATE TABLE IF NOT EXISTS public.reviews (
     movie_title   TEXT NOT NULL,
     user_id       UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     author_name   TEXT NOT NULL,
-    author_title  TEXT DEFAULT 'Зритель CineTrack 🍿',
+    author_title  TEXT DEFAULT 'Зритель CineTrack',
     rating        DOUBLE PRECISION NOT NULL DEFAULT 8.0,
     type          TEXT NOT NULL DEFAULT 'positive' CHECK (type IN ('positive', 'neutral', 'negative')),
     title         TEXT NOT NULL,

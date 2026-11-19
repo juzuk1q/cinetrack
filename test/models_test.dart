@@ -14,7 +14,7 @@ void main() {
         'email': 'alex@example.com',
         'display_name': 'Alex',
         'username': 'alex_cool',
-        'custom_title': 'Cinema Critic 🎬',
+        'custom_title': 'Cinema Critic',
         'role': 'moderator',
         'is_blocked': false,
         'is_frozen': false,
@@ -29,7 +29,7 @@ void main() {
       expect(profile.email, 'alex@example.com');
       expect(profile.displayName, 'Alex');
       expect(profile.username, 'alex_cool');
-      expect(profile.customTitle, 'Cinema Critic 🎬');
+      expect(profile.customTitle, 'Cinema Critic');
       expect(profile.role, 'moderator');
       expect(profile.isBlocked, false);
       expect(profile.isFrozen, false);
@@ -41,7 +41,7 @@ void main() {
       expect(serialized['id'], 'user-123');
       expect(serialized['email'], 'alex@example.com');
       expect(serialized['role'], 'moderator');
-      expect(serialized['custom_title'], 'Cinema Critic 🎬');
+      expect(serialized['custom_title'], 'Cinema Critic');
     });
 
     test('Hierarchy and permissions: canManage', () {
