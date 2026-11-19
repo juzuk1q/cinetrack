@@ -281,32 +281,21 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             child: CustomScrollView(
               controller: _scrollCtrl,
               slivers: [
-                // Top banner & filters (Zeta style: dark red gradient, pill search & clean tabs)
+                // Top banner & filters (Clean background, search & full-width stretched genre tabs)
                 SliverToBoxAdapter(
                   child: Container(
                     width: double.infinity,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFF380808), // Rich dark wine / burgundy
-                          Color(0xFF220505),
-                          Color(0xFF0C0C16), // Dark background
-                        ],
-                        stops: [0.0, 0.45, 1.0],
-                      ),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(32, 28, 32, 24),
+                    color: isDark ? const Color(0xFF0C0C16) : const Color(0xFFF8FAFC),
+                    padding: const EdgeInsets.fromLTRB(32, 28, 32, 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Каталог',
                           style: TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -315,18 +304,32 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         Container(
                           height: 48,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF040406),
+                            color: isDark ? const Color(0xFF16162A) : Colors.white,
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.12)
+                                  : const Color(0xFFE2E8F0),
+                            ),
                           ),
                           child: TextField(
                             controller: _searchCtrl,
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              fontSize: 14,
+                            ),
                             decoration: InputDecoration(
                               isDense: true,
                               hintText: 'Название фильма или сериала',
-                              hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                              prefixIcon: const Icon(Icons.search_rounded, color: Colors.white54, size: 20),
+                              hintStyle: TextStyle(
+                                color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                fontSize: 14,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.search_rounded,
+                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                size: 20,
+                              ),
                               suffixIcon: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -336,14 +339,18 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                                       height: 14,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Color(0xFFE50914),
+                                        color: Color(0xFF7C3AED),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                   ],
                                   if (_searchQuery.isNotEmpty)
                                     IconButton(
-                                      icon: const Icon(Icons.clear_rounded, color: Colors.white54, size: 18),
+                                      icon: Icon(
+                                        Icons.clear_rounded,
+                                        color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                                        size: 18,
+                                      ),
                                       onPressed: () => _searchCtrl.clear(),
                                     ),
                                 ],
@@ -355,21 +362,83 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        // Tabs: Все | Фильмы | Сериалы | Мультфильмы | Аниме (Zeta style)
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildZetaTab('all', 'Все'),
-                              const SizedBox(width: 24),
-                              _buildZetaTab('movie', 'Фильмы'),
-                              const SizedBox(width: 24),
-                              _buildZetaTab('series', 'Сериалы'),
-                              const SizedBox(width: 24),
-                              _buildZetaTab('cartoon', 'Мультфильмы'),
-                              const SizedBox(width: 24),
-                              _buildZetaTab('anime', 'Аниме'),
-                            ],
+                        // Tabs: Все | Фильмы | Сериалы | Мультфильмы | Аниме (Растянуты на всю ширину)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF16162A) : const Color(0xFFEDF2F7),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isMobile = constraints.maxWidth < 540;
+                              final tabs = [
+                                ('all', 'Все'),
+                                ('movie', 'Фильмы'),
+                                ('series', 'Сериалы'),
+                                ('cartoon', 'Мультфильмы'),
+                                ('anime', 'Аниме'),
+                              ];
+
+                              return Row(
+                                children: tabs.map((tab) {
+                                  final isSelected = _selectedType == tab.$1;
+                                  return Expanded(
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedType = tab.$1;
+                                          _displayLimit = 16;
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: isMobile ? 9 : 11,
+                                          horizontal: 4,
+                                        ),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? const Color(0xFF7C3AED)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: isSelected
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ]
+                                              : null,
+                                        ),
+                                        child: Text(
+                                          tab.$2,
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: isSelected
+                                                ? Colors.white
+                                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                            fontSize: isMobile ? 12 : 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -457,40 +526,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
 
 
-  Widget _buildZetaTab(String type, String label) {
-    final isSelected = _selectedType == type;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedType = type;
-          _displayLimit = 16;
-        });
-      },
-      borderRadius: BorderRadius.circular(22),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 36 : 12,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF040406) : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-          border: isSelected
-              ? Border.all(color: Colors.white.withValues(alpha: 0.15))
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
+
   Widget _buildCatalogCard(CatalogItem item, MediaItem? existing) {
     final alreadyInCollection = existing != null;
     final poster =
