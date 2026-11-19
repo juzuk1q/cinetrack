@@ -722,6 +722,38 @@ EXCEPTION
         NULL;
 END $$;
 
+-- ============================================================================
+-- 15. ACCOUNT RESTRICTION PROTECTION (BANS / FREEZES RLS)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.is_user_active(user_uid TEXT) 
+RETURNS BOOLEAN AS $$
+  SELECT NOT EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id::text = user_uid::text 
+      AND (
+        is_blocked = true 
+        OR (is_frozen = true AND (block_until IS NULL OR block_until > now()))
+      )
+  );
+$$ LANGUAGE sql SECURITY DEFINER;
+
+DROP POLICY IF EXISTS "Active users can manage media" ON public.media;
+CREATE POLICY "Active users can manage media"
+ON public.media FOR ALL
+USING (auth.uid()::text = user_id::text AND public.is_user_active(auth.uid()::text))
+WITH CHECK (auth.uid()::text = user_id::text AND public.is_user_active(auth.uid()::text));
+
+DROP POLICY IF EXISTS "Active users can send room messages" ON public.room_messages;
+CREATE POLICY "Active users can send room messages"
+ON public.room_messages FOR INSERT
+WITH CHECK (auth.uid()::text = user_id::text AND public.is_user_active(auth.uid()::text));
+
+DROP POLICY IF EXISTS "Active users can write reviews" ON public.reviews;
+CREATE POLICY "Active users can write reviews"
+ON public.reviews FOR INSERT
+WITH CHECK (auth.uid()::text = user_id::text AND public.is_user_active(auth.uid()::text));
+
+
 
 -- 10. ТРИГГЕРЫ ОБНОВЛЕНИЯ updated_at
 CREATE OR REPLACE FUNCTION public.set_updated_at()
