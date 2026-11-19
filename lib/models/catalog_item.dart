@@ -83,6 +83,7 @@ class CatalogItem {
     841681: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1900788/e5d98938-605a-4c8a-b0d6-5f93d926aa0c/x1000',
     1015471: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1600647/84478174-8b68-450f-bc4d-5c683ee30248/x1000',
     1047883: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/70580cf5-3287-42d6-8a76-2c715e2f6172/x1000',
+    1227803: 'https://kinopoiskapiunofficial.tech/images/posters/kp/1227803.jpg',
     775276: 'https://avatars.mds.yandex.net/get-kinopoisk-image/4716873/893bba73-3105-4944-8d18-a38f929f2759/x1000',
     915196: 'https://avatars.mds.yandex.net/get-kinopoisk-image/10703859/1e653cad-c84f-4617-b61e-949b3228ef36/x1000',
     502838: 'https://avatars.mds.yandex.net/get-kinopoisk-image/1629390/f28c1ea2-47b0-49d5-b11c-9608744f0233/x1000',

@@ -366,12 +366,132 @@ class CuratedCatalog {
       description:
           'Хроника катастрофы на Чернобыльской АЭС в апреле 1986 года, беспримерное мужество ликвидаторов и страшная цена замалчивания правды.',
       posterUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/a7dfa600-9426-4074-b861-125055b08e2f/x1000',
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1227803.jpg',
       coverUrl:
-          'https://avatars.mds.yandex.net/get-kinopoisk-image/1599028/a7dfa600-9426-4074-b861-125055b08e2f/x1000',
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1227803.jpg',
       rating: 8.8,
       ratingImdb: 9.4,
       filmLength: 60,
+    ),
+    CatalogItem(
+      kinopoiskId: 1047098,
+      title: 'Пацаны',
+      nameOriginal: 'The Boys',
+      type: 'series',
+      typeLabel: 'Сериал',
+      genres: ['Фантастика', 'Боевик', 'Комедия', 'Криминал'],
+      year: 2019,
+      director: 'Филип Сгриккиа',
+      actors: 'Карл Урбан, Джек Куэйд, Энтони Старр, Эрин Мориарти',
+      description:
+          'Действие разворачивается в мире, где существуют супергерои. Они знамениты и популярны, но за идеальным фасадом скрываются злодеи и коррупционеры.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1047098.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1047098.jpg',
+      rating: 8.2,
+      ratingImdb: 8.7,
+      filmLength: 60,
+    ),
+    CatalogItem(
+      kinopoiskId: 502838,
+      title: 'Шерлок',
+      nameOriginal: 'Sherlock',
+      type: 'series',
+      typeLabel: 'Сериал',
+      genres: ['Детектив', 'Триллер', 'Драма', 'Криминал'],
+      year: 2010,
+      director: 'Пол Макгиган',
+      actors: 'Бенедикт Камбербэтч, Мартин Фриман, Уна Стаббс, Руперт Грейвз',
+      description:
+          'События разворачиваются в наши дни. Ветеран войны в Афганистане знакомится с загадочным гением Шерлоком Холмсом, который распутывает неразрешимые дела.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/502838.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/502838.jpg',
+      rating: 8.9,
+      ratingImdb: 9.1,
+      filmLength: 90,
+    ),
+    CatalogItem(
+      kinopoiskId: 178710,
+      title: 'Доктор Хаус',
+      nameOriginal: 'House, M.D.',
+      type: 'series',
+      typeLabel: 'Сериал',
+      genres: ['Драма', 'Детектив'],
+      year: 2004,
+      director: 'Деран Сарафян, Грег Яйтанс',
+      actors: 'Хью Лори, Роберт Шон Леонард, Лиза Эдельштейн, Омар Эппс',
+      description:
+          'Гениальный диагност доктор Грегори Хаус и его команда спасают жизни пациентов в самых безнадежных и запутанных медицинских случаях.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/178710.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/178710.jpg',
+      rating: 8.8,
+      ratingImdb: 8.7,
+      filmLength: 43,
+    ),
+    CatalogItem(
+      kinopoiskId: 681831,
+      title: 'Настоящий детектив',
+      nameOriginal: 'True Detective',
+      type: 'series',
+      typeLabel: 'Сериал',
+      genres: ['Детектив', 'Криминал', 'Триллер', 'Драма'],
+      year: 2014,
+      director: 'Кэри Дзёдзи Фукунага',
+      actors: 'Мэттью Макконахи, Вуди Харрельсон, Мишель Монахэн',
+      description:
+          'В Луизиане в 1995 году происходит загадочное ритуальное убийство девушки. В 2012 году дело повторно открывают, когда происходит похожее преступление.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/681831.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/681831.jpg',
+      rating: 8.7,
+      ratingImdb: 8.9,
+      filmLength: 55,
+    ),
+    CatalogItem(
+      kinopoiskId: 762838,
+      title: 'Острые козырьки',
+      nameOriginal: 'Peaky Blinders',
+      type: 'series',
+      typeLabel: 'Сериал',
+      genres: ['Драма', 'Криминал'],
+      year: 2013,
+      director: 'Энтони Бирн, Колм Маккарти',
+      actors: 'Киллиан Мёрфи, Пол Андерсон, Софи Рандл, Хелен Маккрори',
+      description:
+          'Британская криминальная династия Шелби в Бирмингеме 1920-х годов строит свою империю под предводительством расчетливого Томаса Шелби.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/762838.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/762838.jpg',
+      rating: 8.4,
+      ratingImdb: 8.8,
+      filmLength: 60,
+    ),
+    CatalogItem(
+      kinopoiskId: 77044,
+      title: 'Клан Сопрано',
+      nameOriginal: 'The Sopranos',
+      type: 'series',
+      typeLabel: 'Сериал',
+      genres: ['Драма', 'Криминал'],
+      year: 1999,
+      director: 'Тимоти Ван Паттен',
+      actors: 'Джеймс Гандольфини, Лоррейн Бракко, Эди Фалко, Майкл Империоли',
+      description:
+          'Босс мафии Нью-Джерси Тони Сопрано пытается совмещать руководство криминальной семьей с решением бесконечных проблем в собственной семье.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/77044.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/77044.jpg',
+      rating: 8.8,
+      ratingImdb: 9.2,
+      filmLength: 55,
     ),
 
     // АНИМЕ

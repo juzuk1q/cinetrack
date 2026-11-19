@@ -33,6 +33,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   bool _isSearchingRemote = false;
   Timer? _searchDebounce;
 
+  // Dynamic remote catalog loading per category
+  final Map<String, List<CatalogItem>> _categoryRemoteItems = {};
+  final Map<String, int> _categoryPages = {};
+  final Map<String, bool> _categoryHasMore = {};
+  bool _isLoadingCategoryRemote = false;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +49,59 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         _onSearchChanged(val);
       }
     });
+    // Immediately prefetch the initial category from Kinopoisk database
+    _loadCategoryRemote(_selectedType);
+  }
+
+  Future<void> _loadCategoryRemote(String type, {bool next = false}) async {
+    if (_isLoadingCategoryRemote) return;
+    final currentPage = _categoryPages[type] ?? 1;
+    final pageToLoad = next ? currentPage + 1 : currentPage;
+    if (next && (_categoryHasMore[type] == false)) return;
+
+    _isLoadingCategoryRemote = true;
+    try {
+      final results = await KinopoiskService().getByCategory(
+        category: type,
+        page: pageToLoad,
+      );
+      if (mounted) {
+        final safe = ContentSafetyFilter.filterSafe(results);
+        setState(() {
+          _categoryPages[type] = pageToLoad;
+          if (safe.isEmpty) {
+            _categoryHasMore[type] = false;
+          } else {
+            final current = _categoryRemoteItems[type] ?? [];
+            final existingIds = current.map((e) => e.kinopoiskId).whereType<int>().toSet();
+            final existingTitles = current.map((e) => e.title.toLowerCase().trim()).toSet();
+            final unique = safe.where((it) {
+              if (it.kinopoiskId != null && existingIds.contains(it.kinopoiskId)) return false;
+              if (existingTitles.contains(it.title.toLowerCase().trim())) return false;
+              return true;
+            }).toList();
+
+            _categoryRemoteItems[type] = [...current, ...unique];
+          }
+          _isLoadingCategoryRemote = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCategoryRemote = false);
+      }
+    }
+  }
+
+  void _onTabChanged(String type) {
+    if (_selectedType == type) return;
+    setState(() {
+      _selectedType = type;
+      _displayLimit = 16;
+    });
+    if ((_categoryRemoteItems[type] ?? []).isEmpty) {
+      _loadCategoryRemote(type);
+    }
   }
 
   @override
@@ -89,13 +148,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
   void _onScroll() {
     if (_scrollCtrl.position.pixels >=
-        _scrollCtrl.position.maxScrollExtent - 350) {
+        _scrollCtrl.position.maxScrollExtent - 400) {
       final total = _getFilteredItems().length;
       if (_displayLimit < total && !_isLoadingMore) {
         setState(() {
           _isLoadingMore = true;
         });
-        Future.delayed(const Duration(milliseconds: 250), () {
+        Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted) {
             setState(() {
               _displayLimit = (_displayLimit + 12).clamp(0, total);
@@ -103,6 +162,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             });
           }
         });
+      } else if (_searchQuery.isEmpty &&
+          !_isLoadingCategoryRemote &&
+          (_categoryHasMore[_selectedType] ?? true)) {
+        // Fetch next page of items from Kinopoisk!
+        _loadCategoryRemote(_selectedType, next: true);
       }
     }
   }
@@ -110,8 +174,40 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   List<CatalogItem> _getFilteredItems() {
     List<CatalogItem> pool;
     if (_searchQuery.isEmpty) {
-      // Main catalog: show hand-picked masterpieces of cinema
-      pool = CuratedCatalog.items;
+      // Main catalog: show hand-picked masterpieces of cinema + dynamically loaded items
+      pool = List<CatalogItem>.from(CuratedCatalog.items);
+
+      if (_selectedType != 'all') {
+        pool = pool.where((item) {
+          if (_selectedType == 'movie') {
+            return item.type == 'movie' &&
+                !item.genres.any((g) => g.toLowerCase().contains('аниме') || g.toLowerCase().contains('мульт'));
+          }
+          if (_selectedType == 'series') {
+            return item.type == 'series' || item.genres.any((g) => g.toLowerCase().contains('сериал'));
+          }
+          if (_selectedType == 'cartoon') {
+            return item.type == 'cartoon' || item.genres.any((g) => g.toLowerCase().contains('мульт'));
+          }
+          if (_selectedType == 'anime') {
+            return item.type == 'anime' || item.genres.any((g) => g.toLowerCase().contains('аниме'));
+          }
+          return true;
+        }).toList();
+      }
+
+      final remoteCategory = _categoryRemoteItems[_selectedType] ?? [];
+      if (remoteCategory.isNotEmpty) {
+        final seenIds = pool.map((e) => e.kinopoiskId).whereType<int>().toSet();
+        final seenTitles = pool.map((e) => e.title.toLowerCase().trim()).toSet();
+        for (final item in remoteCategory) {
+          if (item.kinopoiskId != null && seenIds.contains(item.kinopoiskId)) continue;
+          if (seenTitles.contains(item.title.toLowerCase().trim())) continue;
+          if (item.kinopoiskId != null) seenIds.add(item.kinopoiskId!);
+          seenTitles.add(item.title.toLowerCase().trim());
+          pool.add(item);
+        }
+      }
     } else {
       // Live search: merge matching curated items with live Kinopoisk database
       final q = _searchQuery.toLowerCase();
@@ -142,29 +238,29 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       }
 
       pool = combined;
+
+      if (_selectedType != 'all') {
+        pool = pool.where((item) {
+          if (_selectedType == 'movie') {
+            return item.type == 'movie' &&
+                !item.genres.any((g) => g.toLowerCase().contains('аниме') || g.toLowerCase().contains('мульт'));
+          }
+          if (_selectedType == 'series') {
+            return item.type == 'series' || item.genres.any((g) => g.toLowerCase().contains('сериал'));
+          }
+          if (_selectedType == 'cartoon') {
+            return item.type == 'cartoon' || item.genres.any((g) => g.toLowerCase().contains('мульт'));
+          }
+          if (_selectedType == 'anime') {
+            return item.type == 'anime' || item.genres.any((g) => g.toLowerCase().contains('аниме'));
+          }
+          return true;
+        }).toList();
+      }
     }
 
     // Strict SafeSearch filter: eliminate adult, erotica, pornography, hentai
     pool = ContentSafetyFilter.filterSafe(pool);
-
-    if (_selectedType != 'all') {
-      pool = pool.where((item) {
-        if (_selectedType == 'movie') {
-          return item.type == 'movie' &&
-              !item.genres.any((g) => g.toLowerCase().contains('аниме') || g.toLowerCase().contains('мульт'));
-        }
-        if (_selectedType == 'series') {
-          return item.type == 'series' || item.genres.any((g) => g.toLowerCase().contains('сериал'));
-        }
-        if (_selectedType == 'cartoon') {
-          return item.type == 'cartoon' || item.genres.any((g) => g.toLowerCase().contains('мульт'));
-        }
-        if (_selectedType == 'anime') {
-          return item.type == 'anime' || item.genres.any((g) => g.toLowerCase().contains('аниме'));
-        }
-        return true;
-      }).toList();
-    }
 
     return pool;
   }
@@ -362,82 +458,40 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        // Tabs: Все | Фильмы | Сериалы | Мультфильмы | Аниме (Растянуты на всю ширину)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF16162A) : const Color(0xFFEDF2F7),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                          ),
+                        // Tabs: Все | Фильмы | Сериалы | Мультфильмы | Аниме (Zeta style, stretched across full width)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: LayoutBuilder(
                             builder: (context, constraints) {
-                              final isMobile = constraints.maxWidth < 540;
-                              final tabs = [
-                                ('all', 'Все'),
-                                ('movie', 'Фильмы'),
-                                ('series', 'Сериалы'),
-                                ('cartoon', 'Мультфильмы'),
-                                ('anime', 'Аниме'),
-                              ];
-
-                              return Row(
-                                children: tabs.map((tab) {
-                                  final isSelected = _selectedType == tab.$1;
-                                  return Expanded(
-                                    child: InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          _selectedType = tab.$1;
-                                          _displayLimit = 16;
-                                        });
-                                      },
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 180),
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: isMobile ? 9 : 11,
-                                          horizontal: 4,
-                                        ),
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? const Color(0xFF7C3AED)
-                                              : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: isSelected
-                                              ? [
-                                                  BoxShadow(
-                                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
-                                                    blurRadius: 8,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ]
-                                              : null,
-                                        ),
-                                        child: Text(
-                                          tab.$2,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                            fontSize: isMobile ? 12 : 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              );
+                              if (constraints.maxWidth > 580) {
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _buildZetaTab('all', 'Все'),
+                                    _buildZetaTab('movie', 'Фильмы'),
+                                    _buildZetaTab('series', 'Сериалы'),
+                                    _buildZetaTab('cartoon', 'Мультфильмы'),
+                                    _buildZetaTab('anime', 'Аниме'),
+                                  ],
+                                );
+                              } else {
+                                return SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      _buildZetaTab('all', 'Все'),
+                                      const SizedBox(width: 12),
+                                      _buildZetaTab('movie', 'Фильмы'),
+                                      const SizedBox(width: 12),
+                                      _buildZetaTab('series', 'Сериалы'),
+                                      const SizedBox(width: 12),
+                                      _buildZetaTab('cartoon', 'Мультфильмы'),
+                                      const SizedBox(width: 12),
+                                      _buildZetaTab('anime', 'Аниме'),
+                                    ],
+                                  ),
+                                );
+                              }
                             },
                           ),
                         ),
@@ -473,7 +527,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 ),
 
                 // Infinite Scroll Load-More Indicator
-                if (_displayLimit < filtered.length)
+                if (_displayLimit < filtered.length || _isLoadingCategoryRemote)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -487,9 +541,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Показано ${displayedItems.length} из ${filtered.length} произведений. Листайте вниз для загрузки...',
-                              style: const TextStyle(
-                                color: Colors.white54,
+                              _isLoadingCategoryRemote
+                                  ? 'Загрузка подборки...'
+                                  : 'Показано ${displayedItems.length} из ${filtered.length} произведений. Листайте вниз для загрузки...',
+                              style: TextStyle(
+                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
                                 fontSize: 12,
                               ),
                             ),
@@ -574,6 +630,46 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
 
 
+
+  Widget _buildZetaTab(String type, String label) {
+    final isSelected = _selectedType == type;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: () => _onTabChanged(type),
+      borderRadius: BorderRadius.circular(22),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 30 : 16,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF040406) : const Color(0xFFE2E8F0))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          border: isSelected
+              ? Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : Colors.black12,
+                  width: 1,
+                )
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildCatalogCard(CatalogItem item, MediaItem? existing) {
     final alreadyInCollection = existing != null;
