@@ -385,54 +385,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // OAuth Buttons
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: const BorderSide(color: Colors.white24),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    backgroundColor: const Color(0xFF202038),
-                                  ),
-                                  onPressed: isLoading ? null : () => _signInWithOAuth(OAuthProvider.google),
-                                  icon: Image.network(
-                                    'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
-                                    width: 18,
-                                    height: 18,
-                                    errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata_rounded, color: Colors.white, size: 22),
-                                  ),
-                                  label: const Text(
-                                    'Google',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                                  ),
+                          // OAuth Button (Google)
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white24),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
+                                backgroundColor: const Color(0xFF202038),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: const BorderSide(color: Color(0xFF5865F2)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    backgroundColor: const Color(0xFF5865F2).withValues(alpha: 0.15),
-                                  ),
-                                  onPressed: isLoading ? null : () => _signInWithOAuth(OAuthProvider.discord),
-                                  icon: const Icon(Icons.sports_esports_rounded, color: Color(0xFF8EA1FF), size: 18),
-                                  label: const Text(
-                                    'Discord',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8EA1FF)),
-                                  ),
-                                ),
+                              onPressed: isLoading ? null : () => _signInWithOAuth(OAuthProvider.google),
+                              icon: Image.network(
+                                'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
+                                width: 18,
+                                height: 18,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata_rounded, color: Colors.white, size: 22),
                               ),
-                            ],
+                              label: const Text(
+                                'Продолжить с Google',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 16),
 
