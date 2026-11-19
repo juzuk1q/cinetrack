@@ -499,17 +499,65 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                     ),
                   )
                 else
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 28),
+                      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
                       child: Center(
-                        child: Text(
-                          'Вы просмотрели всю подборку шедевров!',
-                          style: TextStyle(
-                            color: Colors.white38,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.movie_filter_rounded,
+                              size: 26,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              _selectedType == 'anime'
+                                  ? 'Ищете другое аниме?'
+                                  : _selectedType == 'movie'
+                                      ? 'Ищете другой фильм?'
+                                      : _selectedType == 'series'
+                                          ? 'Ищете другой сериал?'
+                                          : _selectedType == 'cartoon'
+                                              ? 'Ищете другой мультфильм?'
+                                              : 'Не нашли нужное произведение?',
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'В базе CineTrack тысячи тайтлов — введите название в поиске выше',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isDark ? Colors.white38 : const Color(0xFF64748B),
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                _scrollCtrl.animateTo(
+                                  0,
+                                  duration: const Duration(milliseconds: 350),
+                                  curve: Curves.easeOutCubic,
+                                );
+                              },
+                              icon: const Icon(Icons.search_rounded, size: 16),
+                              label: const Text('Перейти к поиску'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF7C3AED),
+                                side: const BorderSide(color: Color(0xFF7C3AED), width: 1.2),
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

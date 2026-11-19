@@ -495,6 +495,166 @@ class CuratedCatalog {
       ratingImdb: 8.2,
       filmLength: 119,
     ),
+    CatalogItem(
+      kinopoiskId: 1391965,
+      title: 'Магическая битва',
+      nameOriginal: 'Jujutsu Kaisen',
+      type: 'anime',
+      typeLabel: 'Аниме-сериал',
+      genres: ['Аниме', 'Боевик', 'Фэнтези'],
+      year: 2020,
+      director: 'Сонху Пак',
+      actors: 'Дзюнъя Эноки, Юма Утида, Асами Сэто',
+      description:
+          'Юдзи Итадори проглатывает палец могущественного демона Сукуны и поступает в Токийский магический колледж, чтобы научиться изгонять проклятия.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1391965.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1391965.jpg',
+      rating: 8.2,
+      ratingImdb: 8.5,
+      filmLength: 24,
+    ),
+    CatalogItem(
+      kinopoiskId: 1438965,
+      title: 'Человек-бензопила',
+      nameOriginal: 'Chainsaw Man',
+      type: 'anime',
+      typeLabel: 'Аниме-сериал',
+      genres: ['Аниме', 'Боевик', 'Фэнтези', 'Ужасы'],
+      year: 2022,
+      director: 'Рю Накаяма',
+      actors: 'Кикуносукэ Тоя, Томори Кусуноки, Сёго Саката',
+      description:
+          'Дэндзи заключает договор с демоническим псом Почитой и получает способность превращать конечности в бензопилы для охоты на опаснейших чудовищ.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1438965.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1438965.jpg',
+      rating: 7.9,
+      ratingImdb: 8.4,
+      filmLength: 25,
+    ),
+    CatalogItem(
+      kinopoiskId: 958722,
+      title: 'Твоё имя',
+      nameOriginal: 'Kimi no na wa.',
+      type: 'anime',
+      typeLabel: 'Аниме',
+      genres: ['Аниме', 'Фэнтези', 'Драма', 'Мелодрама'],
+      year: 2016,
+      director: 'Макото Синкай',
+      actors: 'Рюносукэ Камики, Монэ Камисираиси, Рё Нарита',
+      description:
+          'Парень из Токио и девушка из провинции обнаруживают, что во сне они периодически меняются телами и оставляют друг другу подсказки.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/958722.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/958722.jpg',
+      rating: 8.3,
+      ratingImdb: 8.4,
+      filmLength: 106,
+    ),
+    CatalogItem(
+      kinopoiskId: 916104,
+      title: 'Форма голоса',
+      nameOriginal: 'Koe no katachi',
+      type: 'anime',
+      typeLabel: 'Аниме',
+      genres: ['Аниме', 'Драма', 'Мелодрама'],
+      year: 2016,
+      director: 'Наоко Ямада',
+      actors: 'Мию Ирино, Саори Хаями, Аой Юки',
+      description:
+          'Школьник Сёя, в детстве издевавшийся над глухой одноклассницей Сёко, взрослеет и решает искупить вину перед ней.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/916104.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/916104.jpg',
+      rating: 8.2,
+      ratingImdb: 8.1,
+      filmLength: 130,
+    ),
+    CatalogItem(
+      kinopoiskId: 462725,
+      title: 'Стальной алхимик: Братство',
+      nameOriginal: 'Fullmetal Alchemist: Brotherhood',
+      type: 'anime',
+      typeLabel: 'Аниме-сериал',
+      genres: ['Аниме', 'Фэнтези', 'Боевик', 'Приключения'],
+      year: 2009,
+      director: 'Ясухиро Ириэ',
+      actors: 'Роми Пак, Риэ Кугимия, Мэгуми Такаяма',
+      description:
+          'Братья Эдвард и Альфонс Элрики нарушают главный закон алхимии и отправляются в опасное путешествие за философским камнем, чтобы вернуть свои тела.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/462725.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/462725.jpg',
+      rating: 8.6,
+      ratingImdb: 9.1,
+      filmLength: 24,
+    ),
+    CatalogItem(
+      kinopoiskId: 649653,
+      title: 'Охотник х Охотник',
+      nameOriginal: 'Hunter x Hunter',
+      type: 'anime',
+      typeLabel: 'Аниме-сериал',
+      genres: ['Аниме', 'Боевик', 'Фэнтези', 'Приключения'],
+      year: 2011,
+      director: 'Хироси Кодзина',
+      actors: 'Мэгуми Хан, Мария Исэ, Миюки Савасиро',
+      description:
+          'Юный Гон Фрикс решает пройти смертельно опасный экзамен на Охотника, чтобы найти своего отца и открыть тайны неизведанного мира.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/649653.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/649653.jpg',
+      rating: 8.6,
+      ratingImdb: 9.0,
+      filmLength: 24,
+    ),
+    CatalogItem(
+      kinopoiskId: 1393661,
+      title: 'Киберпанк: Бегущие по краю',
+      nameOriginal: 'Cyberpunk: Edgerunners',
+      type: 'anime',
+      typeLabel: 'Аниме-сериал',
+      genres: ['Аниме', 'Фантастика', 'Боевик'],
+      year: 2022,
+      director: 'Хироюки Имаиси',
+      actors: 'КЭНН, Аой Юки, Хироки Тоти',
+      description:
+          'В охваченном преступностью Найт-Сити одарённый юноша Дэвид Мартинес после семейной трагедии становится наёмником-эджраннером.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1393661.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/1393661.jpg',
+      rating: 7.9,
+      ratingImdb: 8.3,
+      filmLength: 24,
+    ),
+    CatalogItem(
+      kinopoiskId: 4972161,
+      title: 'Поднятие уровня в одиночку',
+      nameOriginal: 'Solo Leveling',
+      type: 'anime',
+      typeLabel: 'Аниме-сериал',
+      genres: ['Аниме', 'Боевик', 'Фэнтези'],
+      year: 2024,
+      director: 'Сюнсукэ Накасигэ',
+      actors: 'Таито Бан, Гэнта Накамура, Рэйна Уэда',
+      description:
+          'Слабейший охотник Сон Джин-у чудом выживает в кошмарном двойном подземелье и получает уникальную способность непрерывно прокачивать свои характеристики.',
+      posterUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/4972161.jpg',
+      coverUrl:
+          'https://kinopoiskapiunofficial.tech/images/posters/kp/4972161.jpg',
+      rating: 8.3,
+      ratingImdb: 8.3,
+      filmLength: 24,
+    ),
 
     // МУЛЬТФИЛЬМЫ
     CatalogItem(
